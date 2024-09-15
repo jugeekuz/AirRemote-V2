@@ -90,32 +90,32 @@ export const TileGrid = (props) => {
 	)
 }
 
-export const Tile = (props) => {
-	const {
-		attributes,
-		listeners,
-		setNodeRef,
-		transform,
-		transition,
-		isDragging
-	} = useSortable({ id: props.id });
+// const Tile = (props) => {
+// 	const {
+// 		attributes,
+// 		listeners,
+// 		setNodeRef,
+// 		transform,
+// 		transition,
+// 		isDragging
+// 	} = useSortable({ id: props.id });
 
 	
-	const style = {
-		transform: CSS.Translate.toString(transform),
-		transition,
-		zIndex: isDragging ? "100": "auto",
-		opacity: isDragging ? 0.3 : 1
-	};
+// 	const style = {
+// 		transform: CSS.Translate.toString(transform),
+// 		transition,
+// 		zIndex: isDragging ? "100": "auto",
+// 		opacity: isDragging ? 0.3 : 1
+// 	};
 
-	return (
-		<div 
-			ref={setNodeRef} 
-			style={style} 
-			className="bg-gray-100 rounded-lg border border-gray-300 h-32 p-1" 
-			{...listeners} 
-			{...attributes} >
-				{props.children}
-		</div>
-	)
-}
+// 	return (
+// 		<div 
+// 			ref={setNodeRef} 
+// 			style={style} 
+// 			className="bg-gray-100 rounded-lg border border-gray-300 h-32 p-1" 
+// 			{...listeners} 
+// 			{...attributes} >
+// 				{props.children}
+// 		</div>
+// 	)
+// }
