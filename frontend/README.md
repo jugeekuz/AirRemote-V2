@@ -1,4 +1,5 @@
-![AirRemote Logo](src/assets/imgs/air-remote-logo.jpg)
+![AirRemote Logo](src/assets/imgs/logo-black.png#gh-light-mode-only)
+![AirRemote Logo](src/assets/imgs/logo-white.png#gh-dark-mode-only)
 
 ---
 
