@@ -11,6 +11,7 @@ import Remote from './assets/icons/remote-access.svg?react';
 import Automations from './pages/Automations';
 import Devices from './pages/Devices';
 import Remotes from './pages/Remotes';
+import Loading from './pages/Loading';
 import RemoteButtons from './pages/RemoteButtons';
 import Dashboard from './pages/Dashboard';
 import SignUp from './pages/SignUp';
@@ -28,7 +29,7 @@ function App() {
   useKeepAlive(`${baseUrl}/wss/keep-alive`, 1, 15000); // Keep alive websocket handler instance
   useKeepAlive(`${authUrl}/keep-alive`, 1, 10000); // Keep alive refresh token handler instance
 
-	const location = useLocation();
+  const location = useLocation();
   const navigate = useNavigate();
   return (
       <div className="flex flex-col sm:flex-row w-screen h-100dvh sm:px-0 bg-white">
@@ -95,7 +96,12 @@ const Navigation = ({children}) => (
 const PrivateRoute = () => {
   const { isAuthenticated, refreshLoading } = useAuth();
 
-  return isAuthenticated || refreshLoading  ? <Outlet/> : <Navigate to="/login" />;
+  return refreshLoading ?
+            <Loading text="Hang tight — we’re verifying your info..."/>
+        :
+            isAuthenticated ? 
+                <Outlet/> : <Navigate to="/login" />
+            
 };
 
 const PublicRoute = ({ children }) => {
