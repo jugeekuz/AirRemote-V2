@@ -33,16 +33,19 @@ pnpm dev                    # restarts on file changes
 
 ## Scripts (from the repository root)
 
-| Script             | What it does                                         |
-| ------------------ | ---------------------------------------------------- |
-| `pnpm dev`         | Runs the API from source with watch mode             |
-| `pnpm build`       | Builds the API and the migrate script to `dist/`     |
-| `pnpm typecheck`   | Type-checks every package                            |
-| `pnpm lint`        | Runs ESLint                                          |
-| `pnpm format`      | Formats code with Prettier                           |
-| `pnpm test`        | Runs every unit test (Vitest)                        |
-| `pnpm db:generate` | Generates a migration from the Drizzle schema        |
-| `pnpm db:migrate`  | Applies pending migrations to `DATABASE_URL`         |
+| Script                  | What it does                                                  |
+| ----------------------- | ------------------------------------------------------------- |
+| `pnpm dev`              | Runs the API from source with watch mode                      |
+| `pnpm build`            | Builds the API and the migrate script to `dist/`              |
+| `pnpm typecheck`        | Type-checks every package                                     |
+| `pnpm lint`             | Runs ESLint                                                   |
+| `pnpm format`           | Formats code with Prettier                                    |
+| `pnpm test`             | Runs every test: unit, integration and e2e                    |
+| `pnpm test:unit`        | Unit tests only (no Docker needed)                            |
+| `pnpm test:integration` | Repository and service tests against a real Postgres (Docker) |
+| `pnpm test:e2e`         | HTTP tests against the running app and Postgres (Docker)      |
+| `pnpm db:generate`      | Generates a migration from the Drizzle schema                 |
+| `pnpm db:migrate`       | Applies pending migrations to `DATABASE_URL`                  |
 
 ## Adding a table
 

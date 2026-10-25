@@ -59,7 +59,27 @@ Contracts and data:
   its `index.ts`. Generate migrations with `pnpm db:generate` and commit
   them; never hand-write them except for data changes.
 
-Tests: every folder that holds source files has a `__tests__/` folder with
-the unit tests for that folder (an empty `.gitkeep` until it has some). Test
-files are `*.test.ts`. The general testing approach is still to be defined
-by the owner.
+## Testing
+
+Vitest, with three projects in the root `vitest.config.ts`. `pnpm test` runs
+all of them; `pnpm test:unit`, `pnpm test:integration` and `pnpm test:e2e`
+run one. Integration and e2e tests need Docker.
+
+- **Unit — `*.test.ts`** in the `__tests__/` folder next to the code. Pure
+  functions and mocks only: no database, network or other external service.
+  Services are tested with fake repositories; routes with a fake service via
+  `buildTestApp()`.
+- **Integration — `*.itest.ts`** in the same `__tests__/` folders, for
+  `*.repository.ts` and `*.service.ts`. They run against a real Postgres
+  started by Testcontainers. Call `useTestDatabase()` from
+  `src/__tests__/test-db.ts` at the top of the file: it gives the file its own
+  migrated database and empties it before every test.
+- **E2E — `backend/e2e/*.e2e.ts`.** The real app (`buildApp()` on a random
+  port) against a real database, called over HTTP with `fetch`. Call
+  `useTestApp()` from `e2e/support/test-app.ts` for the base URL. Only
+  external services (none yet) may be mocked.
+
+Every folder that holds source files has a `__tests__/` folder (an empty
+`.gitkeep` until it has tests). One Postgres container is started per run
+and migrated once; each test file gets a clone of it, so files run in
+parallel without sharing data.

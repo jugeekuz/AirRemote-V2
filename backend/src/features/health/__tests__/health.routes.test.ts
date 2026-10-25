@@ -1,4 +1,3 @@
-import { createDb } from '@airremote/db';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../../../app';
@@ -28,17 +27,6 @@ describe('GET /health', () => {
         throw new Error('down');
       }),
     });
-    const res = await app.inject({ method: 'GET', url: '/health' });
-    expect(res.statusCode).toBe(503);
-    expect(res.json()).toEqual({ status: 'unavailable', database: 'down' });
-  });
-
-  it('starts and returns 503 when the database is unreachable', async () => {
-    app = await buildApp({
-      env: testEnv,
-      db: createDb('postgres://u:p@127.0.0.1:1/none'),
-    });
-    await app.ready();
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(503);
     expect(res.json()).toEqual({ status: 'unavailable', database: 'down' });
