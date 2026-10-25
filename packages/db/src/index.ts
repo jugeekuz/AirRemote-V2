@@ -6,3 +6,4 @@ export {
 } from './client';
 export { runMigrations } from './migrations';
 export * as schema from './schema';
+export * from './schema';
