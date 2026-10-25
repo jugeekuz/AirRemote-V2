@@ -1,0 +1,5 @@
+legacy/
+dist/
+pnpm-lock.yaml
+packages/db/migrations/
+*.md
