@@ -30,3 +30,25 @@ describe('users repository: create', () => {
     expect(rows).toEqual([first]);
   });
 });
+
+describe('users repository: lookups', () => {
+  it('finds a user by email', async () => {
+    const repository = createUsersRepository(testDb.db);
+    const created = await repository.create(newUser);
+    expect(await repository.findByEmail('nick@example.com')).toEqual(created);
+  });
+
+  it('finds a user by id', async () => {
+    const repository = createUsersRepository(testDb.db);
+    const created = await repository.create(newUser);
+    expect(await repository.findById(created!.id)).toEqual(created);
+  });
+
+  it('returns null when no user matches', async () => {
+    const repository = createUsersRepository(testDb.db);
+    expect(await repository.findByEmail('nobody@example.com')).toBeNull();
+    expect(
+      await repository.findById('00000000-0000-4000-8000-000000000000'),
+    ).toBeNull();
+  });
+});

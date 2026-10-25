@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { useTestDatabase } from '../../../__tests__/test-db';
 import { AppError } from '../../../shared/errors';
-import { hashPassword } from '../users.helpers';
+import { hashPassword } from '../../../shared/password';
 import { createUsersRepository } from '../users.repository';
 import { createUsersService } from '../users.service';
 

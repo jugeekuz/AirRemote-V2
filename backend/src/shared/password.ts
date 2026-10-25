@@ -1,4 +1,4 @@
-import { randomBytes, scrypt } from 'node:crypto';
+import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
 const scryptAsync = promisify(scrypt) as (
@@ -19,4 +19,15 @@ export async function hashPassword(
 ): Promise<PasswordHash> {
   const key = await scryptAsync(password, salt, KEY_LENGTH);
   return { hash: key.toString('hex'), salt };
+}
+
+/** Checks a password against a stored hash and salt in constant time. */
+export async function verifyPassword(
+  password: string,
+  hash: string,
+  salt: string,
+): Promise<boolean> {
+  const expected = Buffer.from(hash, 'hex');
+  const actual = Buffer.from((await hashPassword(password, salt)).hash, 'hex');
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
 }

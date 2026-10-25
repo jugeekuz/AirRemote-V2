@@ -1,6 +1,6 @@
 import type { RegisterUserRequest, UserResponse } from '@airremote/contracts';
 import { AppError } from '../../shared/errors';
-import { hashPassword } from './users.helpers';
+import { hashPassword } from '../../shared/password';
 import type { UsersRepository } from './users.repository';
 
 export type UsersService = {
