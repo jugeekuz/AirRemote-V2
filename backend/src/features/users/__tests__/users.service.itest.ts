@@ -43,7 +43,10 @@ describe('users service: register (with a real database)', () => {
       email: 'NICK@example.COM',
     });
     await expect(duplicate).rejects.toBeInstanceOf(AppError);
-    await expect(duplicate).rejects.toMatchObject({ statusCode: 409 });
+    await expect(duplicate).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'EMAIL_TAKEN',
+    });
   });
 
   it('creates exactly one user when the same email registers simultaneously', async () => {

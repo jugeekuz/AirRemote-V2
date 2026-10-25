@@ -81,7 +81,8 @@ describe('POST /users/register', () => {
       payload: { ...body, password: 'short' },
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json().details).toEqual(
+    expect(res.json().error.code).toBe('VALIDATION_FAILED');
+    expect(res.json().error.details).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ path: expect.stringContaining('password') }),
       ]),
@@ -91,7 +92,7 @@ describe('POST /users/register', () => {
 
   it('returns 409 when the email is already registered', async () => {
     await appWith(async () => {
-      throw new AppError(409, 'Email is already registered');
+      throw new AppError(409, 'EMAIL_TAKEN', 'Email is already registered');
     });
     const res = await app.inject({
       method: 'POST',
@@ -100,9 +101,7 @@ describe('POST /users/register', () => {
     });
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({
-      statusCode: 409,
-      error: 'Conflict',
-      message: 'Email is already registered',
+      error: { code: 'EMAIL_TAKEN', message: 'Email is already registered' },
     });
   });
 });

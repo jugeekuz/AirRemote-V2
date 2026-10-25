@@ -75,6 +75,7 @@ describe('users service: register', () => {
     await expect(duplicate).rejects.toBeInstanceOf(AppError);
     await expect(duplicate).rejects.toMatchObject({
       statusCode: 409,
+      code: 'EMAIL_TAKEN',
       message: 'Email is already registered',
     });
   });

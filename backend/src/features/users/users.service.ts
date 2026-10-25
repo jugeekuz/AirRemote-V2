@@ -23,7 +23,7 @@ export function createUsersService({
         passwordSalt: salt,
       });
       if (!user) {
-        throw new AppError(409, 'Email is already registered');
+        throw new AppError(409, 'EMAIL_TAKEN', 'Email is already registered');
       }
       return {
         id: user.id,

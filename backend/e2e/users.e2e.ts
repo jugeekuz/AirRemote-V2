@@ -36,18 +36,16 @@ describe('POST /users/register', () => {
     const res = await register({ ...nick, email: 'NICK@example.com' });
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({
-      statusCode: 409,
-      error: 'Conflict',
-      message: 'Email is already registered',
+      error: { code: 'EMAIL_TAKEN', message: 'Email is already registered' },
     });
   });
 
   it('returns 400 naming the invalid fields', async () => {
     const res = await register({ ...nick, email: 'nick', password: 'short' });
     expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.message).toBe('Request validation failed');
-    expect(body.details.map((d: { path: string }) => d.path).sort()).toEqual([
+    const { error } = await res.json();
+    expect(error.code).toBe('VALIDATION_FAILED');
+    expect(error.details.map((d: { path: string }) => d.path).sort()).toEqual([
       '/email',
       '/password',
     ]);

@@ -1,27 +1,26 @@
 import { errorResponseSchema } from '@airremote/contracts';
+import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import type { FastifyInstance } from 'fastify';
-import { buildApp } from '../../app';
+import { buildTestApp } from '../../__tests__/test-utils';
 import { AppError } from '../../shared/errors';
-import { fakeDb, testEnv } from '../../__tests__/test-utils';
 
 let app: FastifyInstance;
 
 async function appWithTestRoutes() {
-  app = await buildApp({ env: testEnv, db: fakeDb(async () => []) });
+  app = await buildTestApp();
   const typed = app.withTypeProvider<ZodTypeProvider>();
   typed.post(
     '/echo',
     { schema: { body: z.object({ name: z.string() }) } },
     async (request) => request.body,
   );
-  typed.get('/teapot', async () => {
-    throw new AppError(409, 'Already exists');
+  typed.get('/taken', async () => {
+    throw new AppError(409, 'EMAIL_TAKEN', 'Email is already registered');
   });
-  typed.get('/maintenance', async () => {
-    throw new AppError(503, 'Down for maintenance');
+  typed.get('/unavailable', async () => {
+    throw new AppError(503, 'INTERNAL_ERROR', 'Down for maintenance');
   });
   typed.get('/undefined', async () => {
     throw undefined;
@@ -38,132 +37,94 @@ async function appWithTestRoutes() {
   return app;
 }
 
+async function request(method: 'GET' | 'POST', url: string, payload?: unknown) {
+  const res = await (
+    await appWithTestRoutes()
+  ).inject({
+    method,
+    url,
+    ...(typeof payload === 'string'
+      ? { payload, headers: { 'content-type': 'application/json' } }
+      : payload !== undefined
+        ? { payload: payload as object }
+        : {}),
+  });
+  // Every error body must match the shared envelope contract exactly.
+  expect(errorResponseSchema.strict().parse(res.json())).toEqual(res.json());
+  return res;
+}
+
+const unexpected = {
+  error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
+};
+
 afterEach(async () => {
   await app?.close();
 });
 
-describe('error handling', () => {
-  it('returns 400 with details for an invalid body', async () => {
-    const res = await (
-      await appWithTestRoutes()
-    ).inject({
-      method: 'POST',
-      url: '/echo',
-      payload: { name: 1 },
-    });
-    const body = errorResponseSchema.parse(res.json());
+describe('error envelope', () => {
+  it('returns 400 VALIDATION_FAILED with details for an invalid body', async () => {
+    const res = await request('POST', '/echo', { name: 1 });
     expect(res.statusCode).toBe(400);
-    expect(body).toMatchObject({
-      statusCode: 400,
-      error: 'Bad Request',
+    expect(res.json().error).toMatchObject({
+      code: 'VALIDATION_FAILED',
       message: 'Request validation failed',
     });
-    expect(body.details).toEqual(
+    expect(res.json().error.details).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ path: expect.stringContaining('name') }),
       ]),
     );
   });
 
-  it('returns 400 in the error shape for malformed JSON', async () => {
-    const res = await (
-      await appWithTestRoutes()
-    ).inject({
-      method: 'POST',
-      url: '/echo',
-      headers: { 'content-type': 'application/json' },
-      payload: '{"name":',
-    });
+  it('returns 400 BAD_REQUEST for malformed JSON', async () => {
+    const res = await request('POST', '/echo', '{"name":');
     expect(res.statusCode).toBe(400);
     expect(res.json()).toEqual({
-      statusCode: 400,
-      error: 'Bad Request',
-      message: expect.any(String),
+      error: { code: 'BAD_REQUEST', message: expect.any(String) },
     });
   });
 
-  it('passes through an AppError status and message', async () => {
-    const res = await (
-      await appWithTestRoutes()
-    ).inject({
-      method: 'GET',
-      url: '/teapot',
-    });
+  it('passes through an AppError status, code and message', async () => {
+    const res = await request('GET', '/taken');
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({
-      statusCode: 409,
-      error: 'Conflict',
-      message: 'Already exists',
+      error: { code: 'EMAIL_TAKEN', message: 'Email is already registered' },
     });
   });
 
   it('passes through an AppError with a 5xx status', async () => {
-    const res = await (
-      await appWithTestRoutes()
-    ).inject({
-      method: 'GET',
-      url: '/maintenance',
-    });
+    const res = await request('GET', '/unavailable');
     expect(res.statusCode).toBe(503);
     expect(res.json()).toEqual({
-      statusCode: 503,
-      error: 'Service Unavailable',
-      message: 'Down for maintenance',
+      error: { code: 'INTERNAL_ERROR', message: 'Down for maintenance' },
     });
   });
 
   it('returns a generic 500 when a non-object is thrown', async () => {
-    const res = await (
-      await appWithTestRoutes()
-    ).inject({
-      method: 'GET',
-      url: '/undefined',
-    });
+    const res = await request('GET', '/undefined');
     expect(res.statusCode).toBe(500);
-    expect(res.json()).toEqual({
-      statusCode: 500,
-      error: 'Internal Server Error',
-      message: 'An unexpected error occurred',
-    });
+    expect(res.json()).toEqual(unexpected);
   });
 
   it('hides internals of unexpected errors', async () => {
-    const res = await (
-      await appWithTestRoutes()
-    ).inject({
-      method: 'GET',
-      url: '/boom',
-    });
-    const body = errorResponseSchema.parse(res.json());
+    const res = await request('GET', '/boom');
     expect(res.statusCode).toBe(500);
-    expect(body.message).toBe('An unexpected error occurred');
+    expect(res.json()).toEqual(unexpected);
     expect(res.body).not.toContain('secret detail');
   });
 
   it('returns 500 when a response breaks its contract', async () => {
-    const res = await (
-      await appWithTestRoutes()
-    ).inject({
-      method: 'GET',
-      url: '/bad',
-    });
-    const body = errorResponseSchema.parse(res.json());
+    const res = await request('GET', '/bad');
     expect(res.statusCode).toBe(500);
-    expect(body.message).toBe('An unexpected error occurred');
+    expect(res.json()).toEqual(unexpected);
   });
 
-  it('returns 404 in the error shape for unknown routes', async () => {
-    const res = await (
-      await appWithTestRoutes()
-    ).inject({
-      method: 'GET',
-      url: '/nope',
-    });
+  it('returns 404 NOT_FOUND for unknown routes', async () => {
+    const res = await request('GET', '/nope');
     expect(res.statusCode).toBe(404);
     expect(res.json()).toEqual({
-      statusCode: 404,
-      error: 'Not Found',
-      message: 'Route GET /nope not found',
+      error: { code: 'NOT_FOUND', message: 'Route GET /nope not found' },
     });
   });
 });
