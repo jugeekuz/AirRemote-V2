@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { ConfigError, loadEnv } from '../env';
 
-const valid = { DATABASE_URL: 'postgres://u:p@localhost:5432/db' };
+const valid = {
+  DATABASE_URL: 'postgres://u:p@localhost:5432/db',
+  JWT_ACCESS_SECRET: 'a'.repeat(32),
+  JWT_REFRESH_SECRET: 'r'.repeat(32),
+};
 
 describe('loadEnv', () => {
   it('applies defaults', () => {
@@ -44,5 +48,23 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ PORT: 'abc', LOG_LEVEL: 'loud' })).toThrow(
       /(?=[\s\S]*DATABASE_URL)(?=[\s\S]*PORT)(?=[\s\S]*LOG_LEVEL)/,
     );
+  });
+
+  it('requires both JWT secrets', () => {
+    expect(() => loadEnv({ DATABASE_URL: valid.DATABASE_URL })).toThrow(
+      /(?=[\s\S]*JWT_ACCESS_SECRET)(?=[\s\S]*JWT_REFRESH_SECRET)/,
+    );
+  });
+
+  it('rejects a JWT secret shorter than 32 characters', () => {
+    expect(() => loadEnv({ ...valid, JWT_ACCESS_SECRET: 'too-short' })).toThrow(
+      /JWT_ACCESS_SECRET/,
+    );
+  });
+
+  it('rejects using the same secret for both token types', () => {
+    expect(() =>
+      loadEnv({ ...valid, JWT_REFRESH_SECRET: valid.JWT_ACCESS_SECRET }),
+    ).toThrow(/JWT_REFRESH_SECRET/);
   });
 });
