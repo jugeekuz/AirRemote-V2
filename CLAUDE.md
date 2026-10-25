@@ -45,8 +45,10 @@ Layer rules:
 - **Repositories** are the only files that import `drizzle-orm` (ESLint
   enforces it).
 - Dependencies are passed in through `create*` factories, e.g.
-  `createHealthService({ repository })`. `features/health` is the reference
-  for a new feature.
+  `createHealthService({ repository })`. A route plugin builds its service
+  from `app.db` unless a `service` option is passed; route tests pass a fake
+  one to `buildTestApp()` from `src/__tests__/test-utils.ts`.
+  `features/users` is the reference for a new feature.
 
 Contracts and data:
 

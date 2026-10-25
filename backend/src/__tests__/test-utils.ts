@@ -1,5 +1,8 @@
 import type { Database, DbHandle } from '@airremote/db';
+import Fastify, { type FastifyInstance } from 'fastify';
 import type { Env } from '../config/env';
+import { errorHandlerPlugin } from '../plugins/error-handler';
+import { zodPlugin } from '../plugins/zod';
 
 export const testEnv: Env = {
   NODE_ENV: 'test',
@@ -14,4 +17,12 @@ export function fakeDb(execute: () => Promise<unknown>): DbHandle {
     db: { execute } as unknown as Database,
     close: async () => {},
   };
+}
+
+/** A Fastify app with validation and error handling but no database, for route tests with fake services. */
+export async function buildTestApp(): Promise<FastifyInstance> {
+  const app = Fastify({ logger: false });
+  await app.register(zodPlugin);
+  await app.register(errorHandlerPlugin);
+  return app;
 }

@@ -2,6 +2,7 @@ import { createDb, type DbHandle } from '@airremote/db';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Env } from './config/env';
 import { healthRoutes } from './features/health/health.routes';
+import { usersRoutes } from './features/users/users.routes';
 import { dbPlugin } from './plugins/db';
 import { errorHandlerPlugin } from './plugins/error-handler';
 import { zodPlugin } from './plugins/zod';
@@ -31,6 +32,7 @@ export async function buildApp({
   await app.register(dbPlugin, { handle: db ?? createDb(env.DATABASE_URL) });
 
   await app.register(healthRoutes);
+  await app.register(usersRoutes, { prefix: '/users' });
 
   return app;
 }
