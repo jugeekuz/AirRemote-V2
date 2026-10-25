@@ -6,7 +6,7 @@ export async function runMigrations(
   connectionString: string,
   migrationsFolder: string,
 ): Promise<void> {
-  const client = postgres(connectionString, { max: 1 });
+  const client = postgres(connectionString, { max: 1, onnotice: () => {} });
   try {
     await migrate(drizzle(client), { migrationsFolder });
   } finally {

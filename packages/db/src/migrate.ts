@@ -8,7 +8,8 @@ if (!connectionString) {
 }
 
 const migrationsFolder =
-  process.env.MIGRATIONS_FOLDER || resolve(import.meta.dirname, '../migrations');
+  process.env.MIGRATIONS_FOLDER ||
+  resolve(import.meta.dirname, '../migrations');
 
 try {
   await runMigrations(connectionString, migrationsFolder);
