@@ -14,10 +14,12 @@
   "dependencies": {
     "@airremote/contracts": "workspace:*",
     "@airremote/db": "workspace:*",
+    "@fastify/cookie": "^11.1.3",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.7",
     "fastify-plugin": "^6.0.1",
     "fastify-type-provider-zod": "^7.0.0",
+    "jose": "^6.2.13",
     "postgres": "^3.4.9",
     "zod": "^4.6.7"
   },

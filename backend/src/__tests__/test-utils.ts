@@ -1,4 +1,5 @@
 import type { Database, DbHandle } from '@airremote/db';
+import cookie from '@fastify/cookie';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Env } from '../config/env';
 import { errorHandlerPlugin } from '../plugins/error-handler';
@@ -26,5 +27,6 @@ export async function buildTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
   await app.register(zodPlugin);
   await app.register(errorHandlerPlugin);
+  await app.register(cookie);
   return app;
 }

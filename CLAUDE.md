@@ -54,7 +54,11 @@ Contracts and data:
 
 - Request and response schemas live in `@airremote/contracts`, in a folder
   per feature, and are used as the route `schema` so input and output are
-  both validated. Errors use `errorResponseSchema`.
+  both validated.
+- Every error response is the envelope `{ error: { code, message, details? } }`
+  (`errorResponseSchema`). Codes are the fixed list in `errorCodeSchema`; add
+  a code there before using it. Throw `new AppError(status, code, message)`
+  for expected failures; anything else becomes a 500 `INTERNAL_ERROR`.
 - Tables live in `packages/db/src/schema/`, one file each, re-exported from
   its `index.ts`. Generate migrations with `pnpm db:generate` and commit
   them; never hand-write them except for data changes.
