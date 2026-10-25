@@ -20,6 +20,12 @@ async function appWithTestRoutes() {
   typed.get('/teapot', async () => {
     throw new AppError(409, 'Already exists');
   });
+  typed.get('/maintenance', async () => {
+    throw new AppError(503, 'Down for maintenance');
+  });
+  typed.get('/undefined', async () => {
+    throw undefined;
+  });
   typed.get('/boom', async () => {
     throw new Error('secret detail');
   });
@@ -88,6 +94,36 @@ describe('error handling', () => {
       statusCode: 409,
       error: 'Conflict',
       message: 'Already exists',
+    });
+  });
+
+  it('passes through an AppError with a 5xx status', async () => {
+    const res = await (
+      await appWithTestRoutes()
+    ).inject({
+      method: 'GET',
+      url: '/maintenance',
+    });
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({
+      statusCode: 503,
+      error: 'Service Unavailable',
+      message: 'Down for maintenance',
+    });
+  });
+
+  it('returns a generic 500 when a non-object is thrown', async () => {
+    const res = await (
+      await appWithTestRoutes()
+    ).inject({
+      method: 'GET',
+      url: '/undefined',
+    });
+    expect(res.statusCode).toBe(500);
+    expect(res.json()).toEqual({
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: 'An unexpected error occurred',
     });
   });
 

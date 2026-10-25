@@ -25,7 +25,11 @@ export class ConfigError extends Error {
 export function loadEnv(
   source: Record<string, string | undefined> = process.env,
 ): Env {
-  const result = envSchema.safeParse(source);
+  // A blank value (e.g. `PORT=` in .env) means "use the default", not "empty".
+  const present = Object.fromEntries(
+    Object.entries(source).filter(([, value]) => value?.trim()),
+  );
+  const result = envSchema.safeParse(present);
   if (!result.success) {
     const problems = result.error.issues
       .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)

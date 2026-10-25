@@ -3,7 +3,7 @@ import type { ErrorResponse } from '@airremote/contracts';
 import type { FastifyError } from 'fastify';
 import fp from 'fastify-plugin';
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
-import type { AppError } from '../shared/errors';
+import { AppError } from '../shared/errors';
 
 function errorBody(
   statusCode: number,
@@ -31,7 +31,17 @@ export const errorHandlerPlugin = fp(async (app) => {
         .send(errorBody(400, 'Request validation failed', details));
     }
 
-    const { statusCode } = error;
+    if (error instanceof AppError) {
+      return reply
+        .code(error.statusCode)
+        .send(errorBody(error.statusCode, error.message));
+    }
+
+    // Anything can be thrown, including null and undefined.
+    const statusCode =
+      typeof error === 'object' && error !== null
+        ? error.statusCode
+        : undefined;
     if (statusCode !== undefined && statusCode >= 400 && statusCode < 500) {
       return reply.code(statusCode).send(errorBody(statusCode, error.message));
     }

@@ -18,6 +18,13 @@ describe('loadEnv', () => {
     expect(loadEnv({ ...valid, PORT: '8080' }).PORT).toBe(8080);
   });
 
+  it('treats blank values as unset', () => {
+    expect(loadEnv({ ...valid, PORT: '', HOST: ' ' })).toMatchObject({
+      PORT: 3000,
+      HOST: '0.0.0.0',
+    });
+  });
+
   it('rejects a missing DATABASE_URL', () => {
     expect(() => loadEnv({})).toThrow(ConfigError);
     expect(() => loadEnv({})).toThrow(/DATABASE_URL/);
