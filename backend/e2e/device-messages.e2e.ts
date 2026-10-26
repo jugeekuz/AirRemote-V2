@@ -65,7 +65,7 @@ describe('device messages', () => {
     const reply = nextMessage(socket);
     const longest = JSON.stringify({
       type: 'readIrResult',
-      requestId: '6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11',
+      commandId: '6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11',
       timingsUs: Array(2048).fill(65_535),
     });
     expect(Buffer.byteLength(longest)).toBeLessThan(16 * 1024);

@@ -7,7 +7,7 @@ import {
   serverMessageSchema,
 } from '../device-protocol.contract';
 
-const requestId = '6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11';
+const commandId = '6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11';
 const timingsUs = [9000, 4500, 560, 1690, 0, 65535];
 
 const rejects = (
@@ -44,7 +44,7 @@ describe('deviceMessageSchema', () => {
     const message = {
       type: 'error',
       code: 'READ_TIMEOUT',
-      requestId,
+      commandId,
       message: 'No IR code within 15 s',
     };
     expect(deviceMessageSchema.parse(message)).toEqual(message);
@@ -61,7 +61,7 @@ describe('deviceMessageSchema', () => {
   });
 
   it('accepts the code a device read', () => {
-    const message = { type: 'readIrResult', requestId, timingsUs };
+    const message = { type: 'readIrResult', commandId, timingsUs };
     expect(deviceMessageSchema.parse(message)).toEqual(message);
   });
 
@@ -74,15 +74,15 @@ describe('deviceMessageSchema', () => {
       { type: 'error', code: 'BUSY', message: 'x'.repeat(201) },
     ],
     [
-      'a request id that is not a UUID',
-      { type: 'error', code: 'BUSY', requestId: '1' },
+      'a command id that is not a UUID',
+      { type: 'error', code: 'BUSY', commandId: '1' },
     ],
     ['unknown keys', { type: 'error', code: 'BUSY', extra: 1 }],
     ['an unknown type', { type: 'hello' }],
-    ['a result without a request id', { type: 'readIrResult', timingsUs }],
+    ['a result without a command id', { type: 'readIrResult', timingsUs }],
     [
       'a result with invalid timings',
-      { type: 'readIrResult', requestId, timingsUs: [] },
+      { type: 'readIrResult', commandId, timingsUs: [] },
     ],
   ])('rejects %s', (_case, message) => {
     rejects(deviceMessageSchema, message);
@@ -113,17 +113,17 @@ describe('serverMessageSchema', () => {
 
   it('accepts a command to read an IR code for 1 to 60 seconds', () => {
     for (const timeoutMs of [1_000, 15_000, 60_000]) {
-      const message = { type: 'readIr', requestId, timeoutMs };
+      const message = { type: 'readIr', commandId, timeoutMs };
       expect(serverMessageSchema.parse(message)).toEqual(message);
     }
   });
 
   it.each([
-    ['a timeout under 1 s', { type: 'readIr', requestId, timeoutMs: 999 }],
-    ['a timeout over 60 s', { type: 'readIr', requestId, timeoutMs: 60_001 }],
-    ['a fractional timeout', { type: 'readIr', requestId, timeoutMs: 1500.5 }],
-    ['no request id', { type: 'readIr', timeoutMs: 15_000 }],
-    ['unknown keys', { type: 'readIr', requestId, timeoutMs: 15_000, x: 1 }],
+    ['a timeout under 1 s', { type: 'readIr', commandId, timeoutMs: 999 }],
+    ['a timeout over 60 s', { type: 'readIr', commandId, timeoutMs: 60_001 }],
+    ['a fractional timeout', { type: 'readIr', commandId, timeoutMs: 1500.5 }],
+    ['no command id', { type: 'readIr', timeoutMs: 15_000 }],
+    ['unknown keys', { type: 'readIr', commandId, timeoutMs: 15_000, x: 1 }],
   ])('rejects a read command with %s', (_case, message) => {
     rejects(serverMessageSchema, message);
   });

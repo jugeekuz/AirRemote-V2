@@ -4,16 +4,16 @@ import type { DeviceMessageHandlers } from '../../shared/device-messages';
 export function createDevicesSocketHandlers(): DeviceMessageHandlers {
   return {
     // Nothing waits for read results yet; the learning feature will.
-    async readIrResult({ requestId, timingsUs }, { log }) {
+    async readIrResult({ commandId, timingsUs }, { log }) {
       log.info(
-        { requestId, entries: timingsUs.length },
+        { commandId, entries: timingsUs.length },
         'Device read an IR code',
       );
     },
 
-    async error({ code, requestId, message }, { log }) {
+    async error({ code, commandId, message }, { log }) {
       log.warn(
-        { code, requestId, deviceMessage: message },
+        { code, commandId, deviceMessage: message },
         'Device reported an error',
       );
     },

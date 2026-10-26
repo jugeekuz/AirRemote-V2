@@ -30,7 +30,7 @@ export const deviceErrorCodeSchema = z.enum([
 export type DeviceErrorCode = z.infer<typeof deviceErrorCodeSchema>;
 
 /** Matches a command to its reply. */
-const requestId = z.uuid();
+const commandId = z.uuid();
 
 /**
  * A raw IR signal: durations in microseconds, alternating carrier on and off,
@@ -47,14 +47,14 @@ export const deviceMessageSchema = z.discriminatedUnion('type', [
   /** The code a device read, answering `readIr`. */
   z.strictObject({
     type: z.literal('readIrResult'),
-    requestId,
+    commandId,
     timingsUs: irTimingsSchema,
   }),
-  /** A failure on the device; `requestId` names the command it answers, if any. */
+  /** A failure on the device; `commandId` names the command it answers, if any. */
   z.strictObject({
     type: z.literal('error'),
     code: deviceErrorCodeSchema,
-    requestId: requestId.optional(),
+    commandId: commandId.optional(),
     message: z.string().min(1).max(200).optional(),
   }),
 ]);
@@ -66,7 +66,7 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
   /** Listen for one IR code for up to `timeoutMs`; answered by `readIrResult` or `error`. */
   z.strictObject({
     type: z.literal('readIr'),
-    requestId,
+    commandId,
     timeoutMs: z.number().int().min(1_000).max(60_000),
   }),
   /** The server refused the device's last frame. */

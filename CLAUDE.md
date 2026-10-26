@@ -77,7 +77,7 @@ Contracts and data:
   `deviceMessageSchema` (device → server) and `serverMessageSchema`
   (server → device). Add a member there before sending or handling a new
   message type; every frame is validated against them in both directions.
-  A command to a device carries a `requestId`, and the device answers it
+  A command to a device carries a `commandId`, and the device answers it
   with exactly one reply echoing that id: its result (e.g. `readIrResult`)
   or an `error` with a `code`. There is no separate acknowledgment.
 - Tables live in `packages/db/src/schema/`, one file each, re-exported from
