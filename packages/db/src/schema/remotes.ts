@@ -28,9 +28,10 @@ export const remotes = pgTable(
       table.deviceId,
       sql`lower(${table.name})`,
     ),
+    // `\s` follows the server's locale and misses no-break spaces (and the BOM).
     check(
       'remotes_name_check',
-      sql`char_length(${table.name}) BETWEEN 1 AND 100 AND ${table.name} !~ '^\\s' AND ${table.name} !~ '\\s$'`,
+      sql`char_length(${table.name}) BETWEEN 1 AND 100 AND ${table.name} !~ '^[\\s\\u00a0\\u2007\\u202f\\ufeff]' AND ${table.name} !~ '[\\s\\u00a0\\u2007\\u202f\\ufeff]$'`,
     ),
   ],
 );

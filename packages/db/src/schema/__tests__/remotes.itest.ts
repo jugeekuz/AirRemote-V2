@@ -87,15 +87,26 @@ describe('remotes', () => {
     expect(await testDb.db.select().from(remotes)).toHaveLength(2);
   });
 
-  it.each([' Power', 'Power ', '\tPower', 'Power\n'])(
-    'rejects names with leading or trailing whitespace (%j)',
-    async (name) => {
-      expect(await rejection(insertRemote({ name }))).toEqual({
-        code: '23514',
-        constraint: 'remotes_name_check',
-      });
-    },
-  );
+  it.each([
+    ' Power',
+    'Power ',
+    '\tPower',
+    'Power\n',
+    '\u00a0Power',
+    'Power\u00a0',
+    'Power\u2007',
+    'Power\u202f',
+    '\ufeffPower',
+  ])('rejects names with leading or trailing whitespace (%j)', async (name) => {
+    expect(await rejection(insertRemote({ name }))).toEqual({
+      code: '23514',
+      constraint: 'remotes_name_check',
+    });
+  });
+
+  it('accepts whitespace inside a name', async () => {
+    await insertRemote({ name: 'Living\u00a0room' });
+  });
 
   it('rejects an empty name and one over 100 characters', async () => {
     for (const name of ['', 'a'.repeat(101)]) {

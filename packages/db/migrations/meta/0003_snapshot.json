@@ -1,5 +1,5 @@
 {
-  "id": "a234fce2-2567-45a4-9be7-3f69dd0186c7",
+  "id": "4b1d4f7a-618a-4d71-a0a0-0fa890f8ce94",
   "prevId": "0399d9d3-dfc7-4a55-b069-89a1d52d82ae",
   "version": "7",
   "dialect": "postgresql",
@@ -227,7 +227,7 @@
       "checkConstraints": {
         "remotes_name_check": {
           "name": "remotes_name_check",
-          "value": "char_length(\"remotes\".\"name\") BETWEEN 1 AND 100 AND \"remotes\".\"name\" !~ '^\\s' AND \"remotes\".\"name\" !~ '\\s$'"
+          "value": "char_length(\"remotes\".\"name\") BETWEEN 1 AND 100 AND \"remotes\".\"name\" !~ '^[\\s\\u00a0\\u2007\\u202f\\ufeff]' AND \"remotes\".\"name\" !~ '[\\s\\u00a0\\u2007\\u202f\\ufeff]$'"
         }
       },
       "isRLSEnabled": false
@@ -306,7 +306,7 @@
       "checkConstraints": {
         "buttons_name_check": {
           "name": "buttons_name_check",
-          "value": "char_length(\"buttons\".\"name\") BETWEEN 1 AND 100 AND \"buttons\".\"name\" !~ '^\\s' AND \"buttons\".\"name\" !~ '\\s$'"
+          "value": "char_length(\"buttons\".\"name\") BETWEEN 1 AND 100 AND \"buttons\".\"name\" !~ '^[\\s\\u00a0\\u2007\\u202f\\ufeff]' AND \"buttons\".\"name\" !~ '[\\s\\u00a0\\u2007\\u202f\\ufeff]$'"
         },
         "buttons_timings_us_shape_check": {
           "name": "buttons_timings_us_shape_check",

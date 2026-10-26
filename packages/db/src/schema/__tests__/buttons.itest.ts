@@ -71,15 +71,22 @@ describe('buttons', () => {
     await insertButton({ name: 'power', remoteId: otherRemoteId });
   });
 
-  it.each([' Power', 'Power ', '\tPower', 'Power\n'])(
-    'rejects names with leading or trailing whitespace (%j)',
-    async (name) => {
-      expect(await rejection(insertButton({ name }))).toEqual({
-        code: '23514',
-        constraint: 'buttons_name_check',
-      });
-    },
-  );
+  it.each([
+    ' Power',
+    'Power ',
+    '\tPower',
+    'Power\n',
+    '\u00a0Power',
+    'Power\u00a0',
+    'Power\u2007',
+    'Power\u202f',
+    '\ufeffPower',
+  ])('rejects names with leading or trailing whitespace (%j)', async (name) => {
+    expect(await rejection(insertButton({ name }))).toEqual({
+      code: '23514',
+      constraint: 'buttons_name_check',
+    });
+  });
 
   it('rejects an empty name and one over 100 characters', async () => {
     for (const name of ['', 'a'.repeat(101)]) {

@@ -4,7 +4,7 @@ CREATE TABLE "buttons" (
 	"remote_id" uuid NOT NULL,
 	"name" text NOT NULL,
 	"timings_us" integer[] NOT NULL,
-	CONSTRAINT "buttons_name_check" CHECK (char_length("buttons"."name") BETWEEN 1 AND 100 AND "buttons"."name" !~ '^\s' AND "buttons"."name" !~ '\s$'),
+	CONSTRAINT "buttons_name_check" CHECK (char_length("buttons"."name") BETWEEN 1 AND 100 AND "buttons"."name" !~ '^[\s\u00a0\u2007\u202f\ufeff]' AND "buttons"."name" !~ '[\s\u00a0\u2007\u202f\ufeff]$'),
 	CONSTRAINT "buttons_timings_us_shape_check" CHECK (array_ndims("buttons"."timings_us") = 1 AND cardinality("buttons"."timings_us") BETWEEN 1 AND 2048 AND array_position("buttons"."timings_us", NULL) IS NULL),
 	CONSTRAINT "buttons_timings_us_range_check" CHECK (0 <= ALL("buttons"."timings_us") AND 65535 >= ALL("buttons"."timings_us"))
 );
@@ -17,4 +17,4 @@ ALTER TABLE "remotes" ALTER COLUMN "type" SET NOT NULL;--> statement-breakpoint
 ALTER TABLE "buttons" ADD CONSTRAINT "buttons_remote_id_remotes_id_fk" FOREIGN KEY ("remote_id") REFERENCES "public"."remotes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "buttons_remote_id_name_key" ON "buttons" USING btree ("remote_id",lower("name"));--> statement-breakpoint
 CREATE UNIQUE INDEX "remotes_device_id_name_key" ON "remotes" USING btree ("device_id",lower("name"));--> statement-breakpoint
-ALTER TABLE "remotes" ADD CONSTRAINT "remotes_name_check" CHECK (char_length("remotes"."name") BETWEEN 1 AND 100 AND "remotes"."name" !~ '^\s' AND "remotes"."name" !~ '\s$');
+ALTER TABLE "remotes" ADD CONSTRAINT "remotes_name_check" CHECK (char_length("remotes"."name") BETWEEN 1 AND 100 AND "remotes"."name" !~ '^[\s\u00a0\u2007\u202f\ufeff]' AND "remotes"."name" !~ '[\s\u00a0\u2007\u202f\ufeff]$');

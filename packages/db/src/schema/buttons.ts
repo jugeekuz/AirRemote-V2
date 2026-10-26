@@ -30,9 +30,10 @@ export const buttons = pgTable(
       table.remoteId,
       sql`lower(${table.name})`,
     ),
+    // `\s` follows the server's locale and misses no-break spaces (and the BOM).
     check(
       'buttons_name_check',
-      sql`char_length(${table.name}) BETWEEN 1 AND 100 AND ${table.name} !~ '^\\s' AND ${table.name} !~ '\\s$'`,
+      sql`char_length(${table.name}) BETWEEN 1 AND 100 AND ${table.name} !~ '^[\\s\\u00a0\\u2007\\u202f\\ufeff]' AND ${table.name} !~ '[\\s\\u00a0\\u2007\\u202f\\ufeff]$'`,
     ),
     // An empty array has no dimensions (array_ndims is NULL), so cardinality rejects it.
     check(
