@@ -22,7 +22,10 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'integration',
-          include: ['backend/src/**/__tests__/**/*.itest.ts'],
+          include: [
+            'backend/src/**/__tests__/**/*.itest.ts',
+            'packages/*/src/**/__tests__/**/*.itest.ts',
+          ],
           globalSetup: [postgresSetup],
           hookTimeout: 120_000,
         },

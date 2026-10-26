@@ -1,4 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src", "drizzle.config.ts", "tsup.config.ts"]
+  "include": [
+    "src",
+    "drizzle.config.ts",
+    "tsup.config.ts",
+    // Declares what the integration tests' shared helpers inject.
+    "../../backend/src/__tests__/postgres.global-setup.ts"
+  ]
 }
