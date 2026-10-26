@@ -50,6 +50,7 @@ export function attachDeviceSession(
     device: AuthorizedDevice;
     handlers: DeviceMessageHandlers;
     connections: DeviceConnections;
+    /** Already carries the device id (a child logger). */
     log: FastifyBaseLogger;
   },
 ): DeviceSession {
@@ -60,10 +61,7 @@ export function attachDeviceSession(
   let closed = false;
 
   connections.register(device.id, socket);
-  log.info(
-    { deviceId: device.id, macAddress: device.macAddress },
-    'Device connected',
-  );
+  log.info({ macAddress: device.macAddress }, 'Device connected');
 
   function dispatch(message: DeviceMessage) {
     const handler = handlers[message.type] as (

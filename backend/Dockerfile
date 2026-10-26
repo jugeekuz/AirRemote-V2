@@ -24,5 +24,5 @@ COPY --from=build /out/backend backend
 COPY --from=build /repo/packages/db/dist db/dist
 COPY --from=build /repo/packages/db/migrations db/migrations
 USER node
-EXPOSE 3000
+EXPOSE 3000 8443
 CMD ["node", "backend/dist/server.js"]

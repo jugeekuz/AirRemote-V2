@@ -44,6 +44,13 @@ Layer rules:
 - **Services** hold business logic and never see request/reply objects.
 - **Repositories** are the only files that import `drizzle-orm` (ESLint
   enforces it).
+- **Device sockets:** devices talk to the backend over WebSockets on a
+  separate mTLS listener (`src/device-server.ts`). Only
+  `plugins/device-gateway.ts` imports `ws` or `@fastify/websocket` (ESLint
+  enforces it). A feature handles device messages in
+  `<feature>.socket.ts`, thin like routes: it only calls the service.
+  Messages to a device go through `DeviceConnections.send` from
+  `shared/device-connections.ts`, which validates them first.
 - Dependencies are passed in through `create*` factories, e.g.
   `createHealthService({ repository })`. A route plugin builds its service
   from `app.db` unless a `service` option is passed; route tests pass a fake
@@ -59,6 +66,10 @@ Contracts and data:
   (`errorResponseSchema`). Codes are the fixed list in `errorCodeSchema`; add
   a code there before using it. Throw `new AppError(status, code, message)`
   for expected failures; anything else becomes a 500 `INTERNAL_ERROR`.
+- Device messages live in `@airremote/contracts` under `device-protocol/`:
+  `deviceMessageSchema` (device → server) and `serverMessageSchema`
+  (server → device). Add a member there before sending or handling a new
+  message type; every frame is validated against them in both directions.
 - Tables live in `packages/db/src/schema/`, one file each, re-exported from
   its `index.ts`. Generate migrations with `pnpm db:generate` and commit
   them; never hand-write them except for data changes.
@@ -80,8 +91,11 @@ run one. Integration and e2e tests need Docker.
   migrated database and empties it before every test.
 - **E2E — `backend/e2e/*.e2e.ts`.** The real app (`buildApp()` on a random
   port) against a real database, called over HTTP with `fetch`. Call
-  `useTestApp()` from `e2e/support/test-app.ts` for the base URL. Only
-  external services (none yet) may be mocked.
+  `useTestApp()` from `e2e/support/test-app.ts` for the base URL. Device
+  tests call `useDeviceServer()` from `e2e/support/device-server.ts`, which
+  starts the device server over real mTLS; throwaway certificates are
+  generated once per run with `openssl` and never committed. Only external
+  services (none yet) may be mocked.
 
 Every folder that holds source files has a `__tests__/` folder (an empty
 `.gitkeep` until it has tests). One Postgres container is started per run

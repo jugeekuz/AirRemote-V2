@@ -16,3 +16,7 @@ build/
 .env
 .env.*
 !.env.example
+
+# Device listener certificates (see backend/README.md)
+certs/*
+!certs/.gitkeep

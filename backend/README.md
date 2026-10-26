@@ -31,6 +31,29 @@ pnpm db:migrate
 pnpm dev                    # restarts on file changes
 ```
 
+## Device listener
+
+Devices connect over WebSockets to a second listener on `DEVICE_PORT`
+(default `8443`, route `/ws`, subprotocol `airremote.v1`). It uses mutual
+TLS: a device needs a client certificate signed by the device CA, whose
+Subject CN is its MAC address, and a row in `devices` with that MAC.
+
+It stays off until all three of these are set (the API logs a warning):
+
+| Variable               | File                                     |
+| ---------------------- | ---------------------------------------- |
+| `DEVICE_TLS_CERT_FILE` | Server certificate devices see (PEM)     |
+| `DEVICE_TLS_KEY_FILE`  | Its private key (PEM)                    |
+| `DEVICE_TLS_CA_FILE`   | CA that signs device certificates (PEM)  |
+
+- On the host (`pnpm dev`) the values are paths to the files; use absolute
+  paths.
+- In Docker the files go in `certs/` at the repository root (git-ignored)
+  as `device-server.crt`, `device-server.key` and `device-ca.crt`. Compose
+  mounts that folder read-only and only checks whether the variables are
+  set. The container runs as uid 1000, so the key must be readable by
+  uid 1000.
+
 ## Scripts (from the repository root)
 
 | Script                  | What it does                                                  |

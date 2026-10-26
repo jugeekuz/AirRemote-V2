@@ -12,7 +12,10 @@ import { zodPlugin } from './plugins/zod';
 
 export interface BuildAppOptions {
   env: Env;
-  /** Overrides the database connection, e.g. with a fake in tests. */
+  /**
+   * A handle the caller owns and closes. When omitted, the app creates one
+   * from `DATABASE_URL` and closes it on shutdown.
+   */
   db?: DbHandle;
 }
 
@@ -26,7 +29,10 @@ export async function buildApp({
   await app.register(zodPlugin);
   await app.register(errorHandlerPlugin);
   await app.register(cookie);
-  await app.register(dbPlugin, { handle: db ?? createDb(env.DATABASE_URL) });
+  await app.register(dbPlugin, {
+    handle: db ?? createDb(env.DATABASE_URL),
+    close: !db,
+  });
 
   await app.register(healthRoutes);
   await app.register(usersRoutes, { prefix: '/users' });

@@ -41,8 +41,17 @@ services:
       NODE_ENV: production
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
+      # The device listener stays off unless all three are set in .env; the
+      # files themselves go in ./certs under these fixed names.
+      DEVICE_PORT: 8443
+      DEVICE_TLS_CERT_FILE: ${DEVICE_TLS_CERT_FILE:+/certs/device-server.crt}
+      DEVICE_TLS_KEY_FILE: ${DEVICE_TLS_KEY_FILE:+/certs/device-server.key}
+      DEVICE_TLS_CA_FILE: ${DEVICE_TLS_CA_FILE:+/certs/device-ca.crt}
+    volumes:
+      - ./certs:/certs:ro,z
     ports:
       - '${PORT:-3000}:3000'
+      - '${DEVICE_PORT:-8443}:8443'
     depends_on:
       migrate:
         condition: service_completed_successfully

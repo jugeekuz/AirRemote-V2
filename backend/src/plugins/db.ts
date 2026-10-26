@@ -7,9 +7,15 @@ declare module 'fastify' {
   }
 }
 
-export const dbPlugin = fp<{ handle: DbHandle }>(async (app, { handle }) => {
+export const dbPlugin = fp<{
+  handle: DbHandle;
+  /** Whether closing the app closes the handle (false when the caller owns it). */
+  close: boolean;
+}>(async (app, { handle, close }) => {
   app.decorate('db', handle.db);
-  app.addHook('onClose', async () => {
-    await handle.close();
-  });
+  if (close) {
+    app.addHook('onClose', async () => {
+      await handle.close();
+    });
+  }
 });
