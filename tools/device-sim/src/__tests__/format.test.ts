@@ -25,6 +25,7 @@ describe('describeClose', () => {
   it.each([
     [1000, '1000 normal closure'],
     [1001, '1001 server shutting down'],
+    [1006, '1006 connection lost'],
     [1007, '1007 invalid UTF-8'],
     [1008, '1008 too many invalid messages'],
     [1009, '1009 message too big'],

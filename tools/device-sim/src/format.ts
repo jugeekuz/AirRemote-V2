@@ -11,6 +11,8 @@ export function pairingUri(mac: string, code: string): string {
 const CLOSE_REASONS: Record<number, string> = {
   1000: 'normal closure',
   1001: 'server shutting down',
+  // No close frame: the connection was cut, e.g. by the server's heartbeat.
+  1006: 'connection lost',
   1007: 'invalid UTF-8',
   1008: 'too many invalid messages',
   1009: 'message too big',

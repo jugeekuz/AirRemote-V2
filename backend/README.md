@@ -81,6 +81,9 @@ Codes are stored only as an HMAC keyed with `PAIRING_CODE_SECRET` (at least
 32 characters, required; see `.env.example`), so a copy of the database alone
 cannot recover them.
 
+To try it without a device, run the mock device: `pnpm device-sim --mac
+AA:BB:CC:DD:EE:01` (see `tools/device-sim/README.md`).
+
 ## Scripts (from the repository root)
 
 | Script                  | What it does                                                  |

@@ -24,8 +24,11 @@ folder is deleted in its own commit.
 
 The workspace (pnpm) holds `backend/` (`@airremote/backend`, the Fastify
 API), `packages/contracts` (`@airremote/contracts`, Zod schemas shared with
-the frontend) and `packages/db` (`@airremote/db`, Drizzle schema and
-migrations). See `backend/README.md` for commands.
+the frontend), `packages/db` (`@airremote/db`, Drizzle schema and
+migrations) and `tools/device-sim` (`@airremote/device-sim`, an interactive
+mock device for local development; see its README). See `backend/README.md`
+for commands. `scripts/dev-certs.sh` creates the device listener's dev
+certificates.
 
 `backend/src/` has four folders:
 
