@@ -2,3 +2,4 @@
 export * from './users';
 export * from './devices';
 export * from './remotes';
+export * from './pairing-codes';

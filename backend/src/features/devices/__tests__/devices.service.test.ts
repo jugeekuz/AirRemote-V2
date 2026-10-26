@@ -11,7 +11,11 @@ const device: Device = {
 };
 
 function serviceWith(found: () => Promise<Device | null>) {
-  const repository = { findByMacAddress: vi.fn(found) };
+  const repository = {
+    findByMacAddress: vi.fn(found),
+    savePairingCode: vi.fn(async () => {}),
+    enroll: vi.fn(async () => ({ status: 'invalid-code' }) as const),
+  };
   const service = createDevicesService({
     repository: repository satisfies DevicesRepository,
   });

@@ -1,9 +1,33 @@
-import { devices, type Database, type Device } from '@airremote/db';
-import { eq } from 'drizzle-orm';
+import {
+  devices,
+  pairingCodes,
+  type Database,
+  type Device,
+  type NewPairingCode,
+} from '@airremote/db';
+import { and, eq, gt, TransactionRollbackError } from 'drizzle-orm';
+
+export type EnrollResult =
+  | { status: 'enrolled'; device: Device }
+  | { status: 'invalid-code' }
+  | { status: 'already-registered' };
 
 export type DevicesRepository = {
   /** Any case; Postgres compares macaddr values, not text. */
   findByMacAddress(macAddress: string): Promise<Device | null>;
+  /** Stores the device's pairing code, replacing any previous one. */
+  savePairingCode(code: NewPairingCode): Promise<void>;
+  /**
+   * Consumes a live pairing code and creates the device, in one transaction:
+   * when the device cannot be created, the code is left unused.
+   */
+  enroll(input: {
+    macAddress: string;
+    codeHash: string;
+    now: Date;
+    userId: string;
+    name: string;
+  }): Promise<EnrollResult>;
 };
 
 export function createDevicesRepository(db: Database): DevicesRepository {
@@ -14,6 +38,49 @@ export function createDevicesRepository(db: Database): DevicesRepository {
         .from(devices)
         .where(eq(devices.macAddress, macAddress));
       return device ?? null;
+    },
+
+    async savePairingCode(code) {
+      await db
+        .insert(pairingCodes)
+        .values(code)
+        .onConflictDoUpdate({
+          target: pairingCodes.macAddress,
+          set: { codeHash: code.codeHash, expiresAt: code.expiresAt },
+        });
+    },
+
+    async enroll({ macAddress, codeHash, now, userId, name }) {
+      try {
+        return await db.transaction(async (tx) => {
+          // Deleting the row claims it: a concurrent enrollment waits on the
+          // row lock, then finds nothing to delete.
+          const [code] = await tx
+            .delete(pairingCodes)
+            .where(
+              and(
+                eq(pairingCodes.macAddress, macAddress),
+                eq(pairingCodes.codeHash, codeHash),
+                gt(pairingCodes.expiresAt, now),
+              ),
+            )
+            .returning();
+          if (!code) return { status: 'invalid-code' } as const;
+
+          const [device] = await tx
+            .insert(devices)
+            .values({ userId, macAddress, name })
+            .onConflictDoNothing({ target: devices.macAddress })
+            .returning();
+          if (!device) return tx.rollback();
+          return { status: 'enrolled', device } as const;
+        });
+      } catch (error) {
+        if (error instanceof TransactionRollbackError) {
+          return { status: 'already-registered' };
+        }
+        throw error;
+      }
     },
   };
 }
