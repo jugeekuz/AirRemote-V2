@@ -11,13 +11,17 @@ import type {
   DeviceCommandView,
 } from './device-commands.repository';
 
-export type DeviceCommandsServiceDeps = {
-  repository: DeviceCommandsRepository;
-  connections: DeviceConnections;
-  /** How long the device reads for an IR code. */
+/** How long commands take; tests shorten them. */
+export type DeviceCommandTimings = {
+  /** How long the device reads for an IR code (1000–60000, as `readIr` allows). */
   readTimeoutMs?: number;
   /** How long a command lives after it was created. */
   ttlMs?: number;
+};
+
+export type DeviceCommandsServiceDeps = DeviceCommandTimings & {
+  repository: DeviceCommandsRepository;
+  connections: DeviceConnections;
 };
 
 export type DeviceCommandsService = ReturnType<

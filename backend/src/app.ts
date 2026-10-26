@@ -5,6 +5,7 @@ import type { Env } from './config/env';
 import { loggerOptions } from './config/logger';
 import { authRoutes } from './features/auth/auth.routes';
 import { buttonsRoutes } from './features/buttons/buttons.routes';
+import type { DeviceCommandTimings } from './features/device-commands/device-commands.service';
 import { deviceCommandsRoutes } from './features/device-commands/device-commands.routes';
 import { devicesRoutes } from './features/devices/devices.routes';
 import { healthRoutes } from './features/health/health.routes';
@@ -31,6 +32,11 @@ export interface BuildAppOptions {
    * reach them. Defaults to an empty registry of its own.
    */
   connections?: DeviceConnections;
+  /**
+   * How long a device reads for an IR code and how long a command lives.
+   * Defaults to 15 s and 20 s; tests shorten them.
+   */
+  deviceCommandTimings?: DeviceCommandTimings;
 }
 
 /** Creates and configures the Fastify instance without listening. */
@@ -38,6 +44,7 @@ export async function buildApp({
   env,
   db,
   connections = createDeviceConnections(),
+  deviceCommandTimings,
 }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: loggerOptions(env) });
 
@@ -60,7 +67,10 @@ export async function buildApp({
   await app.register(authRoutes, { prefix: '/auth', env });
   await app.register(devicesRoutes, { prefix: '/devices', env });
   await app.register(remotesRoutes);
-  await app.register(buttonsRoutes, { connections });
+  await app.register(buttonsRoutes, {
+    connections,
+    timings: deviceCommandTimings,
+  });
   await app.register(deviceCommandsRoutes, { connections });
 
   return app;

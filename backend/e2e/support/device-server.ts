@@ -1,13 +1,23 @@
 import { request as httpsRequest } from 'node:https';
-import { createDb, devices, users, type DbHandle } from '@airremote/db';
+import {
+  createDb,
+  devices,
+  users,
+  type Database,
+  type DbHandle,
+} from '@airremote/db';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, afterEach, beforeAll, beforeEach, inject } from 'vitest';
 import WebSocket from 'ws';
 import type { DeviceTls } from '../../src/config/device-tls';
 import { buildApp } from '../../src/app';
 import { buildDeviceServer } from '../../src/device-server';
+import type { DeviceCommandTimings } from '../../src/features/device-commands/device-commands.service';
 import type { DevicesService } from '../../src/features/devices/devices.service';
-import { createDeviceConnections } from '../../src/shared/device-connections';
+import {
+  createDeviceConnections,
+  type DeviceConnections,
+} from '../../src/shared/device-connections';
 import { testEnv } from '../../src/__tests__/test-utils';
 import {
   createTestDatabase,
@@ -141,14 +151,18 @@ export function closeCode(socket: WebSocket): Promise<number> {
  */
 export function useDeviceServer({
   api = false,
+  deviceCommandTimings,
   ...options
 }: {
   heartbeatIntervalMs?: number;
   service?: DevicesService;
   api?: boolean;
+  /** Shortens the API's device reads and command lives; only with `api`. */
+  deviceCommandTimings?: DeviceCommandTimings;
 } = {}) {
   let database: TestDatabase | undefined;
   let handle: DbHandle | undefined;
+  let connections: DeviceConnections | undefined;
   let server: FastifyInstance | undefined;
   let url: string | undefined;
   let origin: string | undefined;
@@ -160,7 +174,7 @@ export function useDeviceServer({
     database = await createTestDatabase();
     handle = createDb(database.url);
     // One registry, as in server.ts, so the API reaches connected devices.
-    const connections = createDeviceConnections();
+    connections = createDeviceConnections();
     server = await buildDeviceServer({
       env: testEnv,
       tls: testDeviceTls(),
@@ -174,7 +188,12 @@ export function useDeviceServer({
     origin = `https://localhost:${address.port}`;
     url = `wss://localhost:${address.port}/ws`;
     if (api) {
-      apiApp = await buildApp({ env: testEnv, db: handle, connections });
+      apiApp = await buildApp({
+        env: testEnv,
+        db: handle,
+        connections,
+        deviceCommandTimings,
+      });
       apiUrl = await apiApp.listen({ host: '127.0.0.1', port: 0 });
     }
   });
@@ -207,6 +226,23 @@ export function useDeviceServer({
     get server() {
       if (!server) throw new Error('useDeviceServer: server not started yet');
       return server;
+    },
+    /** The connected devices, shared by the device server and the API. */
+    get connections(): DeviceConnections {
+      if (!connections) {
+        throw new Error('useDeviceServer: server not started yet');
+      }
+      return connections;
+    },
+    /** The servers' database, for seeding and checking rows. */
+    get db(): Database {
+      if (!handle) throw new Error('useDeviceServer: database not ready yet');
+      return handle.db;
+    },
+    /** The database's URL, e.g. to open a second connection to it. */
+    get databaseUrl(): string {
+      if (!database) throw new Error('useDeviceServer: database not ready yet');
+      return database.url;
     },
     /** Inserts a user and a device with this MAC address; returns the device id. */
     async allowDevice(macAddress: string): Promise<string> {

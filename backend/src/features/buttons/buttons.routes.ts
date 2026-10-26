@@ -7,16 +7,21 @@ import { z } from 'zod';
 import { authenticatedUserId } from '../../plugins/authenticate';
 import type { DeviceConnections } from '../../shared/device-connections';
 import { createDeviceCommandsRepository } from '../device-commands/device-commands.repository';
-import { createDeviceCommandsService } from '../device-commands/device-commands.service';
+import {
+  createDeviceCommandsService,
+  type DeviceCommandTimings,
+} from '../device-commands/device-commands.service';
 import { createButtonsRepository } from './buttons.repository';
 import { createButtonsService, type ButtonsService } from './buttons.service';
 
 export const buttonsRoutes: FastifyPluginAsyncZod<{
   /** The connected devices, shared with the device server. */
   connections: DeviceConnections;
+  /** Shortens the device read and the command's life, e.g. in tests. */
+  timings?: DeviceCommandTimings;
   /** Overrides the service, e.g. with a fake in tests. */
   service?: ButtonsService;
-}> = async (app, { connections, service: override }) => {
+}> = async (app, { connections, timings, service: override }) => {
   const service =
     override ??
     createButtonsService({
@@ -24,6 +29,7 @@ export const buttonsRoutes: FastifyPluginAsyncZod<{
       deviceCommands: createDeviceCommandsService({
         repository: createDeviceCommandsRepository(app.db),
         connections,
+        ...timings,
       }),
     });
 
