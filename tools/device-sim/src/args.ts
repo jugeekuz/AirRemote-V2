@@ -7,6 +7,14 @@ const MAC_ADDRESS = /^[0-9a-f]{2}(:[0-9a-f]{2}){5}$/i;
 const USAGE =
   'usage: pnpm device-sim --mac AA:BB:CC:DD:EE:FF [--server https://localhost:8443] [--certs ./certs]';
 
+function isHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /** `certs/` at the repository root, wherever the tool is started from. */
 const DEFAULT_CERTS_DIR = resolve(import.meta.dirname, '../../../certs');
 
@@ -29,6 +37,12 @@ export function parseCliArgs(
 
   if (!values.mac || !MAC_ADDRESS.test(values.mac)) {
     return { ok: false, message: USAGE };
+  }
+  if (!isHttpsUrl(values.server)) {
+    return {
+      ok: false,
+      message: `--server must be an https:// URL, e.g. https://localhost:8443\n${USAGE}`,
+    };
   }
   return {
     ok: true,

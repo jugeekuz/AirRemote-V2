@@ -42,6 +42,20 @@ describe('parseCliArgs', () => {
     },
   );
 
+  it.each(['localhost:8443', 'notaurl', 'http://localhost:8443'])(
+    'explains --server for %j',
+    (server) => {
+      const result = parseCliArgs([
+        '--mac',
+        'AA:BB:CC:DD:EE:01',
+        '--server',
+        server,
+      ]);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).toContain('https://');
+    },
+  );
+
   it('refuses an unknown option', () => {
     expect(parseCliArgs(['--mac', 'AA:BB:CC:DD:EE:01', '--nope']).ok).toBe(
       false,

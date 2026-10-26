@@ -383,6 +383,42 @@ describe('enroll', () => {
     expect(clock.pending()).toBe(0);
   });
 
+  it.each<[string, () => Promise<HttpResult>]>([
+    [
+      'cannot reach the server',
+      async () => {
+        throw new Error('server not reachable (connection refused)');
+      },
+    ],
+    ['gets an unexpected answer', async () => ({ status: 500, body: {} })],
+  ])('keeps reconnecting when /enroll %s', async (_case, pairing) => {
+    transport.nextOpen = () => 'server not reachable (connection refused)';
+    const subject = device();
+    subject.start();
+    await flush();
+    transport.pairing = pairing;
+    await subject.enroll();
+    expect(subject.status().state).toBe('offline');
+    const opens = transport.opens;
+    await clock.advance(30_000);
+    expect(transport.opens).toBeGreaterThan(opens);
+  });
+
+  it('is offline, not connecting, when /enroll fails while an open is in flight', async () => {
+    let release: (result: OpenResult) => void = () => {};
+    transport.openSocket = () =>
+      new Promise<OpenResult>((resolve) => {
+        release = resolve;
+      });
+    const subject = device();
+    subject.start();
+    transport.pairing = async () => ({ status: 500, body: {} });
+    await subject.enroll();
+    expect(subject.status().state).toBe('offline');
+    expect(clock.pending()).toBe(1);
+    release({ ok: false, status: 403 });
+  });
+
   it('replaces the pending code when run again', async () => {
     const subject = device();
     await subject.enroll();

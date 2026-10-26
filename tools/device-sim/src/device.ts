@@ -216,6 +216,16 @@ export function createDevice({
     }, enrollRetryMs);
   }
 
+  /** A failed `/enroll` leaves the device as it was: connected, or reconnecting if it was. */
+  function resumeAfterFailedEnroll() {
+    if (socket) {
+      state = 'connected';
+      return;
+    }
+    state = 'offline';
+    scheduleReconnect();
+  }
+
   function closeSocket(reason: string) {
     const closing = socket;
     socket = null;
@@ -243,7 +253,9 @@ export function createDevice({
       try {
         response = await transport.postPairingCode();
       } catch (error) {
+        if (mine !== generation) return;
         status((error as Error).message, 'error');
+        resumeAfterFailedEnroll();
         return;
       }
       if (mine !== generation) return;
@@ -260,6 +272,7 @@ export function createDevice({
       const issued = pairingCodeResponseSchema.safeParse(response.body);
       if (response.status !== 201 || !issued.success) {
         status('could not get a pairing code', 'error');
+        resumeAfterFailedEnroll();
         return;
       }
 

@@ -1,11 +1,12 @@
 import { resolve } from 'node:path';
-import { clearLine, createInterface, cursorTo } from 'node:readline';
+import { createInterface } from 'node:readline';
 import pc from 'picocolors';
 import { parseCliArgs } from './args';
 import { parseCommand } from './commands';
 import { createDevice, type DeviceEvent } from './device';
 import { loadIdentity } from './identity';
 import { createNodeTransport, systemClock } from './node-transport';
+import { createPrinter } from './printer';
 import {
   renderBanner,
   renderEvent,
@@ -47,13 +48,11 @@ const prompt = createInterface({
   prompt: colors.cyan('› '),
 });
 
-/** Prints above the prompt, keeping whatever is being typed. */
-function print(text: string) {
-  clearLine(process.stdout, 0);
-  cursorTo(process.stdout, 0);
-  process.stdout.write(`${text}\n`);
-  prompt.prompt(true);
-}
+const { print } = createPrinter({
+  prompt,
+  input: process.stdin,
+  output: process.stdout,
+});
 
 // Events render in order even though a QR code takes a moment to draw.
 let rendering = Promise.resolve();
