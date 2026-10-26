@@ -40,25 +40,29 @@ Run `/enroll`, then, as the owner, with the code it shows:
 ```sh
 TOKEN=$(curl -s localhost:3000/auth/login -H 'content-type: application/json' \
   -d '{"email":"you@example.com","password":"…"}' | jq -r .accessToken)
-curl -s localhost:3000/devices -H "authorization: Bearer $TOKEN" \
+DEVICE_ID=$(curl -s localhost:3000/devices -H "authorization: Bearer $TOKEN" \
   -H 'content-type: application/json' \
-  -d '{"macAddress":"AA:BB:CC:DD:EE:01","pairingCode":"XXXX-XXXX","name":"Desk"}'
+  -d '{"macAddress":"AA:BB:CC:DD:EE:01","pairingCode":"XXXX-XXXX","name":"Desk"}' | jq -r .id)
 ```
 
-The device connects on its own at its next retry.
+The device connects on its own at its next retry (within 5 s); wait for
+`enrolled ✓ connected` before learning a button.
 
 ## Learning a button
 
 The backend sends a connected device `readIr`; the mock logs `listening for
 an IR code (15 s)` and waits, as a real device would. With the device
-enrolled and connected:
+enrolled and connected (`$TOKEN` and `$DEVICE_ID` come from the enrolling
+commands above):
 
 ```sh
 REMOTE=$(curl -s localhost:3000/devices/$DEVICE_ID/remotes -H "authorization: Bearer $TOKEN" \
-  -H 'content-type: application/json' -d '{"name":"TV","type":"tv"}' | jq -r .id)
-curl -si localhost:3000/remotes/$REMOTE/buttons -H "authorization: Bearer $TOKEN" \
-  -H 'content-type: application/json' -d '{"name":"Power"}'   # 202, Location: /device-commands/<id>
-curl -s localhost:3000/device-commands/<id> -H "authorization: Bearer $TOKEN"
+  -H 'content-type: application/json' -d '{"name":"TV","type":"smart_tv"}' | jq -r .id)
+LOCATION=$(curl -si localhost:3000/remotes/$REMOTE/buttons -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' -d '{"name":"Power"}' | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')
+echo $LOCATION   # 202, /device-commands/<id>
+# type /press in the simulator, then:
+curl -s localhost:3000$LOCATION -H "authorization: Bearer $TOKEN"
 ```
 
 Type `/press` in the simulator to send the code (or `/press 9000,4500,560`

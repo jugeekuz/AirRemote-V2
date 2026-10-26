@@ -98,9 +98,9 @@ All of these need the owner's access token.
    `succeeded` carries the saved `button`, `failed` an `error`.
 
 Commands are rows in `device_commands`, so any instance can report them.
-With the mock device, type `/press` in it to send a code. Example request:
-`curl -i -X POST localhost:3000/remotes/$REMOTE/buttons -H "authorization:
-Bearer $TOKEN" -H 'content-type: application/json' -d '{"name":"Power"}'`.
+With the mock device, type `/press` in it to send a code. The curl commands
+that set `$TOKEN`, `$DEVICE_ID` and `$REMOTE` and make these requests are in
+`tools/device-sim/README.md`.
 
 ## Scripts (from the repository root)
 
