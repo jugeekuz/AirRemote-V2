@@ -5,6 +5,7 @@ const valid = {
   DATABASE_URL: 'postgres://u:p@localhost:5432/db',
   JWT_ACCESS_SECRET: 'a'.repeat(32),
   JWT_REFRESH_SECRET: 'r'.repeat(32),
+  PAIRING_CODE_SECRET: 'p'.repeat(32),
 };
 
 function expectNoDeviceTls(env: Env) {
@@ -67,6 +68,18 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...valid, JWT_ACCESS_SECRET: 'too-short' })).toThrow(
       /JWT_ACCESS_SECRET/,
     );
+  });
+
+  it('requires PAIRING_CODE_SECRET', () => {
+    expect(() => loadEnv({ ...valid, PAIRING_CODE_SECRET: undefined })).toThrow(
+      /PAIRING_CODE_SECRET/,
+    );
+  });
+
+  it('rejects a PAIRING_CODE_SECRET shorter than 32 characters', () => {
+    expect(() =>
+      loadEnv({ ...valid, PAIRING_CODE_SECRET: 'p'.repeat(31) }),
+    ).toThrow(/PAIRING_CODE_SECRET/);
   });
 
   it('rejects using the same secret for both token types', () => {

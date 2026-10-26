@@ -5,6 +5,7 @@ import { createDeviceConnections } from '../src/shared/device-connections';
 import { fakeDb, testEnv } from '../src/__tests__/test-utils';
 import {
   connectDevice,
+  fakeDevicesService,
   testDeviceTls,
   UpgradeRejectedError,
   useDeviceServer,
@@ -128,11 +129,11 @@ describe('device handshake', () => {
       tls: testDeviceTls(),
       db: fakeDb(async () => []),
       connections: createDeviceConnections(),
-      service: {
+      service: fakeDevicesService({
         authorizeConnection: async () => {
           throw new Error('database down');
         },
-      },
+      }),
     });
     try {
       await server.listen({ host: '127.0.0.1', port: 0 });

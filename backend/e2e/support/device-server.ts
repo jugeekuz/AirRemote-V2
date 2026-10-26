@@ -36,6 +36,21 @@ export function testDeviceTls(): DeviceTls {
   };
 }
 
+/** A devices service where only the given methods work; the rest throw. */
+export function fakeDevicesService(
+  methods: Partial<DevicesService>,
+): DevicesService {
+  const unexpected = (name: string) => async () => {
+    throw new Error(`fakeDevicesService: ${name} was not expected`);
+  };
+  return {
+    authorizeConnection: unexpected('authorizeConnection'),
+    issuePairingCode: unexpected('issuePairingCode'),
+    enroll: unexpected('enroll'),
+    ...methods,
+  };
+}
+
 /** Opens a device WebSocket to `url` with one of the run's client certificates. */
 export function connectDevice(
   url: string,

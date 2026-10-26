@@ -26,6 +26,7 @@ export const envSchema = z
     }),
     JWT_ACCESS_SECRET: secret,
     JWT_REFRESH_SECRET: secret,
+    PAIRING_CODE_SECRET: secret,
     DEVICE_PORT: z.coerce.number().int().min(0).max(65535).default(8443),
     DEVICE_TLS_CERT_FILE: z.string().min(1).optional(),
     DEVICE_TLS_KEY_FILE: z.string().min(1).optional(),

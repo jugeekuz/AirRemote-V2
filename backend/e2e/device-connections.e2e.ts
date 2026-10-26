@@ -6,6 +6,7 @@ import { fakeDb, testEnv } from '../src/__tests__/test-utils';
 import {
   closeCode,
   connectDevice,
+  fakeDevicesService,
   testDeviceTls,
   useDeviceServer,
 } from './support/device-server';
@@ -48,7 +49,9 @@ describe('device connections', () => {
       tls: testDeviceTls(),
       db: fakeDb(async () => []),
       connections: createDeviceConnections(),
-      service: { authorizeConnection: async () => authorized },
+      service: fakeDevicesService({
+        authorizeConnection: async () => authorized,
+      }),
     });
     await server.listen({ host: '127.0.0.1', port: 0 });
     const address = server.server.address();
@@ -68,7 +71,9 @@ describe('device connections', () => {
       tls: testDeviceTls(),
       db: fakeDb(async () => []),
       connections: createDeviceConnections(),
-      service: { authorizeConnection: async () => authorized },
+      service: fakeDevicesService({
+        authorizeConnection: async () => authorized,
+      }),
     });
     await server.listen({ host: '127.0.0.1', port: 0 });
     const address = server.server.address();

@@ -58,7 +58,10 @@ export async function buildDeviceServer({
 
   const devices =
     service ??
-    createDevicesService({ repository: createDevicesRepository(db.db) });
+    createDevicesService({
+      repository: createDevicesRepository(db.db),
+      pairingCodeSecret: env.PAIRING_CODE_SECRET,
+    });
 
   await server.register(errorHandlerPlugin);
   await server.register(deviceGatewayPlugin, {
