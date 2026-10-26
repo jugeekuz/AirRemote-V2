@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type { Env } from './config/env';
 import { loggerOptions } from './config/logger';
 import { authRoutes } from './features/auth/auth.routes';
+import { devicesRoutes } from './features/devices/devices.routes';
 import { healthRoutes } from './features/health/health.routes';
 import { usersRoutes } from './features/users/users.routes';
 import { authenticatePlugin } from './plugins/authenticate';
@@ -44,6 +45,7 @@ export async function buildApp({
   await app.register(healthRoutes);
   await app.register(usersRoutes, { prefix: '/users' });
   await app.register(authRoutes, { prefix: '/auth', env });
+  await app.register(devicesRoutes, { prefix: '/devices', env });
 
   return app;
 }
