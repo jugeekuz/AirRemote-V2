@@ -60,4 +60,33 @@ describe('device connections', () => {
 
     expect(await closed).toBe(1001);
   });
+
+  it('shuts down within seconds when a device stops responding', async () => {
+    const authorized = { id: 'device-1', macAddress: 'aa:bb:cc:dd:ee:01' };
+    const server = await buildDeviceServer({
+      env: testEnv,
+      tls: testDeviceTls(),
+      db: fakeDb(async () => []),
+      connections: createDeviceConnections(),
+      service: { authorizeConnection: async () => authorized },
+    });
+    await server.listen({ host: '127.0.0.1', port: 0 });
+    const address = server.server.address();
+    const port = typeof address === 'object' && address ? address.port : 0;
+    const socket = await connectDevice(
+      `wss://localhost:${port}/ws`,
+      'allowed',
+      {
+        autoPong: false,
+      },
+    );
+    // Like a device that lost power: it never reads, so never answers the close.
+    (socket as unknown as { _socket: { pause(): void } })._socket.pause();
+
+    const started = Date.now();
+    await server.close();
+
+    expect(Date.now() - started).toBeLessThan(5_000);
+    socket.terminate();
+  }, 15_000);
 });

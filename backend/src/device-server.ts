@@ -43,6 +43,19 @@ export async function buildDeviceServer({
     https: { ...tls, requestCert: true, rejectUnauthorized: true },
   });
 
+  // A client rejected during the TLS handshake (no certificate, another CA)
+  // never reaches HTTP; log it so a misconfigured device is visible.
+  server.server.on('tlsClientError', (error: NodeJS.ErrnoException, socket) => {
+    server.log.warn(
+      {
+        code: error.code,
+        reason: error.message,
+        remoteAddress: socket.remoteAddress,
+      },
+      'Device TLS handshake failed',
+    );
+  });
+
   const devices =
     service ??
     createDevicesService({ repository: createDevicesRepository(db.db) });

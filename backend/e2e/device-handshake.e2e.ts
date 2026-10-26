@@ -1,5 +1,5 @@
 import { request } from 'node:https';
-import { beforeEach, describe, expect, it, inject } from 'vitest';
+import { beforeEach, describe, expect, inject, it, vi } from 'vitest';
 import { buildDeviceServer } from '../src/device-server';
 import { createDeviceConnections } from '../src/shared/device-connections';
 import { fakeDb, testEnv } from '../src/__tests__/test-utils';
@@ -11,6 +11,37 @@ import {
 } from './support/device-server';
 
 const devices = useDeviceServer();
+
+/** A plain HTTPS request to the device port with the allowed client certificate. */
+function httpsRequest(
+  method: string,
+  path: string,
+  headers: Record<string, string> = {},
+): Promise<{ status: number; body: string }> {
+  const certs = inject('deviceCerts');
+  const { port } = new URL(devices.url);
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        method,
+        host: 'localhost',
+        port,
+        path,
+        headers,
+        ca: certs.ca,
+        cert: certs.clients.allowed.cert,
+        key: certs.clients.allowed.key,
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body }));
+      },
+    );
+    req.on('error', reject);
+    req.end();
+  });
+}
 
 beforeEach(async () => {
   await devices.allowDevice('AA:BB:CC:DD:EE:01');
@@ -66,33 +97,29 @@ describe('device handshake', () => {
   });
 
   it('answers 404 in the error envelope for any other path', async () => {
-    const certs = inject('deviceCerts');
-    const { port } = new URL(devices.url);
-    const response = await new Promise<{ status: number; body: string }>(
-      (resolve, reject) => {
-        const req = request(
-          {
-            host: 'localhost',
-            port,
-            path: '/nope',
-            ca: certs.ca,
-            cert: certs.clients.allowed.cert,
-            key: certs.clients.allowed.key,
-          },
-          (res) => {
-            let body = '';
-            res.on('data', (chunk) => (body += chunk));
-            res.on('end', () => resolve({ status: res.statusCode ?? 0, body }));
-          },
-        );
-        req.on('error', reject);
-        req.end();
-      },
-    );
+    const response = await httpsRequest('GET', '/nope');
     expect(response.status).toBe(404);
     expect(JSON.parse(response.body)).toMatchObject({
       error: { code: 'NOT_FOUND' },
     });
+  });
+
+  it('answers 404 to HEAD /ws instead of running the socket handler', async () => {
+    const response = await httpsRequest('HEAD', '/ws', {
+      'sec-websocket-protocol': 'airremote.v1',
+    });
+    expect(response.status).toBe(404);
+  });
+
+  it('logs a failed TLS handshake as a warning', async () => {
+    const warn = vi.spyOn(devices.server.log, 'warn');
+    await expect(devices.connect(null)).rejects.toBeDefined();
+    await vi.waitFor(() =>
+      expect(warn).toHaveBeenCalledWith(
+        expect.objectContaining({ remoteAddress: expect.any(String) }),
+        'Device TLS handshake failed',
+      ),
+    );
   });
 
   it('rejects with 403 when the allowlist check fails', async () => {
