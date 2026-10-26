@@ -54,6 +54,16 @@ It stays off until all three of these are set (the API logs a warning):
   set. The container runs as uid 1000, so the key must be readable by
   uid 1000.
 
+### Dev certificates
+
+`scripts/dev-certs.sh` creates a development CA and server certificate in
+`certs/`, under the names Compose expects, and prints the three lines to put
+in `.env` for `pnpm dev`. Running it again keeps the CA (so device
+certificates stay valid); `--force` replaces it.
+
+`scripts/dev-certs.sh device AA:BB:CC:DD:EE:01` plays the factory: it issues
+a device certificate with that MAC as its CN, in `certs/devices/`.
+
 ## Enrolling a device
 
 A device is allowed on the WebSocket once its owner has enrolled it:
