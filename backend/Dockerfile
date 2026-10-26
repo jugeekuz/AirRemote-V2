@@ -9,6 +9,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY backend/package.json backend/
 COPY packages/contracts/package.json packages/contracts/
 COPY packages/db/package.json packages/db/
+COPY tools/device-sim/package.json tools/device-sim/
 RUN pnpm install --frozen-lockfile
 
 COPY tsconfig.base.json ./

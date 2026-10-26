@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter @airremote/backend dev",
+    "device-sim": "pnpm --filter @airremote/device-sim start --",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",

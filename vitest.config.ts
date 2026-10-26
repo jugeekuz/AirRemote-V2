@@ -14,6 +14,7 @@ export default defineConfig({
           include: [
             'backend/src/**/__tests__/**/*.test.ts',
             'packages/*/src/**/__tests__/**/*.test.ts',
+            'tools/*/src/**/__tests__/**/*.test.ts',
           ],
         },
       },
