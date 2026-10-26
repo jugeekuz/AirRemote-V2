@@ -36,6 +36,13 @@
       "when": 1793041079623,
       "tag": "0004_device_commands",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793045075327,
+      "tag": "0005_device_command_send_ir",
+      "breakpoints": true
     }
   ]
 }

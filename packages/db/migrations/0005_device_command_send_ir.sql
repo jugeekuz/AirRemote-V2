@@ -1,0 +1,1 @@
+ALTER TYPE "public"."device_command_kind" ADD VALUE 'send_ir';

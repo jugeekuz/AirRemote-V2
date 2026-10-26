@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buttonListResponseSchema,
   buttonResponseSchema,
   learnButtonRequestSchema,
 } from '../buttons.contract';
@@ -24,5 +25,24 @@ describe('buttonResponseSchema', () => {
       name: 'Power',
     };
     expect(buttonResponseSchema.parse(body)).toEqual(body);
+  });
+});
+
+describe('buttonListResponseSchema', () => {
+  const item = {
+    id: '5d1c2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f',
+    remoteId: '5d1c2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f',
+    name: 'Power',
+  };
+
+  it('accepts an empty list and a list of items', () => {
+    expect(buttonListResponseSchema.parse([])).toEqual([]);
+    expect(buttonListResponseSchema.parse([item])).toEqual([item]);
+  });
+
+  it('rejects an invalid item', () => {
+    expect(buttonListResponseSchema.safeParse([{ id: '1' }]).success).toBe(
+      false,
+    );
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   REMOTE_TYPES,
   createRemoteRequestSchema,
+  remoteListResponseSchema,
   remoteResponseSchema,
   remoteTypeSchema,
 } from '../remotes.contract';
@@ -62,5 +63,25 @@ describe('remoteResponseSchema', () => {
       type: 'smart_tv',
     };
     expect(remoteResponseSchema.parse(body)).toEqual(body);
+  });
+});
+
+describe('remoteListResponseSchema', () => {
+  const item = {
+    id: '5d1c2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f',
+    deviceId: '5d1c2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f',
+    name: 'TV',
+    type: 'air_conditioner',
+  };
+
+  it('accepts an empty list and a list of items', () => {
+    expect(remoteListResponseSchema.parse([])).toEqual([]);
+    expect(remoteListResponseSchema.parse([item])).toEqual([item]);
+  });
+
+  it('rejects an invalid item', () => {
+    expect(remoteListResponseSchema.safeParse([{ id: '1' }]).success).toBe(
+      false,
+    );
   });
 });

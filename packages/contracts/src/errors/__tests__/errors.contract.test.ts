@@ -43,3 +43,9 @@ describe('errorCodeSchema', () => {
     expect(errorCodeSchema.options).toContain(code);
   });
 });
+
+describe('errorCodeSchema', () => {
+  it('knows IR_SEND_FAILED', () => {
+    expect(errorCodeSchema.options).toContain('IR_SEND_FAILED');
+  });
+});

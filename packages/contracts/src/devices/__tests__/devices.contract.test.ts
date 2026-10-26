@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { errorCodeSchema } from '../../errors/errors.contract';
 import {
+  deviceListResponseSchema,
   enrollDeviceRequestSchema,
   normalisePairingCode,
   pairingCodeResponseSchema,
@@ -94,5 +95,24 @@ describe('enrollment error codes', () => {
     'INVALID_DEVICE_CERTIFICATE',
   ])('includes %s', (code) => {
     expect(errorCodeSchema.options).toContain(code);
+  });
+});
+
+describe('deviceListResponseSchema', () => {
+  const item = {
+    id: '5d1c2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f',
+    macAddress: 'AA:BB:CC:DD:EE:01',
+    name: 'Hall',
+  };
+
+  it('accepts an empty list and a list of items', () => {
+    expect(deviceListResponseSchema.parse([])).toEqual([]);
+    expect(deviceListResponseSchema.parse([item])).toEqual([item]);
+  });
+
+  it('rejects an invalid item', () => {
+    expect(deviceListResponseSchema.safeParse([{ id: '1' }]).success).toBe(
+      false,
+    );
   });
 });

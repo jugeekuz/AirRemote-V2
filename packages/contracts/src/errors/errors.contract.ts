@@ -17,6 +17,7 @@ export const errorCodeSchema = z.enum([
   'DEVICE_BUSY',
   'IR_READ_TIMEOUT',
   'IR_CODE_TOO_LONG',
+  'IR_SEND_FAILED',
   'DEVICE_ERROR',
   'DEVICE_NOT_RESPONDING',
   'INVALID_DEVICE_CERTIFICATE',

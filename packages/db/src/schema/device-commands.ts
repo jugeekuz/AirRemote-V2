@@ -28,6 +28,9 @@ export const deviceCommandStatus = pgEnum(
 /** What a `learn_button` command was asked to learn. */
 export type LearnButtonContext = { remoteId: string; name: string };
 
+/** What a `send_ir` command was asked to press. */
+export type SendIrContext = { buttonId: string };
+
 /** Every command sent to a device, from `pending` to its final status. */
 export const deviceCommands = pgTable(
   'device_commands',
@@ -37,7 +40,9 @@ export const deviceCommands = pgTable(
       .notNull()
       .references(() => devices.id, { onDelete: 'cascade' }),
     kind: deviceCommandKind('kind').notNull(),
-    context: jsonb('context').$type<LearnButtonContext>().notNull(),
+    context: jsonb('context')
+      .$type<LearnButtonContext | SendIrContext>()
+      .notNull(),
     status: deviceCommandStatus('status').notNull().default('pending'),
     errorCode: text('error_code'),
     resultId: uuid('result_id'),

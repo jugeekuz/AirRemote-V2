@@ -12,3 +12,5 @@ export const buttonResponseSchema = z.object({
 });
 
 export type ButtonResponse = z.infer<typeof buttonResponseSchema>;
+
+export const buttonListResponseSchema = z.array(buttonResponseSchema);

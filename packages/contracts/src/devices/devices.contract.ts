@@ -49,6 +49,8 @@ export const deviceResponseSchema = z.object({
 
 export type DeviceResponse = z.infer<typeof deviceResponseSchema>;
 
+export const deviceListResponseSchema = z.array(deviceResponseSchema);
+
 export const pairingCodeResponseSchema = z.object({
   pairingCode,
   expiresAt: z.iso.datetime(),

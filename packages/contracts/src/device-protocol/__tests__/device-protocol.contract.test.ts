@@ -56,6 +56,7 @@ describe('deviceMessageSchema', () => {
       'CAPTURE_TOO_LONG',
       'BUSY',
       'INVALID_COMMAND',
+      'SEND_FAILED',
       'INTERNAL',
     ]);
   });
@@ -131,4 +132,56 @@ describe('serverMessageSchema', () => {
 
 it('names the subprotocol airremote.v1', () => {
   expect(DEVICE_SUBPROTOCOL).toBe('airremote.v1');
+});
+
+describe('sendIr messages', () => {
+  it('accepts sendIr from the server', () => {
+    const message = { type: 'sendIr', commandId, timingsUs };
+    expect(serverMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it('accepts sendIrResult from a device', () => {
+    const message = { type: 'sendIrResult', commandId };
+    expect(deviceMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    [
+      'sendIr with unknown keys',
+      serverMessageSchema,
+      { type: 'sendIr', commandId, timingsUs, extra: 1 },
+    ],
+    [
+      'sendIr without a commandId',
+      serverMessageSchema,
+      { type: 'sendIr', timingsUs },
+    ],
+    [
+      'sendIr without timings',
+      serverMessageSchema,
+      { type: 'sendIr', commandId },
+    ],
+    [
+      'sendIrResult with unknown keys',
+      deviceMessageSchema,
+      { type: 'sendIrResult', commandId, extra: 1 },
+    ],
+    [
+      'sendIrResult without a commandId',
+      deviceMessageSchema,
+      { type: 'sendIrResult' },
+    ],
+  ])('rejects %s', (_case, schema, message) => {
+    rejects(schema, message);
+  });
+
+  it('keeps the largest sendIr under 16 KiB', () => {
+    const largest = {
+      type: 'sendIr',
+      commandId,
+      timingsUs: Array(2048).fill(65535),
+    };
+    expect(serverMessageSchema.parse(largest)).toEqual(largest);
+    expect(JSON.stringify(largest).length).toBeLessThan(16 * 1024);
+  });
 });

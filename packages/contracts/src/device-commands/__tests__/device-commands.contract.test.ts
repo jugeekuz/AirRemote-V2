@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { deviceCommandResponseSchema } from '../device-commands.contract';
+import {
+  deviceCommandKindSchema,
+  deviceCommandResponseSchema,
+} from '../device-commands.contract';
 
 const base = {
   id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
@@ -51,5 +54,11 @@ describe('deviceCommandResponseSchema', () => {
         status: 'pending',
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('deviceCommandKindSchema', () => {
+  it('accepts send_ir', () => {
+    expect(deviceCommandKindSchema.parse('send_ir')).toBe('send_ir');
   });
 });

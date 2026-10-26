@@ -25,6 +25,11 @@ export function createDeviceCommandsSocketHandlers({
       }
     },
 
+    // Task 3 replaces this stub with the real settling.
+    async sendIrResult({ commandId }, { log }) {
+      log.warn({ commandId }, 'sendIrResult not handled yet');
+    },
+
     async error({ code, commandId, message }, { device, log }) {
       if (commandId === undefined) {
         log.warn({ code, deviceMessage: message }, 'Device reported an error');

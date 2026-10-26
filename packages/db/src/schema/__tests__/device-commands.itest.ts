@@ -122,3 +122,14 @@ describe('device_commands', () => {
     expect(await testDb.db.select().from(deviceCommands)).toEqual([]);
   });
 });
+
+describe('send_ir commands', () => {
+  it('stores a send_ir command with a button context', async () => {
+    const buttonId = '00000000-0000-4000-8000-000000000002';
+    const [stored] = await insertCommand({
+      kind: 'send_ir',
+      context: { buttonId },
+    });
+    expect(stored).toMatchObject({ kind: 'send_ir', context: { buttonId } });
+  });
+});

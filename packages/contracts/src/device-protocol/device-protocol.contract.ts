@@ -24,6 +24,8 @@ export const deviceErrorCodeSchema = z.enum([
   'BUSY',
   /** The device could not use a command the server sent. */
   'INVALID_COMMAND',
+  /** The device could not transmit the IR signal. */
+  'SEND_FAILED',
   'INTERNAL',
 ]);
 
@@ -50,6 +52,8 @@ export const deviceMessageSchema = z.discriminatedUnion('type', [
     commandId,
     timingsUs: irTimingsSchema,
   }),
+  /** The device transmitted the code of a `sendIr`. */
+  z.strictObject({ type: z.literal('sendIrResult'), commandId }),
   /** A failure on the device; `commandId` names the command it answers, if any. */
   z.strictObject({
     type: z.literal('error'),
@@ -68,6 +72,12 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('readIr'),
     commandId,
     timeoutMs: z.number().int().min(1_000).max(60_000),
+  }),
+  /** Transmit one IR signal; answered by `sendIrResult` or `error`. */
+  z.strictObject({
+    type: z.literal('sendIr'),
+    commandId,
+    timingsUs: irTimingsSchema,
   }),
   /** The server refused the device's last frame. */
   z.strictObject({

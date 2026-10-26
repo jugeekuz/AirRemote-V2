@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { buttonResponseSchema } from '../buttons/buttons.contract';
 import { errorCodeSchema } from '../errors/errors.contract';
 
-export const DEVICE_COMMAND_KINDS = ['learn_button'] as const;
+export const DEVICE_COMMAND_KINDS = ['learn_button', 'send_ir'] as const;
 
 export const DEVICE_COMMAND_STATUSES = [
   'pending',

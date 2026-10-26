@@ -33,6 +33,7 @@ type CommandErrorCode = Extract<
   ErrorCode,
   | 'IR_READ_TIMEOUT'
   | 'IR_CODE_TOO_LONG'
+  | 'IR_SEND_FAILED'
   | 'DEVICE_BUSY'
   | 'DEVICE_ERROR'
   | 'DEVICE_NOT_RESPONDING'
@@ -54,6 +55,7 @@ const API_ERROR_CODES: Record<StoredErrorCode, CommandErrorCode> = {
   BUSY: 'DEVICE_BUSY',
   INVALID_COMMAND: 'DEVICE_ERROR',
   INTERNAL: 'DEVICE_ERROR',
+  SEND_FAILED: 'IR_SEND_FAILED',
   DEVICE_DISCONNECTED: 'DEVICE_NOT_RESPONDING',
   DEVICE_OFFLINE: 'DEVICE_OFFLINE',
   BUTTON_NAME_TAKEN: 'BUTTON_NAME_TAKEN',
@@ -62,6 +64,7 @@ const API_ERROR_CODES: Record<StoredErrorCode, CommandErrorCode> = {
 const ERROR_MESSAGES: Record<CommandErrorCode, string> = {
   IR_READ_TIMEOUT: 'The device did not see an IR code in time.',
   IR_CODE_TOO_LONG: 'The IR code was too long for the device to capture.',
+  IR_SEND_FAILED: 'The device could not send the IR signal.',
   DEVICE_BUSY: 'The device was busy with another command.',
   DEVICE_ERROR: 'The device could not carry out the command.',
   DEVICE_NOT_RESPONDING: 'The device stopped responding.',

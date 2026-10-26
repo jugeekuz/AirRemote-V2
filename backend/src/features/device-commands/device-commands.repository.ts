@@ -149,6 +149,8 @@ export function createDeviceCommandsRepository(
           )
           .for('update');
         if (!command) return 'not-pending';
+        // Filtered on kind above, so the context is a learn context.
+        const context = command.context as LearnButtonContext;
 
         let buttonId: string;
         try {
@@ -157,8 +159,8 @@ export function createDeviceCommandsRepository(
             const [button] = await savepoint
               .insert(buttons)
               .values({
-                remoteId: command.context.remoteId,
-                name: command.context.name,
+                remoteId: context.remoteId,
+                name: context.name,
                 timingsUs,
               })
               .returning({ id: buttons.id });

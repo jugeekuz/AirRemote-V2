@@ -31,3 +31,5 @@ export const remoteResponseSchema = z.object({
 });
 
 export type RemoteResponse = z.infer<typeof remoteResponseSchema>;
+
+export const remoteListResponseSchema = z.array(remoteResponseSchema);
