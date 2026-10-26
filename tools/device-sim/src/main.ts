@@ -101,6 +101,9 @@ prompt.on('line', (line) => {
     case 'error':
       device.sendError(command.code, command.message);
       break;
+    case 'press':
+      device.press(command.timings);
+      break;
     case 'pongs':
       device.setPongs(command.on);
       break;

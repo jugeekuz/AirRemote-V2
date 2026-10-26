@@ -28,8 +28,9 @@ Options: `--server` (default `https://localhost:8443`) and `--certs`
 | `/disconnect`      | Closes it and stops reconnecting, like unplugging the network. |
 | `/send <text>`     | Sends `<text>` as is, unvalidated — to test the server's handling of bad frames. |
 | `/error <code> [message]` | Sends a valid `{ "type": "error", "code": …, "message": … }`, e.g. `/error READ_TIMEOUT`. |
+| `/press [t1,t2,…]` | Answers a read in progress with a sample NEC-shaped IR code, or with the given timings in µs (comma-separated integers). |
 | `/pongs on\|off`   | Answers the server's pings or not; off gets it dropped by the heartbeat. |
-| `/status`          | MAC, server, state, pending code, pongs.                      |
+| `/status`          | MAC, server, state, pending code, pending read, pongs.                      |
 | `/quit`            | Disconnects and exits (also Ctrl+C, Ctrl+D).                  |
 
 ## Enrolling it
@@ -45,3 +46,23 @@ curl -s localhost:3000/devices -H "authorization: Bearer $TOKEN" \
 ```
 
 The device connects on its own at its next retry.
+
+## Learning a button
+
+The backend sends a connected device `readIr`; the mock logs `listening for
+an IR code (15 s)` and waits, as a real device would. With the device
+enrolled and connected:
+
+```sh
+REMOTE=$(curl -s localhost:3000/devices/$DEVICE_ID/remotes -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' -d '{"name":"TV","type":"tv"}' | jq -r .id)
+curl -si localhost:3000/remotes/$REMOTE/buttons -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' -d '{"name":"Power"}'   # 202, Location: /device-commands/<id>
+curl -s localhost:3000/device-commands/<id> -H "authorization: Bearer $TOKEN"
+```
+
+Type `/press` in the simulator to send the code (or `/press 9000,4500,560`
+for your own timings); polling then answers `succeeded` with the button. If
+you do nothing for 15 s the mock sends `READ_TIMEOUT` itself and the poll
+answers `failed` (`IR_READ_TIMEOUT`). A second read while one is pending is
+answered `BUSY`; `/status` shows the pending read and its time left.

@@ -123,12 +123,16 @@ export function renderStatus(
   const code = status.pendingCode
     ? `${groupPairingCode(status.pendingCode.code)} (${formatRemaining(status.pendingCode.expiresAt - now)} left)`
     : 'none';
+  const read = status.pendingRead
+    ? `listening (${formatRemaining(status.pendingRead.expiresAt - now)} left)`
+    : 'no read in progress';
   const rows: [string, string][] = [
     ['MAC', status.mac],
     ['server', server],
     ['state', status.state],
     ['pongs', status.pongs ? 'on' : 'off'],
     ['code', code],
+    ['read', read],
   ];
   return rows
     .map(([label, value]) => `  ${colors.dim(label.padEnd(8))} ${value}`)

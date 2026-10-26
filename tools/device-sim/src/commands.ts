@@ -7,6 +7,7 @@ export type Command =
   | { name: 'quit' }
   | { name: 'send'; text: string }
   | { name: 'error'; code: string; message?: string }
+  | { name: 'press'; timings?: number[] }
   | { name: 'pongs'; on: boolean }
   | { name: 'usage'; usage: string }
   | { name: 'unknown' }
@@ -28,6 +29,11 @@ export const COMMAND_HELP: readonly { usage: string; description: string }[] = [
     usage: '/error <code> [message]',
     description: 'send an error, e.g. /error READ_TIMEOUT',
   },
+  {
+    usage: '/press [t1,t2,…]',
+    description:
+      'answer a read with a sample IR code, or the given timings (µs)',
+  },
   { usage: '/pongs on|off', description: 'answer the server’s pings or not' },
   { usage: '/status', description: 'show the device’s state' },
   { usage: '/quit', description: 'disconnect and exit (also Ctrl+C)' },
@@ -44,6 +50,12 @@ function errorCommand(rest: string): Command {
   const [code = '', ...words] = rest.split(/\s+/);
   const message = words.join(' ');
   return message ? { name: 'error', code, message } : { name: 'error', code };
+}
+
+/** `9000, 4500,560` → the numbers; anything but non-negative integers → null. */
+function timingsFrom(rest: string): number[] | null {
+  const parts = rest.split(',').map((part) => part.trim());
+  return parts.every((part) => /^\d+$/.test(part)) ? parts.map(Number) : null;
 }
 
 export function parseCommand(line: string): Command {
@@ -70,6 +82,11 @@ export function parseCommand(line: string): Command {
       return rest.trim() === '' ? usage('send') : { name: 'send', text: rest };
     case 'error':
       return rest.trim() === '' ? usage('error') : errorCommand(rest.trim());
+    case 'press': {
+      if (rest.trim() === '') return { name: 'press' };
+      const timings = timingsFrom(rest);
+      return timings ? { name: 'press', timings } : usage('press');
+    }
     case 'pongs':
       if (rest.trim() === 'on') return { name: 'pongs', on: true };
       if (rest.trim() === 'off') return { name: 'pongs', on: false };

@@ -122,6 +122,7 @@ describe('renderStatus', () => {
         state: 'waiting-for-enrollment',
         pongs: false,
         pendingCode: { code: '7K4MQ9TX', expiresAt: time.getTime() + 61_000 },
+        pendingRead: null,
       },
       server,
       time.getTime(),
@@ -136,12 +137,38 @@ describe('renderStatus', () => {
 
   it('says when no code is pending', () => {
     const status = renderStatus(
-      { mac, state: 'connected', pongs: true, pendingCode: null },
+      {
+        mac,
+        state: 'connected',
+        pongs: true,
+        pendingCode: null,
+        pendingRead: null,
+      },
       server,
       time.getTime(),
       colors,
     );
     expect(status).toContain('connected');
     expect(status).toContain('none');
+    expect(status).toContain('no read in progress');
+  });
+
+  it('shows a pending read with its time left', () => {
+    const status = renderStatus(
+      {
+        mac,
+        state: 'connected',
+        pongs: true,
+        pendingCode: null,
+        pendingRead: {
+          commandId: '3f6c1a52-8d1e-4a57-9c52-0a1b2c3d4e5f',
+          expiresAt: time.getTime() + 12_000,
+        },
+      },
+      server,
+      time.getTime(),
+      colors,
+    );
+    expect(status).toContain('listening (0:12 left)');
   });
 });

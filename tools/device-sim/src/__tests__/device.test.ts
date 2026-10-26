@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   createDevice,
+  SAMPLE_TIMINGS_US,
   type Clock,
   type DeviceEvent,
   type DeviceSocket,
@@ -490,5 +491,126 @@ describe('stop', () => {
     await subject.enroll();
     subject.stop();
     expect(clock.pending()).toBe(0);
+  });
+});
+
+describe('reading IR codes', () => {
+  const id = '3f6c1a52-8d1e-4a57-9c52-0a1b2c3d4e5f';
+  const other = '7a9d2b64-1c3e-4f58-8d63-1b2c3d4e5f60';
+  const readIr = (commandId = id, timeoutMs = 15_000) =>
+    JSON.stringify({ type: 'readIr', commandId, timeoutMs });
+  const lastSent = () => JSON.parse(lastSocket().sent.at(-1)!);
+
+  it('listens when asked to read, and shows the read in its status', async () => {
+    const subject = await connected();
+    lastSocket().events.message(readIr());
+    expect(statuses().at(-1)).toBe('listening for an IR code (15 s)');
+    expect(subject.status().pendingRead).toEqual({
+      commandId: id,
+      expiresAt: start + 15_000,
+    });
+  });
+
+  it('has no pending read to begin with', async () => {
+    const subject = await connected();
+    expect(subject.status().pendingRead).toBeNull();
+  });
+
+  it('sends the sample code on press, and is done listening', async () => {
+    const subject = await connected();
+    lastSocket().events.message(readIr());
+    subject.press();
+    expect(lastSent()).toEqual({
+      type: 'readIrResult',
+      commandId: id,
+      timingsUs: [...SAMPLE_TIMINGS_US],
+    });
+    expect(subject.status().pendingRead).toBeNull();
+    expect(clock.pending()).toBe(0);
+  });
+
+  it('sends the given timings on press', async () => {
+    const subject = await connected();
+    lastSocket().events.message(readIr());
+    subject.press([9000, 4500, 560]);
+    expect(lastSent()).toEqual({
+      type: 'readIrResult',
+      commandId: id,
+      timingsUs: [9000, 4500, 560],
+    });
+  });
+
+  it('keeps listening when the given timings are invalid', async () => {
+    const subject = await connected();
+    lastSocket().events.message(readIr());
+    subject.press([70_000]);
+    expect(statuses().at(-1)).toMatch(/^invalid message/);
+    expect(lastSocket().sent).toEqual([]);
+    expect(subject.status().pendingRead).not.toBeNull();
+  });
+
+  it('says so on press when no read is in progress', async () => {
+    const subject = await connected();
+    subject.press();
+    expect(statuses().at(-1)).toBe('no read in progress');
+    expect(lastSocket().sent).toEqual([]);
+  });
+
+  it('sends READ_TIMEOUT by itself at the timeout', async () => {
+    const subject = await connected();
+    lastSocket().events.message(readIr(id, 5_000));
+    await clock.advance(4_999);
+    expect(lastSocket().sent).toEqual([]);
+    await clock.advance(1);
+    expect(lastSent()).toEqual({
+      type: 'error',
+      code: 'READ_TIMEOUT',
+      commandId: id,
+    });
+    expect(subject.status().pendingRead).toBeNull();
+  });
+
+  it('answers a second read with BUSY and keeps the first', async () => {
+    const subject = await connected();
+    lastSocket().events.message(readIr(id));
+    lastSocket().events.message(readIr(other));
+    expect(lastSent()).toEqual({
+      type: 'error',
+      code: 'BUSY',
+      commandId: other,
+    });
+    expect(subject.status().pendingRead?.commandId).toBe(id);
+    subject.press([1, 2]);
+    expect(lastSent().commandId).toBe(id);
+  });
+
+  it('ignores frames that are not reads', async () => {
+    const subject = await connected();
+    lastSocket().events.message('not json');
+    lastSocket().events.message(
+      JSON.stringify({ type: 'error', code: 'INVALID_JSON', message: 'x' }),
+    );
+    expect(subject.status().pendingRead).toBeNull();
+    expect(lastSocket().sent).toEqual([]);
+  });
+
+  it('stops listening when stopped or disconnected', async () => {
+    const subject = await connected();
+    lastSocket().events.message(readIr());
+    subject.disconnect();
+    expect(subject.status().pendingRead).toBeNull();
+    expect(clock.pending()).toBe(0);
+
+    const second = await connected();
+    lastSocket().events.message(readIr());
+    second.stop();
+    expect(clock.pending()).toBe(0);
+  });
+
+  it('forgets the read when the connection drops', async () => {
+    const subject = await connected();
+    lastSocket().events.message(readIr());
+    lastSocket().events.close(1001, '');
+    expect(subject.status().pendingRead).toBeNull();
   });
 });

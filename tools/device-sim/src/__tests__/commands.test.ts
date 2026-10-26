@@ -11,6 +11,9 @@ describe('parseCommand', () => {
     ['/status', { name: 'status' }],
     ['/quit', { name: 'quit' }],
     ['  /help  ', { name: 'help' }],
+    ['/press', { name: 'press' }],
+    ['/press 9000,4500,560', { name: 'press', timings: [9000, 4500, 560] }],
+    ['/press 9000, 4500', { name: 'press', timings: [9000, 4500] }],
     ['/pongs on', { name: 'pongs', on: true }],
     ['/pongs off', { name: 'pongs', on: false }],
     [
@@ -37,13 +40,20 @@ describe('parseCommand', () => {
     expect(parseCommand('  /send hi')).toEqual({ name: 'send', text: 'hi' });
   });
 
-  it.each(['/send', '/send   ', '/error', '/pongs', '/pongs maybe'])(
-    'answers %j with its usage',
-    (line) => {
-      const command = parseCommand(line);
-      expect(command.name).toBe('usage');
-    },
-  );
+  it.each([
+    '/send',
+    '/send   ',
+    '/error',
+    '/pongs',
+    '/pongs maybe',
+    '/press 9000,x',
+    '/press 1,,2',
+    '/press -5',
+    '/press 1.5',
+  ])('answers %j with its usage', (line) => {
+    const command = parseCommand(line);
+    expect(command.name).toBe('usage');
+  });
 });
 
 describe('COMMAND_HELP', () => {
@@ -55,6 +65,7 @@ describe('COMMAND_HELP', () => {
       '/disconnect',
       '/send',
       '/error',
+      '/press',
       '/pongs',
       '/status',
       '/quit',

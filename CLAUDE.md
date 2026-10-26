@@ -55,6 +55,9 @@ Layer rules:
   Messages to a device go through `DeviceConnections.send` from
   `shared/device-connections.ts`, which validates them first. HTTP routes
   served on the device listener go in `<feature>.device-routes.ts`.
+- **Device commands** (e.g. learning a button) live in Postgres
+  (`device_commands`), so any instance can settle and report them; only
+  `DeviceConnections` (online check and send) is in-process.
 - **Protected routes** add `{ onRequest: app.authenticate }` and read the
   signed-in user with `authenticatedUserId(request)` from
   `plugins/authenticate.ts`; without a valid access token they answer 401.

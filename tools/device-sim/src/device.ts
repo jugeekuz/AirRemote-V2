@@ -2,6 +2,7 @@ import { STATUS_CODES } from 'node:http';
 import {
   deviceMessageSchema,
   pairingCodeResponseSchema,
+  serverMessageSchema,
 } from '@airremote/contracts';
 import { describeClose, pairingUri } from './format';
 
@@ -56,9 +57,21 @@ export type DeviceStatus = {
   state: DeviceState;
   pongs: boolean;
   pendingCode: { code: string; expiresAt: number } | null;
+  pendingRead: { commandId: string; expiresAt: number } | null;
 };
 
 export type Device = ReturnType<typeof createDevice>;
+
+/** A NEC-shaped code, in µs: a 9 ms burst, a 4.5 ms space, 32 bits, a stop mark. */
+export const SAMPLE_TIMINGS_US: readonly number[] = [
+  9000,
+  4500,
+  ...[...'00100000010000001100000000111111'].flatMap((bit) => [
+    560,
+    bit === '1' ? 1690 : 560,
+  ]),
+  560,
+];
 
 const FIRST_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 30_000;
@@ -96,6 +109,9 @@ export function createDevice({
   let reconnectTimer: unknown = null;
   let retryTimer: unknown = null;
   let expiryTimer: unknown = null;
+  /** The `readIr` the device is listening for, and the timer that ends it. */
+  let read: { commandId: string; expiresAt: number; timer: unknown } | null =
+    null;
 
   const status = (
     text: string,
@@ -111,6 +127,49 @@ export function createDevice({
     clearTimer(retryTimer);
     clearTimer(expiryTimer);
     reconnectTimer = retryTimer = expiryTimer = null;
+    clearRead();
+  }
+
+  function clearRead() {
+    if (read) clock.clearTimeout(read.timer);
+    read = null;
+  }
+
+  /** Sends a device message after checking it against the protocol; false if refused. */
+  function sendMessage(message: unknown): boolean {
+    const result = deviceMessageSchema.safeParse(message);
+    if (!result.success) {
+      const [issue] = result.error.issues;
+      status(`invalid message: ${issue?.message ?? 'rejected'}`, 'error');
+      return false;
+    }
+    device.send(JSON.stringify(result.data));
+    return true;
+  }
+
+  function handleServerMessage(text: string) {
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return;
+    }
+    const message = serverMessageSchema.safeParse(json);
+    if (!message.success || message.data.type !== 'readIr') return;
+    const { commandId, timeoutMs } = message.data;
+    if (read) {
+      sendMessage({ type: 'error', code: 'BUSY', commandId });
+      return;
+    }
+    read = {
+      commandId,
+      expiresAt: clock.now() + timeoutMs,
+      timer: clock.setTimeout(() => {
+        read = null;
+        sendMessage({ type: 'error', code: 'READ_TIMEOUT', commandId });
+      }, timeoutMs),
+    };
+    status(`listening for an IR code (${timeoutMs / 1000} s)`);
   }
 
   function cancelEnrollment() {
@@ -151,7 +210,9 @@ export function createDevice({
     let current: DeviceSocket | null = null;
     const events: SocketEvents = {
       message(text) {
-        if (current && socket === current) onEvent({ kind: 'received', text });
+        if (!current || socket !== current) return;
+        onEvent({ kind: 'received', text });
+        handleServerMessage(text);
       },
       ping() {
         if (!current || socket !== current) return;
@@ -163,6 +224,7 @@ export function createDevice({
       close(code) {
         if (!current || socket !== current) return;
         socket = null;
+        clearRead();
         onEvent({ kind: 'received', text: `close ${describeClose(code)}` });
         scheduleReconnect();
       },
@@ -342,17 +404,23 @@ export function createDevice({
 
     /** Sends `{ type: 'error', code, message? }`, refused locally if the protocol would reject it. */
     sendError(code: string, message?: string) {
-      const result = deviceMessageSchema.safeParse({
+      sendMessage({
         type: 'error',
         code,
         ...(message === undefined ? {} : { message }),
       });
-      if (!result.success) {
-        const [issue] = result.error.issues;
-        status(`invalid message: ${issue?.message ?? 'rejected'}`, 'error');
+    },
+
+    /** Answers the read in progress with a code: the sample one, or the given timings. */
+    press(timings: readonly number[] = SAMPLE_TIMINGS_US) {
+      if (!read) {
+        status('no read in progress', 'error');
         return;
       }
-      device.send(JSON.stringify(result.data));
+      const { commandId } = read;
+      // An invalid code is refused and the device keeps listening.
+      if (sendMessage({ type: 'readIrResult', commandId, timingsUs: timings }))
+        clearRead();
     },
 
     setPongs(on: boolean) {
@@ -361,7 +429,15 @@ export function createDevice({
     },
 
     status(): DeviceStatus {
-      return { mac, state, pongs, pendingCode: pending };
+      return {
+        mac,
+        state,
+        pongs,
+        pendingCode: pending,
+        pendingRead: read
+          ? { commandId: read.commandId, expiresAt: read.expiresAt }
+          : null,
+      };
     },
 
     /** Closes with 1000 and leaves nothing running, so the process can exit. */

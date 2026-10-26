@@ -84,6 +84,24 @@ cannot recover them.
 To try it without a device, run the mock device: `pnpm device-sim --mac
 AA:BB:CC:DD:EE:01` (see `tools/device-sim/README.md`).
 
+## Remotes and learning buttons
+
+All of these need the owner's access token.
+
+1. `POST /devices/:deviceId/remotes` with `{ name, type }` creates a remote
+   for one of the owner's devices: `201`.
+2. `POST /remotes/:remoteId/buttons` with `{ name }` asks the device to
+   listen for an IR code: `202` with `Location: /device-commands/<id>`, or
+   `409 DEVICE_OFFLINE` if the device is not connected.
+3. `GET /device-commands/:id` returns `{ id, kind, status, createdAt,
+   expiresAt, error?, button? }`. Poll it until `status` is not `pending`;
+   `succeeded` carries the saved `button`, `failed` an `error`.
+
+Commands are rows in `device_commands`, so any instance can report them.
+With the mock device, type `/press` in it to send a code. Example request:
+`curl -i -X POST localhost:3000/remotes/$REMOTE/buttons -H "authorization:
+Bearer $TOKEN" -H 'content-type: application/json' -d '{"name":"Power"}'`.
+
 ## Scripts (from the repository root)
 
 | Script                  | What it does                                                  |
