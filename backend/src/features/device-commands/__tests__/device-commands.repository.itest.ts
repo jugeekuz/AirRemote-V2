@@ -67,14 +67,32 @@ function create(name = 'Power', forDevice = deviceId) {
   });
 }
 
+async function createSend(forDevice = deviceId) {
+  const [button] = await testDb.db
+    .insert(buttons)
+    .values({ remoteId, name: 'Power', timingsUs })
+    .returning();
+  return repository().create({
+    deviceId: forDevice,
+    kind: 'send_ir',
+    context: { buttonId: button!.id },
+    ttlMs,
+  });
+}
+
 /** A pending row whose expiry has already passed, written directly. */
-async function insertOverduePending() {
+async function insertOverduePending(
+  kind: 'learn_button' | 'send_ir' = 'learn_button',
+) {
   const [row] = await testDb.db
     .insert(deviceCommands)
     .values({
       deviceId,
-      kind: 'learn_button',
-      context: { remoteId, name: 'Power' },
+      kind,
+      context:
+        kind === 'learn_button'
+          ? { remoteId, name: 'Power' }
+          : { buttonId: randomUUID() },
       createdAt: sql`now() - interval '21 seconds'`,
       expiresAt: sql`now() - interval '1 second'`,
     })
@@ -249,12 +267,91 @@ describe('device commands repository: completeLearnButton', () => {
     expect(await testDb.db.select().from(buttons)).toEqual([]);
   });
 
+  it('does not complete a command of another kind', async () => {
+    const command = await createSend();
+    const before = await row(command!.id);
+    expect(
+      await repository().completeLearnButton({
+        id: command!.id,
+        deviceId,
+        timingsUs,
+      }),
+    ).toBe('not-pending');
+    expect(await row(command!.id)).toEqual(before);
+  });
+
   it('does not complete a command twice', async () => {
     const command = await create();
     const input = { id: command!.id, deviceId, timingsUs };
     expect(await repository().completeLearnButton(input)).toBe('succeeded');
     expect(await repository().completeLearnButton(input)).toBe('not-pending');
     expect(await testDb.db.select().from(buttons)).toHaveLength(1);
+  });
+});
+
+describe('device commands repository: completeSendIr', () => {
+  it('creates a pending send_ir command with the button in its context', async () => {
+    const command = await createSend();
+    expect(command).toMatchObject({
+      deviceId,
+      kind: 'send_ir',
+      context: { buttonId: expect.any(String) },
+      status: 'pending',
+    });
+  });
+
+  it('marks the send succeeded once, writing nothing else', async () => {
+    const command = await createSend();
+    const before = await row(command!.id);
+    const input = { id: command!.id, deviceId };
+
+    expect(await repository().completeSendIr(input)).toBe(true);
+    const stored = await row(command!.id);
+    expect(stored).toEqual({
+      ...before,
+      status: 'succeeded',
+      finishedAt: expect.any(Date),
+    });
+    expect(await repository().findForUser(command!.id, userId)).toMatchObject({
+      kind: 'send_ir',
+      status: 'succeeded',
+      errorCode: null,
+      button: null,
+    });
+
+    expect(await repository().completeSendIr(input)).toBe(false);
+    expect(await row(command!.id)).toEqual(stored);
+  });
+
+  it('ignores a reply from another device, for an unknown id, or after expiry', async () => {
+    const command = await createSend();
+    const before = await row(command!.id);
+    expect(
+      await repository().completeSendIr({
+        id: command!.id,
+        deviceId: otherDeviceId,
+      }),
+    ).toBe(false);
+    expect(
+      await repository().completeSendIr({ id: randomUUID(), deviceId }),
+    ).toBe(false);
+    expect(await row(command!.id)).toEqual(before);
+
+    await testDb.db.delete(deviceCommands);
+    const overdue = await insertOverduePending('send_ir');
+    expect(
+      await repository().completeSendIr({ id: overdue.id, deviceId }),
+    ).toBe(false);
+    expect(await row(overdue.id)).toEqual(overdue);
+  });
+
+  it('does not complete a command of another kind', async () => {
+    const command = await create();
+    const before = await row(command!.id);
+    expect(
+      await repository().completeSendIr({ id: command!.id, deviceId }),
+    ).toBe(false);
+    expect(await row(command!.id)).toEqual(before);
   });
 });
 

@@ -19,6 +19,11 @@ export type ButtonsService = {
   ): Promise<DeviceCommandResponse>;
   /** The buttons of one of the user's remotes, by name ignoring case. */
   list(userId: string, remoteId: string): Promise<ButtonResponse[]>;
+  /**
+   * Asks the button's device to send its IR code. Returns the pending
+   * command; the device's reply settles it.
+   */
+  press(userId: string, buttonId: string): Promise<DeviceCommandResponse>;
 };
 
 export function createButtonsService({
@@ -26,7 +31,10 @@ export function createButtonsService({
   deviceCommands,
 }: {
   repository: ButtonsRepository;
-  deviceCommands: Pick<DeviceCommandsService, 'startLearnButton'>;
+  deviceCommands: Pick<
+    DeviceCommandsService,
+    'startLearnButton' | 'startSendIr'
+  >;
 }): ButtonsService {
   return {
     async learn(userId, remoteId, { name }) {
@@ -52,6 +60,16 @@ export function createButtonsService({
         throw new AppError(404, 'NOT_FOUND', 'Remote not found');
       }
       return repository.listForRemote(remoteId);
+    },
+
+    async press(userId, buttonId) {
+      const button = await repository.findOwnedButton(buttonId, userId);
+      if (!button) throw new AppError(404, 'NOT_FOUND', 'Button not found');
+      return deviceCommands.startSendIr({
+        deviceId: button.deviceId,
+        buttonId: button.id,
+        timingsUs: button.timingsUs,
+      });
     },
   };
 }

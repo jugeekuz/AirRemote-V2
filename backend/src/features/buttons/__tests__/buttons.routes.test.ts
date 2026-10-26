@@ -36,10 +36,21 @@ const button = {
 let app: FastifyInstance;
 let received: [string, string, LearnButtonRequest][];
 let listed: [string, string][];
+let pressed: [string, string][];
 
-async function appWith(learn: ButtonsService['learn']) {
+const pressing: DeviceCommandResponse = {
+  ...pending,
+  kind: 'send_ir',
+  expiresAt: '2026-10-26T12:00:05.000Z',
+};
+
+async function appWith(
+  learn: ButtonsService['learn'],
+  press: ButtonsService['press'] = async () => pressing,
+) {
   received = [];
   listed = [];
+  pressed = [];
   app = await buildTestApp();
   await app.register(authenticatePlugin, { secrets });
   await app.register(buttonsRoutes, {
@@ -52,6 +63,10 @@ async function appWith(learn: ButtonsService['learn']) {
       list: async (userId, forRemote) => {
         listed.push([userId, forRemote]);
         return [button];
+      },
+      press: async (userId, buttonId) => {
+        pressed.push([userId, buttonId]);
+        return press(userId, buttonId);
       },
     },
   });
@@ -155,5 +170,60 @@ describe('GET /remotes/:remoteId/buttons', () => {
     expect(res.statusCode).toBe(400);
     expect(res.json().error.code).toBe('VALIDATION_FAILED');
     expect(listed).toEqual([]);
+  });
+});
+
+describe('POST /buttons/:buttonId/press', () => {
+  async function press({ signedIn = true, buttonId = button.id } = {}) {
+    const token = await signAccessToken('user-1', secrets);
+    return app.inject({
+      method: 'POST',
+      url: `/buttons/${buttonId}/press`,
+      headers: signedIn ? { authorization: `Bearer ${token}` } : {},
+    });
+  }
+
+  it('returns 202 with the pending command and where to poll it', async () => {
+    await appWith(async () => pending);
+    const res = await press();
+    expect(res.statusCode).toBe(202);
+    expect(res.headers.location).toBe(`/device-commands/${pressing.id}`);
+    expect(res.json()).toEqual(pressing);
+    expect(pressed).toEqual([['user-1', button.id]]);
+  });
+
+  it('returns 401 without a token, without calling the service', async () => {
+    await appWith(async () => pending);
+    const res = await press({ signedIn: false });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().error.code).toBe('UNAUTHORIZED');
+    expect(pressed).toEqual([]);
+  });
+
+  it('returns 400 VALIDATION_FAILED for a non-UUID button id, without calling the service', async () => {
+    await appWith(async () => pending);
+    const res = await press({ buttonId: 'not-a-uuid' });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('VALIDATION_FAILED');
+    expect(pressed).toEqual([]);
+  });
+
+  it.each([
+    new AppError(404, 'NOT_FOUND', 'Button not found'),
+    new AppError(409, 'DEVICE_OFFLINE', 'The device is offline'),
+    new AppError(409, 'DEVICE_BUSY', 'The device is busy'),
+  ])('passes the service error $code through', async (error) => {
+    await appWith(
+      async () => pending,
+      async () => {
+        throw error;
+      },
+    );
+    const res = await press();
+    expect(res.statusCode).toBe(error.statusCode);
+    expect(res.headers.location).toBeUndefined();
+    expect(res.json()).toEqual({
+      error: { code: error.code, message: error.message },
+    });
   });
 });

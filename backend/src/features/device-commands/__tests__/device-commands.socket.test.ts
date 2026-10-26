@@ -9,6 +9,7 @@ const commandId = '6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11';
 let log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn> };
 let service: {
   settleReadResult: ReturnType<typeof vi.fn>;
+  settleSendResult: ReturnType<typeof vi.fn>;
   settleError: ReturnType<typeof vi.fn>;
 };
 const ctx = () => ({ device, log: log as unknown as FastifyBaseLogger });
@@ -19,7 +20,11 @@ const handlers = () =>
 
 beforeEach(() => {
   log = { info: vi.fn(), warn: vi.fn() };
-  service = { settleReadResult: vi.fn(), settleError: vi.fn() };
+  service = {
+    settleReadResult: vi.fn(),
+    settleSendResult: vi.fn(),
+    settleError: vi.fn(),
+  };
 });
 
 describe('device commands socket handlers: readIrResult', () => {
@@ -68,6 +73,36 @@ describe('device commands socket handlers: readIrResult', () => {
     expect(log.warn).toHaveBeenCalledExactlyOnceWith(
       { commandId, entries: 2, outcome: 'not-pending' },
       "Device read result for an unknown, late or another device's command",
+    );
+    expect(log.info).not.toHaveBeenCalled();
+  });
+});
+
+describe('device commands socket handlers: sendIrResult', () => {
+  it('settles the command and logs it at info', async () => {
+    service.settleSendResult.mockResolvedValue(true);
+
+    await handlers().sendIrResult({ type: 'sendIrResult', commandId }, ctx());
+
+    expect(service.settleSendResult).toHaveBeenCalledExactlyOnceWith(
+      device.id,
+      commandId,
+    );
+    expect(log.info).toHaveBeenCalledExactlyOnceWith(
+      { commandId, outcome: 'succeeded' },
+      'Device sent an IR code',
+    );
+    expect(log.warn).not.toHaveBeenCalled();
+  });
+
+  it('warns when the command is not pending', async () => {
+    service.settleSendResult.mockResolvedValue(false);
+
+    await handlers().sendIrResult({ type: 'sendIrResult', commandId }, ctx());
+
+    expect(log.warn).toHaveBeenCalledExactlyOnceWith(
+      { commandId, outcome: 'not-pending' },
+      "Device send result for an unknown, late or another device's command",
     );
     expect(log.info).not.toHaveBeenCalled();
   });

@@ -2,6 +2,7 @@ import type {
   DeviceCommandResponse,
   DeviceErrorCode,
   ErrorCode,
+  ServerMessage,
 } from '@airremote/contracts';
 import type { DeviceConnections } from '../../shared/device-connections';
 import { AppError } from '../../shared/errors';
@@ -9,14 +10,17 @@ import type {
   CompleteLearnButtonResult,
   DeviceCommandsRepository,
   DeviceCommandView,
+  NewDeviceCommand,
 } from './device-commands.repository';
 
 /** How long commands take; tests shorten them. */
 export type DeviceCommandTimings = {
   /** How long the device reads for an IR code (1000–60000, as `readIr` allows). */
   readTimeoutMs?: number;
-  /** How long a command lives after it was created. */
+  /** How long a learn command lives after it was created. */
   ttlMs?: number;
+  /** How long a send (press) command lives after it was created. */
+  sendTtlMs?: number;
 };
 
 export type DeviceCommandsServiceDeps = DeviceCommandTimings & {
@@ -101,18 +105,51 @@ function toResponse(view: DeviceCommandView): DeviceCommandResponse {
 const deviceOffline = () =>
   new AppError(409, 'DEVICE_OFFLINE', 'The device is offline');
 
+const deviceBusy = () =>
+  new AppError(409, 'DEVICE_BUSY', 'The device is busy with another command');
+
 export function createDeviceCommandsService({
   repository,
   connections,
   readTimeoutMs = 15_000,
   ttlMs = 20_000,
+  sendTtlMs = 5_000,
 }: DeviceCommandsServiceDeps) {
+  /**
+   * Checks the device is online, creates the pending command, sends the
+   * message for it and records the connection it went over.
+   */
+  async function start(
+    input: NewDeviceCommand,
+    message: (commandId: string) => ServerMessage,
+  ): Promise<DeviceCommandResponse> {
+    const { deviceId } = input;
+    if (!connections.isConnected(deviceId)) throw deviceOffline();
+
+    const command = await repository.create(input);
+    if (!command) throw deviceBusy();
+
+    const connectionId = connections.send(deviceId, message(command.id));
+    if (!connectionId) {
+      // The device left between the check and the send.
+      await repository.fail({
+        id: command.id,
+        deviceId,
+        errorCode: 'DEVICE_OFFLINE',
+      });
+      throw deviceOffline();
+    }
+    await repository.recordConnection(command.id, connectionId);
+
+    return toResponse({ ...command, button: null });
+  }
+
   return {
     /**
      * Asks the device to read an IR code for a new button on `remoteId`.
      * Returns the pending command; the device's reply settles it.
      */
-    async startLearnButton({
+    startLearnButton({
       deviceId,
       remoteId,
       name,
@@ -121,39 +158,38 @@ export function createDeviceCommandsService({
       remoteId: string;
       name: string;
     }): Promise<DeviceCommandResponse> {
-      if (!connections.isConnected(deviceId)) throw deviceOffline();
+      return start(
+        { deviceId, kind: 'learn_button', context: { remoteId, name }, ttlMs },
+        (commandId) => ({
+          type: 'readIr',
+          commandId,
+          timeoutMs: readTimeoutMs,
+        }),
+      );
+    },
 
-      const command = await repository.create({
-        deviceId,
-        kind: 'learn_button',
-        context: { remoteId, name },
-        ttlMs,
-      });
-      if (!command) {
-        throw new AppError(
-          409,
-          'DEVICE_BUSY',
-          'The device is busy with another command',
-        );
-      }
-
-      const connectionId = connections.send(deviceId, {
-        type: 'readIr',
-        commandId: command.id,
-        timeoutMs: readTimeoutMs,
-      });
-      if (!connectionId) {
-        // The device left between the check and the send.
-        await repository.fail({
-          id: command.id,
+    /**
+     * Asks the device to send a button's IR code. Returns the pending
+     * command; the device's reply settles it.
+     */
+    startSendIr({
+      deviceId,
+      buttonId,
+      timingsUs,
+    }: {
+      deviceId: string;
+      buttonId: string;
+      timingsUs: number[];
+    }): Promise<DeviceCommandResponse> {
+      return start(
+        {
           deviceId,
-          errorCode: 'DEVICE_OFFLINE',
-        });
-        throw deviceOffline();
-      }
-      await repository.recordConnection(command.id, connectionId);
-
-      return toResponse({ ...command, button: null });
+          kind: 'send_ir',
+          context: { buttonId },
+          ttlMs: sendTtlMs,
+        },
+        (commandId) => ({ type: 'sendIr', commandId, timingsUs }),
+      );
     },
 
     /** A command on one of the user's devices, as the poll answers it. */
@@ -176,6 +212,11 @@ export function createDeviceCommandsService({
         deviceId,
         timingsUs,
       });
+    },
+
+    /** Marks the send command succeeded. False when none is pending. */
+    settleSendResult(deviceId: string, commandId: string): Promise<boolean> {
+      return repository.completeSendIr({ id: commandId, deviceId });
     },
 
     /** Fails the command with the device's error code. False when none is pending. */

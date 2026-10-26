@@ -12,6 +12,7 @@ import type {
 function setup() {
   const repository = {
     completeLearnButton: vi.fn(),
+    completeSendIr: vi.fn(),
     fail: vi.fn(),
     failConnection: vi.fn(),
   };
@@ -34,6 +35,19 @@ describe('device commands service: settling', () => {
       id: 'cmd-1',
       deviceId: 'device-1',
       timingsUs: [9000, 4500],
+    });
+  });
+
+  it('completes the send command and returns whether it matched', async () => {
+    const { repository, service } = setup();
+    repository.completeSendIr.mockResolvedValue(false);
+
+    await expect(service.settleSendResult('device-1', 'cmd-1')).resolves.toBe(
+      false,
+    );
+    expect(repository.completeSendIr).toHaveBeenCalledExactlyOnceWith({
+      id: 'cmd-1',
+      deviceId: 'device-1',
     });
   });
 
@@ -90,7 +104,11 @@ function learnSetup({
   connected = true,
   sentOver = 'conn-1' as string | null,
   command = created as DeviceCommand | null,
-  options = {} as { readTimeoutMs?: number; ttlMs?: number },
+  options = {} as {
+    readTimeoutMs?: number;
+    ttlMs?: number;
+    sendTtlMs?: number;
+  },
 } = {}) {
   const repository = {
     create: vi.fn(async () => command),
@@ -206,6 +224,103 @@ describe('device commands service: startLearnButton', () => {
   });
 });
 
+const buttonId = '3c1e4a8e-4a43-4d5f-9f6f-2b1101010101';
+const sendTimings = [9000, 4500, 560];
+const send = { deviceId, buttonId, timingsUs: sendTimings };
+const sendCreated: DeviceCommand = {
+  ...created,
+  kind: 'send_ir',
+  context: { buttonId },
+  expiresAt: new Date('2026-10-26T12:00:05.000Z'),
+};
+
+describe('device commands service: startSendIr', () => {
+  it('creates the command, sends sendIr, records the connection and returns it pending', async () => {
+    const { repository, connections, service } = learnSetup({
+      command: sendCreated,
+    });
+
+    await expect(service.startSendIr(send)).resolves.toEqual({
+      id: commandId,
+      kind: 'send_ir',
+      status: 'pending',
+      createdAt: '2026-10-26T12:00:00.000Z',
+      expiresAt: '2026-10-26T12:00:05.000Z',
+    });
+    expect(repository.create).toHaveBeenCalledExactlyOnceWith({
+      deviceId,
+      kind: 'send_ir',
+      context: { buttonId },
+      ttlMs: 5_000,
+    });
+    expect(connections.send).toHaveBeenCalledExactlyOnceWith(deviceId, {
+      type: 'sendIr',
+      commandId,
+      timingsUs: sendTimings,
+    });
+    expect(repository.recordConnection).toHaveBeenCalledExactlyOnceWith(
+      commandId,
+      'conn-1',
+    );
+    expect(repository.fail).not.toHaveBeenCalled();
+  });
+
+  it('uses the configured send time to live, not the learn one', async () => {
+    const { repository, service } = learnSetup({
+      command: sendCreated,
+      options: { sendTtlMs: 1_500, ttlMs: 3_000 },
+    });
+
+    await service.startSendIr(send);
+
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ ttlMs: 1_500 }),
+    );
+  });
+
+  it('answers 409 DEVICE_OFFLINE when the device is not connected, creating nothing', async () => {
+    const { repository, connections, service } = learnSetup({
+      connected: false,
+    });
+
+    await expect(appErrorOf(service.startSendIr(send))).resolves.toEqual({
+      statusCode: 409,
+      code: 'DEVICE_OFFLINE',
+    });
+    expect(connections.isConnected).toHaveBeenCalledExactlyOnceWith(deviceId);
+    expect(repository.create).not.toHaveBeenCalled();
+    expect(connections.send).not.toHaveBeenCalled();
+  });
+
+  it('answers 409 DEVICE_BUSY when the device already has a pending command, sending nothing', async () => {
+    const { connections, service } = learnSetup({ command: null });
+
+    await expect(appErrorOf(service.startSendIr(send))).resolves.toEqual({
+      statusCode: 409,
+      code: 'DEVICE_BUSY',
+    });
+    expect(connections.send).not.toHaveBeenCalled();
+  });
+
+  it('fails the command DEVICE_OFFLINE and answers 409 when the device left before the send', async () => {
+    const { repository, service } = learnSetup({
+      command: sendCreated,
+      sentOver: null,
+    });
+
+    await expect(appErrorOf(service.startSendIr(send))).resolves.toEqual({
+      statusCode: 409,
+      code: 'DEVICE_OFFLINE',
+    });
+    expect(repository.fail).toHaveBeenCalledExactlyOnceWith({
+      id: commandId,
+      deviceId,
+      errorCode: 'DEVICE_OFFLINE',
+    });
+    expect(repository.recordConnection).not.toHaveBeenCalled();
+  });
+});
+
 const userId = '6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11';
 
 const view: DeviceCommandView = {
@@ -262,6 +377,19 @@ describe('device commands service: get', () => {
     expect(deviceCommandResponseSchema.parse(command)).toEqual(command);
   });
 
+  it('returns a succeeded send_ir command without a button', async () => {
+    const { service } = getSetup({
+      ...view,
+      kind: 'send_ir',
+      status: 'succeeded',
+    });
+
+    const command = await service.get(userId, commandId);
+
+    expect(command).toEqual({ ...times, kind: 'send_ir', status: 'succeeded' });
+    expect(deviceCommandResponseSchema.parse(command)).toEqual(command);
+  });
+
   it.each([
     ['failed', 'READ_TIMEOUT', 'IR_READ_TIMEOUT'],
     ['failed', 'CAPTURE_TOO_LONG', 'IR_CODE_TOO_LONG'],
@@ -271,6 +399,7 @@ describe('device commands service: get', () => {
     ['failed', 'DEVICE_DISCONNECTED', 'DEVICE_NOT_RESPONDING'],
     ['failed', 'DEVICE_OFFLINE', 'DEVICE_OFFLINE'],
     ['failed', 'BUTTON_NAME_TAKEN', 'BUTTON_NAME_TAKEN'],
+    ['failed', 'SEND_FAILED', 'IR_SEND_FAILED'],
     ['failed', 'SOMETHING_NEW', 'DEVICE_ERROR'],
     ['expired', null, 'DEVICE_NOT_RESPONDING'],
   ] as const)(
@@ -300,6 +429,7 @@ describe('device commands service: get', () => {
       ['failed', 'DEVICE_DISCONNECTED'],
       ['failed', 'DEVICE_OFFLINE'],
       ['failed', 'BUTTON_NAME_TAKEN'],
+      ['failed', 'SEND_FAILED'],
     ] as const) {
       const { service } = getSetup({ ...view, status, errorCode });
       const { error } = await service.get(userId, commandId);

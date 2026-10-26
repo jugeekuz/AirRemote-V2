@@ -7,6 +7,16 @@ export type ButtonsRepository = {
     remoteId: string,
     userId: string,
   ): Promise<{ id: string; deviceId: string } | null>;
+  /** The button with its remote, device and IR timings, if the device is the user's. */
+  findOwnedButton(
+    buttonId: string,
+    userId: string,
+  ): Promise<{
+    id: string;
+    remoteId: string;
+    deviceId: string;
+    timingsUs: number[];
+  } | null>;
   /** The remote's buttons, without their IR timings, by name ignoring case. */
   listForRemote(
     remoteId: string,
@@ -24,6 +34,21 @@ export function createButtonsRepository(db: Database): ButtonsRepository {
         .innerJoin(devices, eq(devices.id, remotes.deviceId))
         .where(and(eq(remotes.id, remoteId), eq(devices.userId, userId)));
       return remote ?? null;
+    },
+
+    async findOwnedButton(buttonId, userId) {
+      const [button] = await db
+        .select({
+          id: buttons.id,
+          remoteId: buttons.remoteId,
+          deviceId: remotes.deviceId,
+          timingsUs: buttons.timingsUs,
+        })
+        .from(buttons)
+        .innerJoin(remotes, eq(remotes.id, buttons.remoteId))
+        .innerJoin(devices, eq(devices.id, remotes.deviceId))
+        .where(and(eq(buttons.id, buttonId), eq(devices.userId, userId)));
+      return button ?? null;
     },
 
     async listForRemote(remoteId) {

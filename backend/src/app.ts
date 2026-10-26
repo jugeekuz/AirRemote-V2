@@ -33,8 +33,9 @@ export interface BuildAppOptions {
    */
   connections?: DeviceConnections;
   /**
-   * How long a device reads for an IR code and how long a command lives.
-   * Defaults to 15 s and 20 s; tests shorten them.
+   * How long a device reads for an IR code, how long a learn command lives
+   * and how long a press lives. Defaults to 15 s, 20 s and 5 s; tests
+   * shorten them.
    */
   deviceCommandTimings?: DeviceCommandTimings;
 }

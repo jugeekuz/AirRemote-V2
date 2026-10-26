@@ -5,6 +5,7 @@ import {
   type Database,
   type DeviceCommand,
   type LearnButtonContext,
+  type SendIrContext,
 } from '@airremote/db';
 import { and, eq, gt, lte, sql } from 'drizzle-orm';
 import { isUniqueViolation } from '../../shared/pg-errors';
@@ -23,18 +24,19 @@ export type DeviceCommandView = {
 export type CompleteLearnButtonResult =
   'succeeded' | 'name-taken' | 'not-pending';
 
+/** A new command: its kind and the context it is settled with. */
+export type NewDeviceCommand = { deviceId: string; ttlMs: number } & (
+  | { kind: 'learn_button'; context: LearnButtonContext }
+  | { kind: 'send_ir'; context: SendIrContext }
+);
+
 export type DeviceCommandsRepository = {
   /**
    * Creates a pending command expiring `ttlMs` after Postgres' `now()`, first
    * marking the device's overdue pending command expired. Returns null when
    * the device already has a live pending command.
    */
-  create(input: {
-    deviceId: string;
-    kind: 'learn_button';
-    context: LearnButtonContext;
-    ttlMs: number;
-  }): Promise<DeviceCommand | null>;
+  create(input: NewDeviceCommand): Promise<DeviceCommand | null>;
   /** Records the device connection a pending command was sent over. */
   recordConnection(id: string, connectionId: string): Promise<void>;
   /** Fails the device's live pending command. False when there is none. */
@@ -54,6 +56,11 @@ export type DeviceCommandsRepository = {
     deviceId: string;
     timingsUs: number[];
   }): Promise<CompleteLearnButtonResult>;
+  /**
+   * Marks the device's live pending `send_ir` command succeeded. False when
+   * there is none.
+   */
+  completeSendIr(input: { id: string; deviceId: string }): Promise<boolean>;
   /**
    * Fails the live pending commands sent over a connection that closed.
    * Returns how many it failed.
@@ -185,6 +192,17 @@ export function createDeviceCommandsRepository(
           .where(eq(deviceCommands.id, id));
         return 'succeeded';
       });
+    },
+
+    async completeSendIr({ id, deviceId }) {
+      const completed = await db
+        .update(deviceCommands)
+        .set({ status: 'succeeded', finishedAt: now })
+        .where(
+          and(livePending(id, deviceId), eq(deviceCommands.kind, 'send_ir')),
+        )
+        .returning({ id: deviceCommands.id });
+      return completed.length > 0;
     },
 
     async failConnection({ deviceId, connectionId, errorCode }) {

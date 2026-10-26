@@ -42,7 +42,9 @@ async function appWith(get: DeviceCommandsService['get']) {
     connections: createDeviceConnections(),
     service: {
       startLearnButton: unexpected,
+      startSendIr: unexpected,
       settleReadResult: unexpected,
+      settleSendResult: unexpected,
       settleError: unexpected,
       connectionClosed: unexpected,
       get: async (userId, id) => {

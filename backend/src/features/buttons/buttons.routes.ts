@@ -18,7 +18,7 @@ import { createButtonsService, type ButtonsService } from './buttons.service';
 export const buttonsRoutes: FastifyPluginAsyncZod<{
   /** The connected devices, shared with the device server. */
   connections: DeviceConnections;
-  /** Shortens the device read and the command's life, e.g. in tests. */
+  /** Shortens the device read and the commands' lives, e.g. in tests. */
   timings?: DeviceCommandTimings;
   /** Overrides the service, e.g. with a fake in tests. */
   service?: ButtonsService;
@@ -62,6 +62,27 @@ export const buttonsRoutes: FastifyPluginAsyncZod<{
         authenticatedUserId(request),
         request.params.remoteId,
         request.body,
+      );
+      return reply
+        .code(202)
+        .header('location', `/device-commands/${command.id}`)
+        .send(command);
+    },
+  );
+
+  app.post(
+    '/buttons/:buttonId/press',
+    {
+      onRequest: app.authenticate,
+      schema: {
+        params: z.object({ buttonId: z.uuid() }),
+        response: { 202: deviceCommandResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const command = await service.press(
+        authenticatedUserId(request),
+        request.params.buttonId,
       );
       return reply
         .code(202)

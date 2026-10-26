@@ -10,6 +10,8 @@ let deviceId: string;
 let remoteId: string;
 let otherRemoteId: string;
 let otherUsersRemoteId: string;
+let buttonId: string;
+let otherUsersButtonId: string;
 
 const repository = () => createButtonsRepository(testDb.db);
 
@@ -51,9 +53,43 @@ beforeEach(async () => {
   remoteId = await insertRemote(deviceId, 'TV');
   otherRemoteId = await insertRemote(deviceId, 'Heater');
   otherUsersRemoteId = await insertRemote(otherDeviceId, 'TV');
-  await testDb.db
+  const [button, otherUsersButton] = await testDb.db
     .insert(buttons)
-    .values({ remoteId, name: 'Power', timingsUs: [9000, 4500] });
+    .values([
+      { remoteId, name: 'Power', timingsUs: [9000, 4500] },
+      { remoteId: otherUsersRemoteId, name: 'Power', timingsUs: [1, 2] },
+    ])
+    .returning();
+  buttonId = button!.id;
+  otherUsersButtonId = otherUsersButton!.id;
+});
+
+describe('buttons repository: findOwnedButton', () => {
+  it('finds the user’s button with its remote, device and timings', async () => {
+    await expect(
+      repository().findOwnedButton(buttonId, userId),
+    ).resolves.toEqual({
+      id: buttonId,
+      remoteId,
+      deviceId,
+      timingsUs: [9000, 4500],
+    });
+  });
+
+  it('does not find a button on another user’s device', async () => {
+    await expect(
+      repository().findOwnedButton(otherUsersButtonId, userId),
+    ).resolves.toBeNull();
+  });
+
+  it('does not find a button that does not exist', async () => {
+    await expect(
+      repository().findOwnedButton(
+        '00000000-0000-4000-8000-000000000000',
+        userId,
+      ),
+    ).resolves.toBeNull();
+  });
 });
 
 describe('buttons repository: findOwnedRemote', () => {

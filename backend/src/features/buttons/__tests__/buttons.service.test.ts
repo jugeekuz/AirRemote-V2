@@ -22,23 +22,41 @@ const button = {
   name: 'Power',
 };
 
+const timingsUs = [9000, 4500, 560];
+
+const ownedButton = { id: button.id, remoteId, deviceId, timingsUs };
+
+const pressing: DeviceCommandResponse = {
+  ...pending,
+  kind: 'send_ir',
+  expiresAt: '2026-10-26T12:00:05.000Z',
+};
+
 function serviceWith({
   owned = async () => ({ id: remoteId, deviceId }),
   taken = async () => false,
   started = async () => pending,
   listed = async () => [button],
+  ownedButtonFound = async () => ownedButton,
+  sent = async () => pressing,
 }: {
   owned?: () => Promise<{ id: string; deviceId: string } | null>;
   taken?: () => Promise<boolean>;
   started?: () => Promise<DeviceCommandResponse>;
   listed?: () => Promise<{ id: string; remoteId: string; name: string }[]>;
+  ownedButtonFound?: () => Promise<typeof ownedButton | null>;
+  sent?: () => Promise<DeviceCommandResponse>;
 } = {}) {
   const repository = {
     findOwnedRemote: vi.fn(owned),
+    findOwnedButton: vi.fn(ownedButtonFound),
     nameTaken: vi.fn(taken),
     listForRemote: vi.fn(listed),
   };
-  const deviceCommands = { startLearnButton: vi.fn(started) };
+  const deviceCommands = {
+    startLearnButton: vi.fn(started),
+    startSendIr: vi.fn(sent),
+  };
   const service = createButtonsService({
     repository: repository satisfies ButtonsRepository,
     deviceCommands,
@@ -135,5 +153,44 @@ describe('buttons service: list', () => {
       code: 'NOT_FOUND',
     });
     expect(repository.listForRemote).not.toHaveBeenCalled();
+  });
+});
+
+describe('buttons service: press', () => {
+  it('sends the button’s timings from its device and returns the pending command', async () => {
+    const { service, repository, deviceCommands } = serviceWith();
+
+    await expect(service.press(userId, button.id)).resolves.toEqual(pressing);
+    expect(repository.findOwnedButton).toHaveBeenCalledExactlyOnceWith(
+      button.id,
+      userId,
+    );
+    expect(deviceCommands.startSendIr).toHaveBeenCalledExactlyOnceWith({
+      deviceId,
+      buttonId: button.id,
+      timingsUs,
+    });
+  });
+
+  it('answers 404 NOT_FOUND for a button that is not the user’s, sending nothing', async () => {
+    const { service, deviceCommands } = serviceWith({
+      ownedButtonFound: async () => null,
+    });
+
+    await expect(appErrorOf(service.press(userId, button.id))).resolves.toEqual(
+      { statusCode: 404, code: 'NOT_FOUND' },
+    );
+    expect(deviceCommands.startSendIr).not.toHaveBeenCalled();
+  });
+
+  it('passes the device commands’ errors through', async () => {
+    const busy = new AppError(409, 'DEVICE_BUSY', 'The device is busy');
+    const { service } = serviceWith({
+      sent: async () => {
+        throw busy;
+      },
+    });
+
+    await expect(service.press(userId, button.id)).rejects.toBe(busy);
   });
 });
