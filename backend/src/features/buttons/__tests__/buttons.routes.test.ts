@@ -27,11 +27,19 @@ const pending: DeviceCommandResponse = {
   expiresAt: '2026-10-26T12:00:20.000Z',
 };
 
+const button = {
+  id: '3c1e4a8e-4a43-4d5f-9f6f-2b1101010101',
+  remoteId,
+  name: 'Power',
+};
+
 let app: FastifyInstance;
 let received: [string, string, LearnButtonRequest][];
+let listed: [string, string][];
 
 async function appWith(learn: ButtonsService['learn']) {
   received = [];
+  listed = [];
   app = await buildTestApp();
   await app.register(authenticatePlugin, { secrets });
   await app.register(buttonsRoutes, {
@@ -40,6 +48,10 @@ async function appWith(learn: ButtonsService['learn']) {
       learn: async (userId, forRemote, input) => {
         received.push([userId, forRemote, input]);
         return learn(userId, forRemote, input);
+      },
+      list: async (userId, forRemote) => {
+        listed.push([userId, forRemote]);
+        return [button];
       },
     },
   });
@@ -111,5 +123,37 @@ describe('POST /remotes/:remoteId/buttons', () => {
     expect(res.json()).toEqual({
       error: { code: error.code, message: error.message },
     });
+  });
+});
+
+describe('GET /remotes/:remoteId/buttons', () => {
+  async function get({ signedIn = true, remote = remoteId } = {}) {
+    await appWith(async () => pending);
+    const token = await signAccessToken('user-1', secrets);
+    return app.inject({
+      method: 'GET',
+      url: `/remotes/${remote}/buttons`,
+      headers: signedIn ? { authorization: `Bearer ${token}` } : {},
+    });
+  }
+
+  it('returns 200 with the remote’s buttons', async () => {
+    const res = await get();
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([button]);
+    expect(listed).toEqual([['user-1', remoteId]]);
+  });
+
+  it('returns 401 without a token, without calling the service', async () => {
+    const res = await get({ signedIn: false });
+    expect(res.statusCode).toBe(401);
+    expect(listed).toEqual([]);
+  });
+
+  it('returns 400 VALIDATION_FAILED for a non-UUID remote id', async () => {
+    const res = await get({ remote: 'not-a-uuid' });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('VALIDATION_FAILED');
+    expect(listed).toEqual([]);
   });
 });

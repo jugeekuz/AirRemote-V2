@@ -1,4 +1,5 @@
 import {
+  deviceListResponseSchema,
   deviceResponseSchema,
   enrollDeviceRequestSchema,
 } from '@airremote/contracts';
@@ -19,6 +20,15 @@ export const devicesRoutes: FastifyPluginAsyncZod<{
       repository: createDevicesRepository(app.db),
       pairingCodeSecret: env.PAIRING_CODE_SECRET,
     });
+
+  app.get(
+    '/',
+    {
+      onRequest: app.authenticate,
+      schema: { response: { 200: deviceListResponseSchema } },
+    },
+    async (request) => service.list(authenticatedUserId(request)),
+  );
 
   app.post(
     '/',

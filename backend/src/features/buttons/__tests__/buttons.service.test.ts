@@ -16,18 +16,27 @@ const pending: DeviceCommandResponse = {
   expiresAt: '2026-10-26T12:00:20.000Z',
 };
 
+const button = {
+  id: '3c1e4a8e-4a43-4d5f-9f6f-2b1101010101',
+  remoteId,
+  name: 'Power',
+};
+
 function serviceWith({
   owned = async () => ({ id: remoteId, deviceId }),
   taken = async () => false,
   started = async () => pending,
+  listed = async () => [button],
 }: {
   owned?: () => Promise<{ id: string; deviceId: string } | null>;
   taken?: () => Promise<boolean>;
   started?: () => Promise<DeviceCommandResponse>;
+  listed?: () => Promise<{ id: string; remoteId: string; name: string }[]>;
 } = {}) {
   const repository = {
     findOwnedRemote: vi.fn(owned),
     nameTaken: vi.fn(taken),
+    listForRemote: vi.fn(listed),
   };
   const deviceCommands = { startLearnButton: vi.fn(started) };
   const service = createButtonsService({
@@ -103,5 +112,28 @@ describe('buttons service: learn', () => {
     await expect(
       service.learn(userId, remoteId, { name: 'Power' }),
     ).rejects.toBe(offline);
+  });
+});
+
+describe('buttons service: list', () => {
+  it('returns the buttons of a remote the user owns', async () => {
+    const { service, repository } = serviceWith();
+
+    await expect(service.list(userId, remoteId)).resolves.toEqual([button]);
+    expect(repository.findOwnedRemote).toHaveBeenCalledExactlyOnceWith(
+      remoteId,
+      userId,
+    );
+    expect(repository.listForRemote).toHaveBeenCalledExactlyOnceWith(remoteId);
+  });
+
+  it('answers 404 NOT_FOUND for a remote that is not the user’s, listing nothing', async () => {
+    const { service, repository } = serviceWith({ owned: async () => null });
+
+    await expect(appErrorOf(service.list(userId, remoteId))).resolves.toEqual({
+      statusCode: 404,
+      code: 'NOT_FOUND',
+    });
+    expect(repository.listForRemote).not.toHaveBeenCalled();
   });
 });

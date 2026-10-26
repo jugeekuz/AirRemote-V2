@@ -17,13 +17,16 @@ const remote: Remote = {
 function serviceWith({
   owned = async () => ({ id: deviceId }),
   created = async () => remote,
+  listed = async () => [remote],
 }: {
   owned?: () => Promise<{ id: string } | null>;
   created?: () => Promise<Remote | null>;
+  listed?: () => Promise<Remote[]>;
 } = {}) {
   const repository = {
     findOwnedDevice: vi.fn(owned),
     create: vi.fn(created),
+    listForUser: vi.fn(listed),
   };
   const service = createRemotesService({
     repository: repository satisfies RemotesRepository,
@@ -79,5 +82,21 @@ describe('remotes service: create', () => {
     await expect(
       appErrorOf(service.create(userId, deviceId, input)),
     ).resolves.toEqual({ statusCode: 409, code: 'REMOTE_NAME_TAKEN' });
+  });
+});
+
+describe('remotes service: list', () => {
+  it('returns the user’s remotes in the response shape', async () => {
+    const { service, repository } = serviceWith();
+
+    await expect(service.list(userId)).resolves.toEqual([
+      { id: remote.id, deviceId, name: 'Living room TV', type: 'smart_tv' },
+    ]);
+    expect(repository.listForUser).toHaveBeenCalledExactlyOnceWith(userId);
+  });
+
+  it('returns an empty list when there are none', async () => {
+    const { service } = serviceWith({ listed: async () => [] });
+    await expect(service.list(userId)).resolves.toEqual([]);
   });
 });

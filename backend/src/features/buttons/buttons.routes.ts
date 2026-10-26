@@ -1,4 +1,5 @@
 import {
+  buttonListResponseSchema,
   deviceCommandResponseSchema,
   learnButtonRequestSchema,
 } from '@airremote/contracts';
@@ -32,6 +33,19 @@ export const buttonsRoutes: FastifyPluginAsyncZod<{
         ...timings,
       }),
     });
+
+  app.get(
+    '/remotes/:remoteId/buttons',
+    {
+      onRequest: app.authenticate,
+      schema: {
+        params: z.object({ remoteId: z.uuid() }),
+        response: { 200: buttonListResponseSchema },
+      },
+    },
+    async (request) =>
+      service.list(authenticatedUserId(request), request.params.remoteId),
+  );
 
   app.post(
     '/remotes/:remoteId/buttons',

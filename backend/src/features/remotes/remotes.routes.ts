@@ -1,5 +1,6 @@
 import {
   createRemoteRequestSchema,
+  remoteListResponseSchema,
   remoteResponseSchema,
 } from '@airremote/contracts';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -15,6 +16,15 @@ export const remotesRoutes: FastifyPluginAsyncZod<{
   const service =
     override ??
     createRemotesService({ repository: createRemotesRepository(app.db) });
+
+  app.get(
+    '/remotes',
+    {
+      onRequest: app.authenticate,
+      schema: { response: { 200: remoteListResponseSchema } },
+    },
+    async (request) => service.list(authenticatedUserId(request)),
+  );
 
   app.post(
     '/devices/:deviceId/remotes',

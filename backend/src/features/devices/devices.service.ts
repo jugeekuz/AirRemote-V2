@@ -25,6 +25,8 @@ export type DevicesService = {
   issuePairingCode(commonName: string | null): Promise<PairingCodeResponse>;
   /** Creates the device under the user, if the code was issued to that MAC. */
   enroll(userId: string, input: EnrollDeviceRequest): Promise<DeviceResponse>;
+  /** The user's devices, by name ignoring case. */
+  list(userId: string): Promise<DeviceResponse[]>;
 };
 
 const alreadyRegistered = () =>
@@ -98,6 +100,15 @@ export function createDevicesService({
 
       const { id, macAddress: enrolledMac, name: enrolledName } = result.device;
       return { id, macAddress: enrolledMac, name: enrolledName };
+    },
+
+    async list(userId) {
+      const found = await repository.listForUser(userId);
+      return found.map(({ id, macAddress, name }) => ({
+        id,
+        macAddress,
+        name,
+      }));
     },
   };
 }

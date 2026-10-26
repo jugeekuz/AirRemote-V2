@@ -59,6 +59,7 @@ export function fakeDevicesService(
     authorizeConnection: unexpected('authorizeConnection'),
     issuePairingCode: unexpected('issuePairingCode'),
     enroll: unexpected('enroll'),
+    list: unexpected('list'),
     ...methods,
   };
 }

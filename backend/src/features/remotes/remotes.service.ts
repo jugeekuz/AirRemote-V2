@@ -9,6 +9,8 @@ export type RemotesService = {
     deviceId: string,
     input: CreateRemoteRequest,
   ): Promise<RemoteResponse>;
+  /** Every remote on the user's devices, by name ignoring case. */
+  list(userId: string): Promise<RemoteResponse[]>;
 };
 
 export function createRemotesService({
@@ -35,6 +37,16 @@ export function createRemotesService({
         name: remote.name,
         type: remote.type,
       };
+    },
+
+    async list(userId) {
+      const found = await repository.listForUser(userId);
+      return found.map(({ id, deviceId, name, type }) => ({
+        id,
+        deviceId,
+        name,
+        type,
+      }));
     },
   };
 }

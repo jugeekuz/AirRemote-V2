@@ -97,3 +97,32 @@ describe('buttons repository: nameTaken', () => {
     );
   });
 });
+
+describe('buttons repository: listForRemote', () => {
+  it('returns only the remote’s buttons, by name ignoring case, then id, without timings', async () => {
+    const [b, a, c] = await testDb.db
+      .insert(buttons)
+      .values([
+        { remoteId: otherRemoteId, name: 'b', timingsUs: [1, 2] },
+        { remoteId: otherRemoteId, name: 'A', timingsUs: [3, 4] },
+        { remoteId: otherRemoteId, name: 'c', timingsUs: [5, 6] },
+      ])
+      .returning();
+
+    const listed = await repository().listForRemote(otherRemoteId);
+    expect(listed).toEqual(
+      [a, b, c].map((button) => ({
+        id: button!.id,
+        remoteId: otherRemoteId,
+        name: button!.name,
+      })),
+    );
+    for (const button of listed) expect(button).not.toHaveProperty('timingsUs');
+  });
+
+  it('returns an empty list for a remote without buttons', async () => {
+    await expect(repository().listForRemote(otherRemoteId)).resolves.toEqual(
+      [],
+    );
+  });
+});

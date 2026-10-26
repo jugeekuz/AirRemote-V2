@@ -27,9 +27,11 @@ const enrolled: DeviceResponse = {
 
 let app: FastifyInstance;
 let received: [string, EnrollDeviceRequest][];
+let listed: string[];
 
 async function appWith(enroll: DevicesService['enroll']) {
   received = [];
+  listed = [];
   app = await buildTestApp();
   await app.register(authenticatePlugin, { secrets });
   await app.register(devicesRoutes, {
@@ -43,6 +45,10 @@ async function appWith(enroll: DevicesService['enroll']) {
       enroll: async (userId, input) => {
         received.push([userId, input]);
         return enroll(userId, input);
+      },
+      list: async (userId) => {
+        listed.push(userId);
+        return [enrolled];
       },
     },
   });
@@ -137,5 +143,30 @@ describe('POST /devices', () => {
     expect(res.json()).toEqual({
       error: { code: error.code, message: error.message },
     });
+  });
+});
+
+describe('GET /devices', () => {
+  async function get({ signedIn = true } = {}) {
+    await appWith(async () => enrolled);
+    const token = await signAccessToken('user-1', secrets);
+    return app.inject({
+      method: 'GET',
+      url: '/devices',
+      headers: signedIn ? { authorization: `Bearer ${token}` } : {},
+    });
+  }
+
+  it('returns 200 with the signed-in user’s devices', async () => {
+    const res = await get();
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([enrolled]);
+    expect(listed).toEqual(['user-1']);
+  });
+
+  it('returns 401 without a token, without calling the service', async () => {
+    const res = await get({ signedIn: false });
+    expect(res.statusCode).toBe(401);
+    expect(listed).toEqual([]);
   });
 });

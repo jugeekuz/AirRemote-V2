@@ -24,9 +24,11 @@ const created: RemoteResponse = {
 
 let app: FastifyInstance;
 let received: [string, string, CreateRemoteRequest][];
+let listed: string[];
 
 async function appWith(create: RemotesService['create']) {
   received = [];
+  listed = [];
   app = await buildTestApp();
   await app.register(authenticatePlugin, { secrets });
   await app.register(remotesRoutes, {
@@ -34,6 +36,10 @@ async function appWith(create: RemotesService['create']) {
       create: async (userId, forDevice, input) => {
         received.push([userId, forDevice, input]);
         return create(userId, forDevice, input);
+      },
+      list: async (userId) => {
+        listed.push(userId);
+        return [created];
       },
     },
   });
@@ -106,5 +112,30 @@ describe('POST /devices/:deviceId/remotes', () => {
     expect(res.json()).toEqual({
       error: { code: error.code, message: error.message },
     });
+  });
+});
+
+describe('GET /remotes', () => {
+  async function get({ signedIn = true } = {}) {
+    await appWith(async () => created);
+    const token = await signAccessToken('user-1', secrets);
+    return app.inject({
+      method: 'GET',
+      url: '/remotes',
+      headers: signedIn ? { authorization: `Bearer ${token}` } : {},
+    });
+  }
+
+  it('returns 200 with the signed-in user’s remotes', async () => {
+    const res = await get();
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([created]);
+    expect(listed).toEqual(['user-1']);
+  });
+
+  it('returns 401 without a token, without calling the service', async () => {
+    const res = await get({ signedIn: false });
+    expect(res.statusCode).toBe(401);
+    expect(listed).toEqual([]);
   });
 });

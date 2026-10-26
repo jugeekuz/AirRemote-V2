@@ -29,6 +29,9 @@ async function appWith(issuePairingCode: DevicesService['issuePairingCode']) {
       enroll: async () => {
         throw new Error('not expected');
       },
+      list: async () => {
+        throw new Error('not expected');
+      },
       issuePairingCode: async (commonName) => {
         received.push(commonName);
         return issuePairingCode(commonName);

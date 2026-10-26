@@ -29,6 +29,66 @@ beforeEach(async () => {
   deviceId = device!.id;
 });
 
+async function insertUser(email: string) {
+  const [user] = await testDb.db
+    .insert(users)
+    .values({
+      email,
+      firstName: 'Nick',
+      lastName: 'Papas',
+      passwordHash: 'hash',
+      passwordSalt: 'salt',
+    })
+    .returning();
+  return user!.id;
+}
+
+describe('devices repository: listForUser', () => {
+  it('returns only the user’s devices, by name ignoring case, then id', async () => {
+    const ownerId = await insertUser('list@example.com');
+    const otherId = await insertUser('other@example.com');
+    const [b, a, c] = await testDb.db
+      .insert(devices)
+      .values([
+        { userId: ownerId, macAddress: 'aa:bb:cc:dd:ee:11', name: 'b' },
+        { userId: ownerId, macAddress: 'aa:bb:cc:dd:ee:12', name: 'A' },
+        { userId: ownerId, macAddress: 'aa:bb:cc:dd:ee:13', name: 'c' },
+      ])
+      .returning();
+    await testDb.db
+      .insert(devices)
+      .values({ userId: otherId, macAddress: 'aa:bb:cc:dd:ee:14', name: 'a' });
+
+    const listed = await createDevicesRepository(testDb.db).listForUser(
+      ownerId,
+    );
+    expect(listed).toEqual([a, b, c]);
+  });
+
+  it('breaks a tie on name by id', async () => {
+    const ownerId = await insertUser('tie@example.com');
+    const inserted = await testDb.db
+      .insert(devices)
+      .values([
+        { userId: ownerId, macAddress: 'aa:bb:cc:dd:ee:21', name: 'Same' },
+        { userId: ownerId, macAddress: 'aa:bb:cc:dd:ee:22', name: 'same' },
+      ])
+      .returning();
+
+    const listed = await createDevicesRepository(testDb.db).listForUser(
+      ownerId,
+    );
+    expect(listed.map((d) => d.id)).toEqual(inserted.map((d) => d.id).sort());
+  });
+
+  it('returns an empty list for a user without devices', async () => {
+    const ownerId = await insertUser('empty@example.com');
+    await expect(
+      createDevicesRepository(testDb.db).listForUser(ownerId),
+    ).resolves.toEqual([]);
+  });
+});
+
 describe('devices repository: findByMacAddress', () => {
   it('finds a device by MAC address', async () => {
     const found = await createDevicesRepository(testDb.db).findByMacAddress(

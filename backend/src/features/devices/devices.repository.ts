@@ -5,7 +5,7 @@ import {
   type Device,
   type NewPairingCode,
 } from '@airremote/db';
-import { and, eq, gt, TransactionRollbackError } from 'drizzle-orm';
+import { and, asc, eq, gt, sql, TransactionRollbackError } from 'drizzle-orm';
 
 export type EnrollResult =
   | { status: 'enrolled'; device: Device }
@@ -15,6 +15,8 @@ export type EnrollResult =
 export type DevicesRepository = {
   /** Any case; Postgres compares macaddr values, not text. */
   findByMacAddress(macAddress: string): Promise<Device | null>;
+  /** The user's devices, by name ignoring case, then id. */
+  listForUser(userId: string): Promise<Device[]>;
   /** Stores the device's pairing code, replacing any previous one. */
   savePairingCode(code: NewPairingCode): Promise<void>;
   /**
@@ -38,6 +40,14 @@ export function createDevicesRepository(db: Database): DevicesRepository {
         .from(devices)
         .where(eq(devices.macAddress, macAddress));
       return device ?? null;
+    },
+
+    async listForUser(userId) {
+      return db
+        .select()
+        .from(devices)
+        .where(eq(devices.userId, userId))
+        .orderBy(asc(sql`lower(${devices.name})`), asc(devices.id));
     },
 
     async savePairingCode(code) {

@@ -5,7 +5,7 @@ import {
   type NewRemote,
   type Remote,
 } from '@airremote/db';
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import { isUniqueViolation } from '../../shared/pg-errors';
 
 export type RemotesRepository = {
@@ -14,6 +14,8 @@ export type RemotesRepository = {
     deviceId: string,
     userId: string,
   ): Promise<{ id: string } | null>;
+  /** Remotes on the user's devices, by name ignoring case, then id. */
+  listForUser(userId: string): Promise<Remote[]>;
   /** Null when the device already has a remote with that name, ignoring case. */
   create(remote: Omit<NewRemote, 'id'>): Promise<Remote | null>;
 };
@@ -28,6 +30,16 @@ export function createRemotesRepository(db: Database): RemotesRepository {
         .from(devices)
         .where(and(eq(devices.id, deviceId), eq(devices.userId, userId)));
       return device ?? null;
+    },
+
+    async listForUser(userId) {
+      const rows = await db
+        .select({ remote: remotes })
+        .from(remotes)
+        .innerJoin(devices, eq(devices.id, remotes.deviceId))
+        .where(eq(devices.userId, userId))
+        .orderBy(asc(sql`lower(${remotes.name})`), asc(remotes.id));
+      return rows.map((row) => row.remote);
     },
 
     async create({ deviceId, name, type }) {

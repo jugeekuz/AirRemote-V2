@@ -108,3 +108,40 @@ describe('remotes repository: create', () => {
     ).rejects.toThrow();
   });
 });
+
+describe('remotes repository: listForUser', () => {
+  it('returns only remotes on the user’s devices, by name ignoring case, then id', async () => {
+    const secondDeviceId = await insertDevice(userId, 'aa:bb:cc:dd:ee:03');
+    const [b, a, c] = await testDb.db
+      .insert(remotes)
+      .values([
+        { deviceId, name: 'b', type: 'smart_tv' },
+        { deviceId: secondDeviceId, name: 'A', type: 'heater' },
+        { deviceId, name: 'c', type: 'smart_tv' },
+      ])
+      .returning();
+    await testDb.db
+      .insert(remotes)
+      .values({ deviceId: otherDeviceId, name: 'a', type: 'smart_tv' });
+
+    await expect(repository().listForUser(userId)).resolves.toEqual([a, b, c]);
+  });
+
+  it('breaks a tie on name by id', async () => {
+    const secondDeviceId = await insertDevice(userId, 'aa:bb:cc:dd:ee:03');
+    const inserted = await testDb.db
+      .insert(remotes)
+      .values([
+        { deviceId, name: 'Same', type: 'smart_tv' },
+        { deviceId: secondDeviceId, name: 'same', type: 'smart_tv' },
+      ])
+      .returning();
+
+    const listed = await repository().listForUser(userId);
+    expect(listed.map((r) => r.id)).toEqual(inserted.map((r) => r.id).sort());
+  });
+
+  it('returns an empty list for a user without remotes', async () => {
+    await expect(repository().listForUser(userId)).resolves.toEqual([]);
+  });
+});

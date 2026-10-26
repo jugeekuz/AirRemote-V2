@@ -1,4 +1,5 @@
 import type {
+  ButtonResponse,
   DeviceCommandResponse,
   LearnButtonRequest,
 } from '@airremote/contracts';
@@ -16,6 +17,8 @@ export type ButtonsService = {
     remoteId: string,
     input: LearnButtonRequest,
   ): Promise<DeviceCommandResponse>;
+  /** The buttons of one of the user's remotes, by name ignoring case. */
+  list(userId: string, remoteId: string): Promise<ButtonResponse[]>;
 };
 
 export function createButtonsService({
@@ -42,6 +45,13 @@ export function createButtonsService({
         remoteId: remote.id,
         name,
       });
+    },
+
+    async list(userId, remoteId) {
+      if (!(await repository.findOwnedRemote(remoteId, userId))) {
+        throw new AppError(404, 'NOT_FOUND', 'Remote not found');
+      }
+      return repository.listForRemote(remoteId);
     },
   };
 }

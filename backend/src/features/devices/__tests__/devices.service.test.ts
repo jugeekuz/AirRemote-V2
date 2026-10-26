@@ -18,14 +18,17 @@ const now = new Date('2026-10-26T12:00:00.000Z');
 function serviceWith({
   found = async () => device,
   enrolled = async () => ({ status: 'enrolled', device }),
+  listed = async () => [device],
 }: {
   found?: () => Promise<Device | null>;
   enrolled?: () => Promise<EnrollResult>;
+  listed?: () => Promise<Device[]>;
 } = {}) {
   const repository = {
     findByMacAddress: vi.fn(found),
     savePairingCode: vi.fn(async () => {}),
     enroll: vi.fn(enrolled),
+    listForUser: vi.fn(listed),
   };
   const service = createDevicesService({
     repository: repository satisfies DevicesRepository,
@@ -162,5 +165,23 @@ describe('devices service: enroll', () => {
       statusCode: 409,
       code: 'DEVICE_ALREADY_REGISTERED',
     });
+  });
+});
+
+describe('devices service: list', () => {
+  it('returns the user’s devices without their owner', async () => {
+    const { service, repository } = serviceWith();
+
+    await expect(service.list(device.userId)).resolves.toEqual([
+      { id: device.id, macAddress: device.macAddress, name: device.name },
+    ]);
+    expect(repository.listForUser).toHaveBeenCalledExactlyOnceWith(
+      device.userId,
+    );
+  });
+
+  it('returns an empty list when there are none', async () => {
+    const { service } = serviceWith({ listed: async () => [] });
+    await expect(service.list(device.userId)).resolves.toEqual([]);
   });
 });
