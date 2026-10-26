@@ -27,7 +27,10 @@ export type DeviceConnections = {
    */
   send(deviceId: string, message: ServerMessage): string | null;
   isConnected(deviceId: string): boolean;
-  /** Listens for closed connections; a listener that throws is ignored. */
+  /**
+   * Listens for closed connections. A listener that throws never breaks
+   * `unregister` or the other listeners; its error goes to `onListenerError`.
+   */
   onConnectionClosed(
     listener: (deviceId: string, connectionId: string) => void,
   ): void;
@@ -37,7 +40,25 @@ export const REPLACED_CLOSE_CODE = 4000;
 
 type Connection = { id: string; socket: DeviceSocket };
 
-export function createDeviceConnections(): DeviceConnections {
+export type DeviceConnectionsOptions = {
+  /** Called when a close listener throws. Defaults to `console.error`. */
+  onListenerError?: (
+    error: unknown,
+    deviceId: string,
+    connectionId: string,
+  ) => void;
+};
+
+export function createDeviceConnections(
+  options: DeviceConnectionsOptions = {},
+): DeviceConnections {
+  const onListenerError =
+    options.onListenerError ??
+    ((error, deviceId, connectionId) =>
+      console.error(
+        `Device connection close listener failed (device ${deviceId}, connection ${connectionId})`,
+        error,
+      ));
   const current = new Map<string, Connection>();
   const ids = new WeakMap<DeviceSocket, string>();
   const listeners: Array<(deviceId: string, connectionId: string) => void> = [];
@@ -62,8 +83,9 @@ export function createDeviceConnections(): DeviceConnections {
       for (const listener of listeners) {
         try {
           listener(deviceId, id);
-        } catch {
+        } catch (error) {
           // A failing listener must not break the others or the unregister.
+          onListenerError(error, deviceId, id);
         }
       }
     },

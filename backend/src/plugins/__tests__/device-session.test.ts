@@ -188,20 +188,24 @@ describe('device session', () => {
     const newer = new FakeSocket();
     const closed = vi.fn();
     connections.onConnectionClosed(closed);
+    const register = vi.spyOn(connections, 'register');
     attach(older);
     attach(newer);
+    const olderId = register.mock.results[0]!.value;
+    const newerId = register.mock.results[1]!.value;
     older.emit('close', 4000);
 
     expect(closed).toHaveBeenCalledOnce();
-    const [deviceId, olderId] = closed.mock.calls[0]!;
+    const [deviceId, closedId] = closed.mock.calls[0]!;
     expect(deviceId).toBe(device.id);
+    expect(closedId).toBe(olderId);
     expect(
       connections.send(device.id, {
         type: 'error',
         code: 'INVALID_JSON',
         message: 'x',
       }),
-    ).not.toBe(olderId);
+    ).toBe(newerId);
   });
 
   it('pings on heartbeat and terminates a socket that missed the previous pong', () => {

@@ -141,4 +141,42 @@ describe('device connections', () => {
     expect(connections.isConnected('device-1')).toBe(false);
     expect(after).toHaveBeenCalledOnce();
   });
+
+  it('reports a throwing listener to onListenerError with the ids', () => {
+    const onListenerError = vi.fn();
+    const connections = createDeviceConnections({ onListenerError });
+    const boom = new Error('boom');
+    const after = vi.fn();
+    connections.onConnectionClosed(() => {
+      throw boom;
+    });
+    connections.onConnectionClosed(after);
+    const first = fakeSocket();
+    const firstId = connections.register('device-1', first);
+    connections.register('device-1', fakeSocket());
+
+    connections.unregister('device-1', first);
+
+    expect(onListenerError).toHaveBeenCalledExactlyOnceWith(
+      boom,
+      'device-1',
+      firstId,
+    );
+    expect(after).toHaveBeenCalledOnce();
+    expect(connections.isConnected('device-1')).toBe(true);
+  });
+
+  it('logs a listener error with console.error by default', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const connections = createDeviceConnections();
+    connections.onConnectionClosed(() => {
+      throw new Error('boom');
+    });
+    const socket = fakeSocket();
+    connections.register('device-1', socket);
+    connections.unregister('device-1', socket);
+
+    expect(spy).toHaveBeenCalledOnce();
+    spy.mockRestore();
+  });
 });
