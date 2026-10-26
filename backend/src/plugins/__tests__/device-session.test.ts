@@ -183,6 +183,27 @@ describe('device session', () => {
     expect(newer.send).toHaveBeenCalledOnce();
   });
 
+  it('reports a replaced socket closing with its own connection id', () => {
+    const older = socket;
+    const newer = new FakeSocket();
+    const closed = vi.fn();
+    connections.onConnectionClosed(closed);
+    attach(older);
+    attach(newer);
+    older.emit('close', 4000);
+
+    expect(closed).toHaveBeenCalledOnce();
+    const [deviceId, olderId] = closed.mock.calls[0]!;
+    expect(deviceId).toBe(device.id);
+    expect(
+      connections.send(device.id, {
+        type: 'error',
+        code: 'INVALID_JSON',
+        message: 'x',
+      }),
+    ).not.toBe(olderId);
+  });
+
   it('pings on heartbeat and terminates a socket that missed the previous pong', () => {
     const session = attach();
     session.heartbeat();
