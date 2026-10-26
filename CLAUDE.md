@@ -50,7 +50,11 @@ Layer rules:
   enforces it). A feature handles device messages in
   `<feature>.socket.ts`, thin like routes: it only calls the service.
   Messages to a device go through `DeviceConnections.send` from
-  `shared/device-connections.ts`, which validates them first.
+  `shared/device-connections.ts`, which validates them first. HTTP routes
+  served on the device listener go in `<feature>.device-routes.ts`.
+- **Protected routes** add `{ preHandler: app.authenticate }` and read the
+  signed-in user with `authenticatedUserId(request)` from
+  `plugins/authenticate.ts`; without a valid access token they answer 401.
 - Dependencies are passed in through `create*` factories, e.g.
   `createHealthService({ repository })`. A route plugin builds its service
   from `app.db` unless a `service` option is passed; route tests pass a fake
@@ -91,9 +95,10 @@ run one. Integration and e2e tests need Docker.
   migrated database and empties it before every test.
 - **E2E — `backend/e2e/*.e2e.ts`.** The real app (`buildApp()` on a random
   port) against a real database, called over HTTP with `fetch`. Call
-  `useTestApp()` from `e2e/support/test-app.ts` for the base URL. Device
-  tests call `useDeviceServer()` from `e2e/support/device-server.ts`, which
-  starts the device server over real mTLS; throwaway certificates are
+  `useTestApp()` from `e2e/support/test-app.ts` for the base URL and `db`.
+  Device tests call `useDeviceServer()` from `e2e/support/device-server.ts`,
+  which starts the device server over real mTLS (`{ api: true }` also runs
+  the API on the same database); throwaway certificates are
   generated once per run with `openssl` and never committed. Only external
   services (none yet) may be mocked.
 

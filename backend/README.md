@@ -54,6 +54,23 @@ It stays off until all three of these are set (the API logs a warning):
   set. The container runs as uid 1000, so the key must be readable by
   uid 1000.
 
+## Enrolling a device
+
+A device is allowed on the WebSocket once its owner has enrolled it:
+
+1. The device, already on Wi-Fi, calls `POST /pairing-code` on the device
+   listener (same mTLS, no body). It gets `{ pairingCode, expiresAt }`: an
+   8-character code valid for 15 minutes. Asking again replaces the code; an
+   enrolled device gets `409 DEVICE_ALREADY_REGISTERED`.
+2. The device shows its MAC address and the code as a QR code.
+3. The signed-in owner calls `POST /devices` on the API with
+   `{ macAddress, pairingCode, name }`. A wrong, expired or used code is
+   `400 INVALID_PAIRING_CODE`.
+
+Codes are stored only as an HMAC keyed with `PAIRING_CODE_SECRET` (at least
+32 characters, required; see `.env.example`), so a copy of the database alone
+cannot recover them.
+
 ## Scripts (from the repository root)
 
 | Script                  | What it does                                                  |
