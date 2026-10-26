@@ -7,6 +7,7 @@ import {
   type LearnButtonContext,
 } from '@airremote/db';
 import { and, eq, gt, lte, sql } from 'drizzle-orm';
+import { isUniqueViolation } from '../../shared/pg-errors';
 
 /** A command as its owner sees it: overdue pending commands read as expired. */
 export type DeviceCommandView = {
@@ -68,15 +69,6 @@ export type DeviceCommandsRepository = {
 
 const ONE_PENDING_PER_DEVICE = 'device_commands_one_pending_per_device';
 const BUTTON_NAME_KEY = 'buttons_remote_id_name_key';
-
-/** Whether Drizzle rejected a query for a unique violation on `constraint`. */
-function isUniqueViolation(error: unknown, constraint: string): boolean {
-  const pg = ((error as { cause?: unknown } | null)?.cause ?? error) as {
-    code?: unknown;
-    constraint_name?: unknown;
-  } | null;
-  return pg?.code === '23505' && pg.constraint_name === constraint;
-}
 
 const now = sql`now()`;
 

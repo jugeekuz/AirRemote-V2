@@ -25,7 +25,7 @@ const { env, tls } = await readConfig();
 const db = createDb(env.DATABASE_URL);
 const connections = createDeviceConnections();
 
-const app = await buildApp({ env, db });
+const app = await buildApp({ env, db, connections });
 const deviceServer: FastifyInstance | null = tls
   ? await buildDeviceServer({ env, tls, db, connections })
   : null;

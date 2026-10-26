@@ -159,11 +159,13 @@ export function useDeviceServer({
   beforeAll(async () => {
     database = await createTestDatabase();
     handle = createDb(database.url);
+    // One registry, as in server.ts, so the API reaches connected devices.
+    const connections = createDeviceConnections();
     server = await buildDeviceServer({
       env: testEnv,
       tls: testDeviceTls(),
       db: handle,
-      connections: createDeviceConnections(),
+      connections,
       ...options,
     });
     await server.listen({ host: '127.0.0.1', port: 0 });
@@ -172,7 +174,7 @@ export function useDeviceServer({
     origin = `https://localhost:${address.port}`;
     url = `wss://localhost:${address.port}/ws`;
     if (api) {
-      apiApp = await buildApp({ env: testEnv, db: handle });
+      apiApp = await buildApp({ env: testEnv, db: handle, connections });
       apiUrl = await apiApp.listen({ host: '127.0.0.1', port: 0 });
     }
   });

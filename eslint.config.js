@@ -40,6 +40,10 @@ export default tseslint.config(
               group: ['drizzle-orm', 'drizzle-orm/*'],
               message: 'Only repositories talk to Drizzle.',
             },
+            {
+              group: ['**/shared/pg-errors'],
+              message: 'Only repositories read database errors.',
+            },
           ],
         },
       ],

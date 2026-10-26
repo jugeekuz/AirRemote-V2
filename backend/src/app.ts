@@ -4,13 +4,20 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type { Env } from './config/env';
 import { loggerOptions } from './config/logger';
 import { authRoutes } from './features/auth/auth.routes';
+import { buttonsRoutes } from './features/buttons/buttons.routes';
+import { deviceCommandsRoutes } from './features/device-commands/device-commands.routes';
 import { devicesRoutes } from './features/devices/devices.routes';
 import { healthRoutes } from './features/health/health.routes';
+import { remotesRoutes } from './features/remotes/remotes.routes';
 import { usersRoutes } from './features/users/users.routes';
 import { authenticatePlugin } from './plugins/authenticate';
 import { dbPlugin } from './plugins/db';
 import { errorHandlerPlugin } from './plugins/error-handler';
 import { zodPlugin } from './plugins/zod';
+import {
+  createDeviceConnections,
+  type DeviceConnections,
+} from './shared/device-connections';
 
 export interface BuildAppOptions {
   env: Env;
@@ -19,12 +26,18 @@ export interface BuildAppOptions {
    * from `DATABASE_URL` and closes it on shutdown.
    */
   db?: DbHandle;
+  /**
+   * The connected devices, shared with the device server so the API can
+   * reach them. Defaults to an empty registry of its own.
+   */
+  connections?: DeviceConnections;
 }
 
 /** Creates and configures the Fastify instance without listening. */
 export async function buildApp({
   env,
   db,
+  connections = createDeviceConnections(),
 }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: loggerOptions(env) });
 
@@ -46,6 +59,9 @@ export async function buildApp({
   await app.register(usersRoutes, { prefix: '/users' });
   await app.register(authRoutes, { prefix: '/auth', env });
   await app.register(devicesRoutes, { prefix: '/devices', env });
+  await app.register(remotesRoutes);
+  await app.register(buttonsRoutes, { connections });
+  await app.register(deviceCommandsRoutes, { connections });
 
   return app;
 }

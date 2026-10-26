@@ -1,0 +1,107 @@
+import type { DeviceCommandResponse } from '@airremote/contracts';
+import { describe, expect, it, vi } from 'vitest';
+import { AppError } from '../../../shared/errors';
+import type { ButtonsRepository } from '../buttons.repository';
+import { createButtonsService } from '../buttons.service';
+
+const userId = '6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11';
+const deviceId = '0b6f1c2a-3c1e-4a8e-9a43-0d5f1f6f2b11';
+const remoteId = '1c2a523c-1e4a-4e9a-830d-5f1f6f2b1101';
+
+const pending: DeviceCommandResponse = {
+  id: '2a523c1e-4a8e-4a43-8d5f-1f6f2b110101',
+  kind: 'learn_button',
+  status: 'pending',
+  createdAt: '2026-10-26T12:00:00.000Z',
+  expiresAt: '2026-10-26T12:00:20.000Z',
+};
+
+function serviceWith({
+  owned = async () => ({ id: remoteId, deviceId }),
+  taken = async () => false,
+  started = async () => pending,
+}: {
+  owned?: () => Promise<{ id: string; deviceId: string } | null>;
+  taken?: () => Promise<boolean>;
+  started?: () => Promise<DeviceCommandResponse>;
+} = {}) {
+  const repository = {
+    findOwnedRemote: vi.fn(owned),
+    nameTaken: vi.fn(taken),
+  };
+  const deviceCommands = { startLearnButton: vi.fn(started) };
+  const service = createButtonsService({
+    repository: repository satisfies ButtonsRepository,
+    deviceCommands,
+  });
+  return { service, repository, deviceCommands };
+}
+
+async function appErrorOf(promise: Promise<unknown>) {
+  const error = await promise.then(
+    () => null,
+    (caught: unknown) => caught,
+  );
+  expect(error).toBeInstanceOf(AppError);
+  const { statusCode, code } = error as AppError;
+  return { statusCode, code };
+}
+
+describe('buttons service: learn', () => {
+  it('starts learning on the remote’s device and returns the pending command', async () => {
+    const { service, repository, deviceCommands } = serviceWith();
+
+    await expect(
+      service.learn(userId, remoteId, { name: 'Power' }),
+    ).resolves.toEqual(pending);
+    expect(repository.findOwnedRemote).toHaveBeenCalledExactlyOnceWith(
+      remoteId,
+      userId,
+    );
+    expect(repository.nameTaken).toHaveBeenCalledExactlyOnceWith(
+      remoteId,
+      'Power',
+    );
+    expect(deviceCommands.startLearnButton).toHaveBeenCalledExactlyOnceWith({
+      deviceId,
+      remoteId,
+      name: 'Power',
+    });
+  });
+
+  it('answers 404 NOT_FOUND for a remote that is not the user’s, asking nothing else', async () => {
+    const { service, repository, deviceCommands } = serviceWith({
+      owned: async () => null,
+    });
+
+    await expect(
+      appErrorOf(service.learn(userId, remoteId, { name: 'Power' })),
+    ).resolves.toEqual({ statusCode: 404, code: 'NOT_FOUND' });
+    expect(repository.nameTaken).not.toHaveBeenCalled();
+    expect(deviceCommands.startLearnButton).not.toHaveBeenCalled();
+  });
+
+  it('answers 409 BUTTON_NAME_TAKEN before asking the device', async () => {
+    const { service, deviceCommands } = serviceWith({
+      taken: async () => true,
+    });
+
+    await expect(
+      appErrorOf(service.learn(userId, remoteId, { name: 'Power' })),
+    ).resolves.toEqual({ statusCode: 409, code: 'BUTTON_NAME_TAKEN' });
+    expect(deviceCommands.startLearnButton).not.toHaveBeenCalled();
+  });
+
+  it('passes the device commands’ errors through', async () => {
+    const offline = new AppError(409, 'DEVICE_OFFLINE', 'Device is offline');
+    const { service } = serviceWith({
+      started: async () => {
+        throw offline;
+      },
+    });
+
+    await expect(
+      service.learn(userId, remoteId, { name: 'Power' }),
+    ).rejects.toBe(offline);
+  });
+});
