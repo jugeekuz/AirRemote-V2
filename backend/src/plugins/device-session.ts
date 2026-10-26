@@ -31,6 +31,8 @@ export type DeviceSession = {
 export const MAX_BAD_FRAMES = 5;
 
 const OPEN = 1;
+const CLOSED = 3;
+const GOING_AWAY = 1001;
 const POLICY_VIOLATION = 1008;
 
 type RawData = Buffer | ArrayBuffer | Buffer[];
@@ -134,4 +136,33 @@ export function attachDeviceSession(
       return closed;
     },
   };
+}
+
+/**
+ * Asks every socket to close, then terminates those still open after
+ * `graceMs`, so a device that silently dropped off can't hold up shutdown.
+ */
+export async function closeDeviceSockets(
+  sockets: Iterable<SessionSocket>,
+  graceMs: number,
+): Promise<void> {
+  const all = [...sockets];
+  const closed = all.map(
+    (socket) =>
+      new Promise<void>((resolve) => {
+        if (socket.readyState === CLOSED) return resolve();
+        socket.on('close', () => resolve());
+        socket.close(GOING_AWAY, 'server shutting down');
+      }),
+  );
+
+  let timer: NodeJS.Timeout | undefined;
+  await Promise.race([
+    Promise.all(closed),
+    new Promise((resolve) => {
+      timer = setTimeout(resolve, graceMs);
+    }),
+  ]);
+  clearTimeout(timer);
+  for (const socket of all) socket.terminate();
 }

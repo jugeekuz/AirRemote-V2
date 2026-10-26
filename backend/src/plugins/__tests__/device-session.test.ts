@@ -6,7 +6,7 @@ import {
   type DeviceConnections,
 } from '../../shared/device-connections';
 import type { DeviceMessageHandlers } from '../../shared/device-messages';
-import { attachDeviceSession } from '../device-session';
+import { attachDeviceSession, closeDeviceSockets } from '../device-session';
 
 class FakeSocket extends EventEmitter {
   readyState = 1;
@@ -216,5 +216,43 @@ describe('device session', () => {
       socket.emit('error', new Error('Max payload size exceeded')),
     ).not.toThrow();
     expect(log.warn).toHaveBeenCalled();
+  });
+});
+
+describe('closeDeviceSockets', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    return () => vi.useRealTimers();
+  });
+
+  it('asks every socket to close with 1001 and returns once they have', async () => {
+    const sockets = [new FakeSocket(), new FakeSocket()];
+    for (const each of sockets) {
+      each.close.mockImplementation((code) => each.emit('close', code));
+    }
+
+    await closeDeviceSockets(sockets, 2_000);
+
+    for (const each of sockets) {
+      expect(each.close).toHaveBeenCalledWith(1001, 'server shutting down');
+    }
+  });
+
+  it('terminates a socket that has not closed after the grace period', async () => {
+    const closing = closeDeviceSockets([socket], 2_000);
+
+    await vi.advanceTimersByTimeAsync(1_999);
+    expect(socket.terminate).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await closing;
+    expect(socket.terminate).toHaveBeenCalled();
+  });
+
+  it('does not ask a socket that is already closed', async () => {
+    socket.readyState = 3;
+
+    await closeDeviceSockets([socket], 2_000);
+
+    expect(socket.close).not.toHaveBeenCalled();
   });
 });
