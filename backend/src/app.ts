@@ -6,6 +6,7 @@ import { loggerOptions } from './config/logger';
 import { authRoutes } from './features/auth/auth.routes';
 import { healthRoutes } from './features/health/health.routes';
 import { usersRoutes } from './features/users/users.routes';
+import { authenticatePlugin } from './plugins/authenticate';
 import { dbPlugin } from './plugins/db';
 import { errorHandlerPlugin } from './plugins/error-handler';
 import { zodPlugin } from './plugins/zod';
@@ -32,6 +33,12 @@ export async function buildApp({
   await app.register(dbPlugin, {
     handle: db ?? createDb(env.DATABASE_URL),
     close: !db,
+  });
+  await app.register(authenticatePlugin, {
+    secrets: {
+      accessSecret: env.JWT_ACCESS_SECRET,
+      refreshSecret: env.JWT_REFRESH_SECRET,
+    },
   });
 
   await app.register(healthRoutes);
