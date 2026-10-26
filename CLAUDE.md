@@ -52,7 +52,7 @@ Layer rules:
   Messages to a device go through `DeviceConnections.send` from
   `shared/device-connections.ts`, which validates them first. HTTP routes
   served on the device listener go in `<feature>.device-routes.ts`.
-- **Protected routes** add `{ preHandler: app.authenticate }` and read the
+- **Protected routes** add `{ onRequest: app.authenticate }` and read the
   signed-in user with `authenticatedUserId(request)` from
   `plugins/authenticate.ts`; without a valid access token they answer 401.
 - Dependencies are passed in through `create*` factories, e.g.

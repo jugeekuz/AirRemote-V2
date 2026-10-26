@@ -1,7 +1,7 @@
 import type {
   FastifyReply,
   FastifyRequest,
-  preHandlerAsyncHookHandler,
+  onRequestAsyncHookHandler,
 } from 'fastify';
 import fp from 'fastify-plugin';
 import {
@@ -12,12 +12,15 @@ import { AppError } from '../shared/errors';
 
 declare module 'fastify' {
   interface FastifyRequest {
-    /** The signed-in user, set by the `authenticate` preHandler. */
+    /** The signed-in user, set by the `authenticate` hook. */
     userId: string | null;
   }
   interface FastifyInstance {
-    /** preHandler for routes that need a signed-in user: 401 without a valid access token. */
-    authenticate: preHandlerAsyncHookHandler;
+    /**
+     * `onRequest` hook for routes that need a signed-in user: 401 without a
+     * valid access token, before the body is parsed or validated.
+     */
+    authenticate: onRequestAsyncHookHandler;
   }
 }
 
@@ -44,7 +47,7 @@ export const authenticatePlugin = fp<{ secrets: TokenSecrets }>(
 /** The signed-in user of a route behind `app.authenticate`. */
 export function authenticatedUserId(request: FastifyRequest): string {
   if (!request.userId) {
-    throw new Error('Route is missing the authenticate preHandler');
+    throw new Error('Route is missing the authenticate hook');
   }
   return request.userId;
 }

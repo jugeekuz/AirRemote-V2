@@ -89,6 +89,21 @@ describe('POST /devices', () => {
   });
 
   it.each([
+    ['an invalid body', { macAddress: 'x' }],
+    ['no body', undefined],
+  ])(
+    'returns 401 without a token for %s, before validating it',
+    async (_case, payload) => {
+      await appWith(async () => enrolled);
+      const res = await post(payload, { signedIn: false });
+      expect(res.statusCode).toBe(401);
+      expect(res.headers['www-authenticate']).toBe('Bearer');
+      expect(res.json().error.code).toBe('UNAUTHORIZED');
+      expect(received).toEqual([]);
+    },
+  );
+
+  it.each([
     ['a dashed MAC', { ...body, macAddress: 'AA-BB-CC-DD-EE-01' }],
     ['a 7-character code', { ...body, pairingCode: '7K4MQ9T' }],
   ])(

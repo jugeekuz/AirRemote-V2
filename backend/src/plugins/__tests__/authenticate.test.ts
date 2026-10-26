@@ -17,7 +17,7 @@ let app: FastifyInstance;
 beforeEach(async () => {
   app = await buildTestApp();
   await app.register(authenticatePlugin, { secrets });
-  app.get('/whoami', { preHandler: app.authenticate }, async (request) => ({
+  app.get('/whoami', { onRequest: app.authenticate }, async (request) => ({
     userId: authenticatedUserId(request),
   }));
   app.get('/open', async () => ({ ok: true }));
@@ -84,7 +84,7 @@ describe('authenticate', () => {
     });
   });
 
-  it('leaves routes without the preHandler open', async () => {
+  it('leaves routes without the hook open', async () => {
     const res = await app.inject({ method: 'GET', url: '/open' });
     expect(res.statusCode).toBe(200);
   });

@@ -23,7 +23,7 @@ export const devicesRoutes: FastifyPluginAsyncZod<{
   app.post(
     '/',
     {
-      preHandler: app.authenticate,
+      onRequest: app.authenticate,
       schema: {
         body: enrollDeviceRequestSchema,
         response: { 201: deviceResponseSchema },
