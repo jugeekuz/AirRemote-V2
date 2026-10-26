@@ -27,7 +27,7 @@ Options: `--server` (default `https://localhost:8443`) and `--certs`
 | `/connect`         | Opens the WebSocket now.                                      |
 | `/disconnect`      | Closes it and stops reconnecting, like unplugging the network. |
 | `/send <text>`     | Sends `<text>` as is, unvalidated — to test the server's handling of bad frames. |
-| `/error <message>` | Sends a valid `{ "type": "error", "message": … }`.            |
+| `/error <code> [message]` | Sends a valid `{ "type": "error", "code": …, "message": … }`, e.g. `/error READ_TIMEOUT`. |
 | `/pongs on\|off`   | Answers the server's pings or not; off gets it dropped by the heartbeat. |
 | `/status`          | MAC, server, state, pending code, pongs.                      |
 | `/quit`            | Disconnects and exits (also Ctrl+C, Ctrl+D).                  |

@@ -99,7 +99,7 @@ prompt.on('line', (line) => {
       device.send(command.text);
       break;
     case 'error':
-      device.sendError(command.message);
+      device.sendError(command.code, command.message);
       break;
     case 'pongs':
       device.setPongs(command.on);

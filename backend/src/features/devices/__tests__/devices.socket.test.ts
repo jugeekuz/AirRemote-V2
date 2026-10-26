@@ -1,20 +1,50 @@
 import type { FastifyBaseLogger } from 'fastify';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDevicesSocketHandlers } from '../devices.socket';
 
-describe('devices socket handlers: error', () => {
-  it('logs a device error report as a warning', async () => {
-    const log = { warn: vi.fn() };
-    const device = { id: 'device-1', macAddress: 'aa:bb:cc:dd:ee:01' };
+const device = { id: 'device-1', macAddress: 'aa:bb:cc:dd:ee:01' };
+const requestId = '6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11';
 
+let log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn> };
+const ctx = () => ({ device, log: log as unknown as FastifyBaseLogger });
+
+beforeEach(() => {
+  log = { info: vi.fn(), warn: vi.fn() };
+});
+
+describe('devices socket handlers: error', () => {
+  it('logs a device error with its code, request and message as a warning', async () => {
     await createDevicesSocketHandlers().error(
-      { type: 'error', message: 'boom' },
-      { device, log: log as unknown as FastifyBaseLogger },
+      {
+        type: 'error',
+        code: 'READ_TIMEOUT',
+        requestId,
+        message: 'No IR code within 15 s',
+      },
+      ctx(),
     );
 
     expect(log.warn).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ deviceMessage: 'boom' }),
+      {
+        code: 'READ_TIMEOUT',
+        requestId,
+        deviceMessage: 'No IR code within 15 s',
+      },
       'Device reported an error',
+    );
+  });
+});
+
+describe('devices socket handlers: readIrResult', () => {
+  it('logs the request and how long the code is, not the code itself', async () => {
+    await createDevicesSocketHandlers().readIrResult(
+      { type: 'readIrResult', requestId, timingsUs: [9000, 4500, 560] },
+      ctx(),
+    );
+
+    expect(log.info).toHaveBeenCalledExactlyOnceWith(
+      { requestId, entries: 3 },
+      'Device read an IR code',
     );
   });
 });

@@ -10,7 +10,11 @@ const text = (value: unknown) => Buffer.from(JSON.stringify(value));
 
 describe('decodeDeviceFrame', () => {
   it('decodes a valid text frame', () => {
-    const message = { type: 'error', message: 'IR receiver timed out' };
+    const message = {
+      type: 'error',
+      code: 'READ_TIMEOUT',
+      message: 'IR receiver timed out',
+    };
     expect(decodeDeviceFrame(text(message), false)).toEqual({
       ok: true,
       message,
@@ -37,7 +41,7 @@ describe('decodeDeviceFrame', () => {
 
   it('rejects JSON that fails the schema with INVALID_MESSAGE and names the first problem', () => {
     const result = decodeDeviceFrame(
-      text({ type: 'error', message: 1 }),
+      text({ type: 'error', code: 'BUSY', message: 1 }),
       false,
     );
     expect(result).toMatchObject({ ok: false, code: 'INVALID_MESSAGE' });

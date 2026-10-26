@@ -262,15 +262,20 @@ describe('frames', () => {
 
   it('sends a valid error message', async () => {
     const subject = await connected();
-    subject.sendError('IR receiver timed out');
+    subject.sendError('READ_TIMEOUT', 'IR receiver timed out');
+    subject.sendError('BUSY');
     expect(lastSocket().sent).toEqual([
-      '{"type":"error","message":"IR receiver timed out"}',
+      '{"type":"error","code":"READ_TIMEOUT","message":"IR receiver timed out"}',
+      '{"type":"error","code":"BUSY"}',
     ]);
   });
 
-  it('refuses an error message the protocol would reject', async () => {
+  it.each([
+    ['an unknown code', 'NOPE', undefined],
+    ['a message over 200 characters', 'BUSY', 'x'.repeat(201)],
+  ])('refuses an error with %s', async (_case, code, message) => {
     const subject = await connected();
-    subject.sendError('x'.repeat(201));
+    subject.sendError(code, message);
     expect(lastSocket().sent).toEqual([]);
     expect(
       events.some(

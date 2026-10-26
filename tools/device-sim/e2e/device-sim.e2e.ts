@@ -106,11 +106,11 @@ describe('the simulated device against the device listener', () => {
     await ownerEnrolls(pairing.code);
     await waitFor(statusIs('enrolled ✓ connected'));
 
-    device.sendError('IR receiver timed out');
+    device.sendError('INTERNAL', 'IR receiver timed out');
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(events).toContainEqual({
       kind: 'sent',
-      text: '{"type":"error","message":"IR receiver timed out"}',
+      text: '{"type":"error","code":"INTERNAL","message":"IR receiver timed out"}',
     });
     expect(
       events.some(

@@ -23,7 +23,11 @@ class FakeSocket extends EventEmitter {
 
 const device = { id: 'device-1', macAddress: 'aa:bb:cc:dd:ee:01' };
 const text = (value: unknown) => Buffer.from(JSON.stringify(value));
-const deviceError = { type: 'error', message: 'IR receiver timed out' };
+const deviceError = {
+  type: 'error',
+  code: 'READ_TIMEOUT',
+  message: 'IR receiver timed out',
+};
 
 let socket: FakeSocket;
 let connections: DeviceConnections;
@@ -108,8 +112,8 @@ describe('device session', () => {
   it('accepts a message split into fragments', () => {
     attach();
     const [first, second] = [
-      Buffer.from('{"type":"error",'),
-      Buffer.from('"message":"IR receiver timed out"}'),
+      Buffer.from('{"type":"error","code":'),
+      Buffer.from('"READ_TIMEOUT","message":"IR receiver timed out"}'),
     ];
     socket.emit('message', [first, second], false);
     expect(handlers.error).toHaveBeenCalledOnce();

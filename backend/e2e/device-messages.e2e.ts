@@ -49,8 +49,29 @@ describe('device messages', () => {
   it('accepts a device error report without replying', async () => {
     const socket = await devices.connect('allowed');
     const reply = nextMessage(socket);
-    socket.send(JSON.stringify({ type: 'error', message: 'IR timed out' }));
+    socket.send(
+      JSON.stringify({
+        type: 'error',
+        code: 'READ_TIMEOUT',
+        message: 'IR timed out',
+      }),
+    );
     socket.send('{nope');
+    expect(await reply).toMatchObject({ code: 'INVALID_JSON' });
+  });
+
+  it('accepts the longest possible read result, which fits one frame', async () => {
+    const socket = await devices.connect('allowed');
+    const reply = nextMessage(socket);
+    const longest = JSON.stringify({
+      type: 'readIrResult',
+      requestId: '6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11',
+      timingsUs: Array(2048).fill(65_535),
+    });
+    expect(Buffer.byteLength(longest)).toBeLessThan(16 * 1024);
+    socket.send(longest);
+    socket.send('{nope');
+    // The first reply answers '{nope': the result was accepted silently.
     expect(await reply).toMatchObject({ code: 'INVALID_JSON' });
   });
 

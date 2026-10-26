@@ -6,7 +6,7 @@ export type Command =
   | { name: 'status' }
   | { name: 'quit' }
   | { name: 'send'; text: string }
-  | { name: 'error'; message: string }
+  | { name: 'error'; code: string; message?: string }
   | { name: 'pongs'; on: boolean }
   | { name: 'usage'; usage: string }
   | { name: 'unknown' }
@@ -24,7 +24,10 @@ export const COMMAND_HELP: readonly { usage: string; description: string }[] = [
     description: 'close the WebSocket and stop reconnecting',
   },
   { usage: '/send <text>', description: 'send <text> as is, unvalidated' },
-  { usage: '/error <message>', description: 'send a valid error message' },
+  {
+    usage: '/error <code> [message]',
+    description: 'send an error, e.g. /error READ_TIMEOUT',
+  },
   { usage: '/pongs on|off', description: 'answer the server’s pings or not' },
   { usage: '/status', description: 'show the device’s state' },
   { usage: '/quit', description: 'disconnect and exit (also Ctrl+C)' },
@@ -35,6 +38,13 @@ const usage = (name: string): Command => ({
   usage: COMMAND_HELP.find((entry) => entry.usage.startsWith(`/${name}`))!
     .usage,
 });
+
+/** `READ_TIMEOUT No code within 15 s` → the code, then an optional message. */
+function errorCommand(rest: string): Command {
+  const [code = '', ...words] = rest.split(/\s+/);
+  const message = words.join(' ');
+  return message ? { name: 'error', code, message } : { name: 'error', code };
+}
 
 export function parseCommand(line: string): Command {
   const input = line.trim();
@@ -59,9 +69,7 @@ export function parseCommand(line: string): Command {
     case 'send':
       return rest.trim() === '' ? usage('send') : { name: 'send', text: rest };
     case 'error':
-      return rest.trim() === ''
-        ? usage('error')
-        : { name: 'error', message: rest.trim() };
+      return rest.trim() === '' ? usage('error') : errorCommand(rest.trim());
     case 'pongs':
       if (rest.trim() === 'on') return { name: 'pongs', on: true };
       if (rest.trim() === 'off') return { name: 'pongs', on: false };

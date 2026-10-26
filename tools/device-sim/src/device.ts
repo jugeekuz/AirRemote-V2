@@ -340,9 +340,13 @@ export function createDevice({
       socket.send(text);
     },
 
-    /** Sends `{ type: 'error', message }`, refused locally if the protocol would reject it. */
-    sendError(message: string) {
-      const result = deviceMessageSchema.safeParse({ type: 'error', message });
+    /** Sends `{ type: 'error', code, message? }`, refused locally if the protocol would reject it. */
+    sendError(code: string, message?: string) {
+      const result = deviceMessageSchema.safeParse({
+        type: 'error',
+        code,
+        ...(message === undefined ? {} : { message }),
+      });
       if (!result.success) {
         const [issue] = result.error.issues;
         status(`invalid message: ${issue?.message ?? 'rejected'}`, 'error');

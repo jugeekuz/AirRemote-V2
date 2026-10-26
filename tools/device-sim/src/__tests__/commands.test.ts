@@ -14,9 +14,10 @@ describe('parseCommand', () => {
     ['/pongs on', { name: 'pongs', on: true }],
     ['/pongs off', { name: 'pongs', on: false }],
     [
-      '/error IR receiver timed out',
-      { name: 'error', message: 'IR receiver timed out' },
+      '/error READ_TIMEOUT No code within 15 s',
+      { name: 'error', code: 'READ_TIMEOUT', message: 'No code within 15 s' },
     ],
+    ['/error BUSY', { name: 'error', code: 'BUSY' }],
     ['hello', { name: 'unknown' }],
     ['/nope', { name: 'unknown' }],
     ['', { name: 'empty' }],

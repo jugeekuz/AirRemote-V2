@@ -14,12 +14,48 @@ export type DeviceProtocolErrorCode = z.infer<
   typeof deviceProtocolErrorCodeSchema
 >;
 
+/** Why a device could not do what it was asked, or what went wrong on it. */
+export const deviceErrorCodeSchema = z.enum([
+  /** No IR code arrived within the read's timeout. */
+  'READ_TIMEOUT',
+  /** The code was longer than the device's capture buffer. */
+  'CAPTURE_TOO_LONG',
+  /** The device is still running another command. */
+  'BUSY',
+  /** The device could not use a command the server sent. */
+  'INVALID_COMMAND',
+  'INTERNAL',
+]);
+
+export type DeviceErrorCode = z.infer<typeof deviceErrorCodeSchema>;
+
+/** Matches a command to its reply. */
+const requestId = z.uuid();
+
+/**
+ * A raw IR signal: durations in microseconds, alternating carrier on and off,
+ * starting with on, replayed at 38 kHz. A `0` is the spacer IRremoteESP8266
+ * puts inside a gap longer than 65535 µs. The same rules as `buttons.timings_us`.
+ */
+export const irTimingsSchema = z
+  .array(z.number().int().min(0).max(65_535))
+  .min(1)
+  .max(2048);
+
 /** Every message a device may send to the server. Unknown keys are rejected. */
 export const deviceMessageSchema = z.discriminatedUnion('type', [
-  /** The device reports a failure on its side. */
+  /** The code a device read, answering `readIr`. */
+  z.strictObject({
+    type: z.literal('readIrResult'),
+    requestId,
+    timingsUs: irTimingsSchema,
+  }),
+  /** A failure on the device; `requestId` names the command it answers, if any. */
   z.strictObject({
     type: z.literal('error'),
-    message: z.string().min(1).max(200),
+    code: deviceErrorCodeSchema,
+    requestId: requestId.optional(),
+    message: z.string().min(1).max(200).optional(),
   }),
 ]);
 
@@ -27,6 +63,12 @@ export type DeviceMessage = z.infer<typeof deviceMessageSchema>;
 
 /** Every message the server may send to a device. Unknown keys are rejected. */
 export const serverMessageSchema = z.discriminatedUnion('type', [
+  /** Listen for one IR code for up to `timeoutMs`; answered by `readIrResult` or `error`. */
+  z.strictObject({
+    type: z.literal('readIr'),
+    requestId,
+    timeoutMs: z.number().int().min(1_000).max(60_000),
+  }),
   /** The server refused the device's last frame. */
   z.strictObject({
     type: z.literal('error'),
