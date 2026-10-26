@@ -9,6 +9,7 @@ export type Command =
   | { name: 'error'; code: string; message?: string }
   | { name: 'press'; timings?: number[] }
   | { name: 'pongs'; on: boolean }
+  | { name: 'sendFails'; on: boolean }
   | { name: 'usage'; usage: string }
   | { name: 'unknown' }
   | { name: 'empty' };
@@ -35,6 +36,10 @@ export const COMMAND_HELP: readonly { usage: string; description: string }[] = [
       'answer a read with a sample IR code, or the given timings (µs)',
   },
   { usage: '/pongs on|off', description: 'answer the server’s pings or not' },
+  {
+    usage: '/send-fails on|off',
+    description: 'answer the next sends with SEND_FAILED, or not',
+  },
   { usage: '/status', description: 'show the device’s state' },
   { usage: '/quit', description: 'disconnect and exit (also Ctrl+C)' },
 ];
@@ -91,6 +96,10 @@ export function parseCommand(line: string): Command {
       if (rest.trim() === 'on') return { name: 'pongs', on: true };
       if (rest.trim() === 'off') return { name: 'pongs', on: false };
       return usage('pongs');
+    case 'send-fails':
+      if (rest.trim() === 'on') return { name: 'sendFails', on: true };
+      if (rest.trim() === 'off') return { name: 'sendFails', on: false };
+      return usage('send-fails');
     default:
       return { name: 'unknown' };
   }

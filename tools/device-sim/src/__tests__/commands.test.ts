@@ -16,6 +16,8 @@ describe('parseCommand', () => {
     ['/press 9000, 4500', { name: 'press', timings: [9000, 4500] }],
     ['/pongs on', { name: 'pongs', on: true }],
     ['/pongs off', { name: 'pongs', on: false }],
+    ['/send-fails on', { name: 'sendFails', on: true }],
+    ['/send-fails off', { name: 'sendFails', on: false }],
     [
       '/error READ_TIMEOUT No code within 15 s',
       { name: 'error', code: 'READ_TIMEOUT', message: 'No code within 15 s' },
@@ -46,6 +48,8 @@ describe('parseCommand', () => {
     '/error',
     '/pongs',
     '/pongs maybe',
+    '/send-fails',
+    '/send-fails maybe',
     '/press 9000,x',
     '/press 1,,2',
     '/press -5',
@@ -67,6 +71,7 @@ describe('COMMAND_HELP', () => {
       '/error',
       '/press',
       '/pongs',
+      '/send-fails',
       '/status',
       '/quit',
     ]);

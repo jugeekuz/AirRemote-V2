@@ -56,6 +56,7 @@ export type DeviceStatus = {
   mac: string;
   state: DeviceState;
   pongs: boolean;
+  sendFails: boolean;
   pendingCode: { code: string; expiresAt: number } | null;
   pendingRead: { commandId: string; expiresAt: number } | null;
 };
@@ -73,6 +74,8 @@ export const SAMPLE_TIMINGS_US: readonly number[] = [
   560,
 ];
 
+/** How long the device takes to "send" a code. */
+export const SEND_DELAY_MS = 100;
 const FIRST_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 30_000;
 const NORMAL_CLOSURE = 1000;
@@ -100,6 +103,7 @@ export function createDevice({
   let socket: DeviceSocket | null = null;
   let state: DeviceState = 'offline';
   let pongs = true;
+  let sendFails = false;
   let pending: { code: string; expiresAt: number } | null = null;
   /** Whether an unexpected close or failed open schedules another attempt. */
   let reconnecting = false;
@@ -112,6 +116,8 @@ export function createDevice({
   /** The `readIr` the device is listening for, and the timer that ends it. */
   let read: { commandId: string; expiresAt: number; timer: unknown } | null =
     null;
+  /** The `sendIr` being sent, and the timer that ends it. */
+  let sending: { commandId: string; timer: unknown } | null = null;
 
   const status = (
     text: string,
@@ -128,6 +134,12 @@ export function createDevice({
     clearTimer(expiryTimer);
     reconnectTimer = retryTimer = expiryTimer = null;
     clearRead();
+    clearSending();
+  }
+
+  function clearSending() {
+    if (sending) clock.clearTimeout(sending.timer);
+    sending = null;
   }
 
   function clearRead() {
@@ -155,21 +167,39 @@ export function createDevice({
       return;
     }
     const message = serverMessageSchema.safeParse(json);
-    if (!message.success || message.data.type !== 'readIr') return;
-    const { commandId, timeoutMs } = message.data;
-    if (read) {
-      sendMessage({ type: 'error', code: 'BUSY', commandId });
-      return;
+    if (!message.success) return;
+    if (message.data.type === 'readIr') {
+      const { commandId, timeoutMs } = message.data;
+      if (read || sending) {
+        sendMessage({ type: 'error', code: 'BUSY', commandId });
+        return;
+      }
+      read = {
+        commandId,
+        expiresAt: clock.now() + timeoutMs,
+        timer: clock.setTimeout(() => {
+          read = null;
+          sendMessage({ type: 'error', code: 'READ_TIMEOUT', commandId });
+        }, timeoutMs),
+      };
+      status(`listening for an IR code (${timeoutMs / 1000} s)`);
+    } else if (message.data.type === 'sendIr') {
+      const { commandId, timingsUs } = message.data;
+      if (read || sending) {
+        sendMessage({ type: 'error', code: 'BUSY', commandId });
+        return;
+      }
+      sending = {
+        commandId,
+        timer: clock.setTimeout(() => {
+          sending = null;
+          if (sendFails)
+            sendMessage({ type: 'error', code: 'SEND_FAILED', commandId });
+          else sendMessage({ type: 'sendIrResult', commandId });
+        }, SEND_DELAY_MS),
+      };
+      status(`sending an IR code (${timingsUs.length} timings)`);
     }
-    read = {
-      commandId,
-      expiresAt: clock.now() + timeoutMs,
-      timer: clock.setTimeout(() => {
-        read = null;
-        sendMessage({ type: 'error', code: 'READ_TIMEOUT', commandId });
-      }, timeoutMs),
-    };
-    status(`listening for an IR code (${timeoutMs / 1000} s)`);
   }
 
   function cancelEnrollment() {
@@ -225,6 +255,7 @@ export function createDevice({
         if (!current || socket !== current) return;
         socket = null;
         clearRead();
+        clearSending();
         onEvent({ kind: 'received', text: `close ${describeClose(code)}` });
         scheduleReconnect();
       },
@@ -428,11 +459,17 @@ export function createDevice({
       status(`pongs ${on ? 'on' : 'off'}`);
     },
 
+    setSendFails(on: boolean) {
+      sendFails = on;
+      status(`send failures ${on ? 'on' : 'off'}`);
+    },
+
     status(): DeviceStatus {
       return {
         mac,
         state,
         pongs,
+        sendFails,
         pendingCode: pending,
         pendingRead: read
           ? { commandId: read.commandId, expiresAt: read.expiresAt }

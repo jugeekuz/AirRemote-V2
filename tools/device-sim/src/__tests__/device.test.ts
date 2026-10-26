@@ -614,3 +614,89 @@ describe('reading IR codes', () => {
     expect(subject.status().pendingRead).toBeNull();
   });
 });
+
+describe('sending IR codes', () => {
+  const id = '3f6c1a52-8d1e-4a57-9c52-0a1b2c3d4e5f';
+  const other = '7a9d2b64-1c3e-4f58-8d63-1b2c3d4e5f60';
+  const sendIr = (commandId = id, timingsUs = [9000, 4500, 560]) =>
+    JSON.stringify({ type: 'sendIr', commandId, timingsUs });
+  const readIr = (commandId = id) =>
+    JSON.stringify({ type: 'readIr', commandId, timeoutMs: 15_000 });
+  const lastSent = () => JSON.parse(lastSocket().sent.at(-1)!);
+
+  it('logs the send and confirms it after 100 ms', async () => {
+    await connected();
+    lastSocket().events.message(sendIr());
+    expect(statuses().at(-1)).toBe('sending an IR code (3 timings)');
+    await clock.advance(99);
+    expect(lastSocket().sent).toEqual([]);
+    await clock.advance(1);
+    expect(lastSent()).toEqual({ type: 'sendIrResult', commandId: id });
+    expect(clock.pending()).toBe(0);
+  });
+
+  it('answers SEND_FAILED instead when send failures are on', async () => {
+    const subject = await connected();
+    subject.setSendFails(true);
+    expect(subject.status().sendFails).toBe(true);
+    lastSocket().events.message(sendIr());
+    await clock.advance(100);
+    expect(lastSent()).toEqual({
+      type: 'error',
+      code: 'SEND_FAILED',
+      commandId: id,
+    });
+    subject.setSendFails(false);
+    expect(subject.status().sendFails).toBe(false);
+  });
+
+  it('has send failures off to begin with', async () => {
+    const subject = await connected();
+    expect(subject.status().sendFails).toBe(false);
+  });
+
+  it('answers BUSY at once while a read is listening, and keeps listening', async () => {
+    const subject = await connected();
+    lastSocket().events.message(readIr(id));
+    lastSocket().events.message(sendIr(other));
+    expect(lastSent()).toEqual({
+      type: 'error',
+      code: 'BUSY',
+      commandId: other,
+    });
+    expect(subject.status().pendingRead?.commandId).toBe(id);
+  });
+
+  it('answers BUSY to a second send and to a read while sending', async () => {
+    await connected();
+    lastSocket().events.message(sendIr(id));
+    lastSocket().events.message(sendIr(other));
+    expect(lastSent()).toEqual({
+      type: 'error',
+      code: 'BUSY',
+      commandId: other,
+    });
+    lastSocket().events.message(readIr(other));
+    expect(lastSent().code).toBe('BUSY');
+    await clock.advance(100);
+    expect(lastSent()).toEqual({ type: 'sendIrResult', commandId: id });
+  });
+
+  it('clears the send timer when stopped, disconnected or closed', async () => {
+    const first = await connected();
+    lastSocket().events.message(sendIr());
+    first.disconnect();
+    expect(clock.pending()).toBe(0);
+
+    const second = await connected();
+    lastSocket().events.message(sendIr());
+    second.stop();
+    expect(clock.pending()).toBe(0);
+
+    await connected();
+    lastSocket().events.message(sendIr());
+    lastSocket().events.close(1001, '');
+    await clock.advance(100);
+    expect(lastSocket().sent).toEqual([]);
+  });
+});

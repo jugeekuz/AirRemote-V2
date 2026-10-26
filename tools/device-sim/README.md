@@ -30,7 +30,8 @@ Options: `--server` (default `https://localhost:8443`) and `--certs`
 | `/error <code> [message]` | Sends a valid `{ "type": "error", "code": …, "message": … }`, e.g. `/error READ_TIMEOUT`. |
 | `/press [t1,t2,…]` | Answers a read in progress with a sample NEC-shaped IR code, or with the given timings in µs (comma-separated integers). |
 | `/pongs on\|off`   | Answers the server's pings or not; off gets it dropped by the heartbeat. |
-| `/status`          | MAC, server, state, pending code, pending read, pongs.                      |
+| `/send-fails on\|off` | Makes the device answer a `sendIr` with `SEND_FAILED` instead of confirming it. |
+| `/status`          | MAC, server, state, pending code, pending read, pongs, send failures.       |
 | `/quit`            | Disconnects and exits (also Ctrl+C, Ctrl+D).                  |
 
 ## Enrolling it
@@ -70,3 +71,25 @@ for your own timings); polling then answers `succeeded` with the button. If
 you do nothing for 15 s the mock sends `READ_TIMEOUT` itself and the poll
 answers `failed` (`IR_READ_TIMEOUT`). A second read while one is pending is
 answered `BUSY`; `/status` shows the pending read and its time left.
+
+## Listing and pressing a button
+
+Pressing sends the button's saved code to the device: the mock logs `sending
+an IR code (N timings)` and confirms after 100 ms. With the button learned
+above (`$TOKEN` and `$REMOTE` are set):
+
+```sh
+curl -s localhost:3000/devices -H "authorization: Bearer $TOKEN"
+curl -s localhost:3000/remotes -H "authorization: Bearer $TOKEN"
+BUTTON=$(curl -s localhost:3000/remotes/$REMOTE/buttons -H "authorization: Bearer $TOKEN" | jq -r '.[0].id')
+PRESS=$(curl -si -X POST localhost:3000/buttons/$BUTTON/press -H "authorization: Bearer $TOKEN" \
+  | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')
+echo $PRESS   # 202, /device-commands/<id>
+curl -s localhost:3000$PRESS -H "authorization: Bearer $TOKEN"
+```
+
+The poll answers `succeeded` once the device has confirmed (poll again if it
+still says `pending`). Type `/send-fails on` in the simulator and press again:
+the device answers `SEND_FAILED` and the poll answers `failed`
+(`IR_SEND_FAILED`). `/send-fails off` restores normal behaviour. A press
+while the device is listening for a read is answered `BUSY`.

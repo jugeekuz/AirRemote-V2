@@ -131,10 +131,11 @@ export function renderStatus(
     ['server', server],
     ['state', status.state],
     ['pongs', status.pongs ? 'on' : 'off'],
+    ['send fails', status.sendFails ? 'on' : 'off'],
     ['code', code],
     ['read', read],
   ];
   return rows
-    .map(([label, value]) => `  ${colors.dim(label.padEnd(8))} ${value}`)
+    .map(([label, value]) => `  ${colors.dim(label.padEnd(10))} ${value}`)
     .join('\n');
 }

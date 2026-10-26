@@ -107,6 +107,9 @@ prompt.on('line', (line) => {
     case 'pongs':
       device.setPongs(command.on);
       break;
+    case 'sendFails':
+      device.setSendFails(command.on);
+      break;
     case 'status':
       print(renderStatus(device.status(), server, Date.now(), colors));
       break;

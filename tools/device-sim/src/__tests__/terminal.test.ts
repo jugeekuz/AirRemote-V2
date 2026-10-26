@@ -121,6 +121,7 @@ describe('renderStatus', () => {
         mac,
         state: 'waiting-for-enrollment',
         pongs: false,
+        sendFails: true,
         pendingCode: { code: '7K4MQ9TX', expiresAt: time.getTime() + 61_000 },
         pendingRead: null,
       },
@@ -132,6 +133,7 @@ describe('renderStatus', () => {
     expect(status).toContain(server);
     expect(status).toContain('waiting-for-enrollment');
     expect(status).toContain('off');
+    expect(status).toMatch(/send fails\s+on/);
     expect(status).toContain('7K4M-Q9TX (1:01 left)');
   });
 
@@ -141,6 +143,7 @@ describe('renderStatus', () => {
         mac,
         state: 'connected',
         pongs: true,
+        sendFails: false,
         pendingCode: null,
         pendingRead: null,
       },
@@ -151,6 +154,7 @@ describe('renderStatus', () => {
     expect(status).toContain('connected');
     expect(status).toContain('none');
     expect(status).toContain('no read in progress');
+    expect(status).toMatch(/send fails\s+off/);
   });
 
   it('shows a pending read with its time left', () => {
@@ -159,6 +163,7 @@ describe('renderStatus', () => {
         mac,
         state: 'connected',
         pongs: true,
+        sendFails: false,
         pendingCode: null,
         pendingRead: {
           commandId: '3f6c1a52-8d1e-4a57-9c52-0a1b2c3d4e5f',

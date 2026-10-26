@@ -97,9 +97,18 @@ All of these need the owner's access token.
    expiresAt, error?, button? }`. Poll it until `status` is not `pending`;
    `succeeded` carries the saved `button`, `failed` an `error`.
 
+Listing and pressing, also with the owner's access token:
+
+- `GET /devices`, `GET /remotes` and `GET /remotes/:remoteId/buttons` list
+  the owner's devices, remotes, and the buttons of one remote.
+- `POST /buttons/:buttonId/press` (no body) sends the button's saved IR code
+  to its device: `202` with `Location: /device-commands/<id>`, or
+  `409 DEVICE_OFFLINE`. Poll the command as above; it ends `succeeded`, or
+  `failed` with an `error` such as `IR_SEND_FAILED`.
+
 Commands are rows in `device_commands`, so any instance can report them.
 With the mock device, type `/press` in it to send a code. The curl commands
-that set `$TOKEN`, `$DEVICE_ID` and `$REMOTE` and make these requests are in
+that set `$TOKEN`, `$DEVICE_ID`, `$REMOTE` and `$BUTTON` and make these requests are in
 `tools/device-sim/README.md`.
 
 ## Scripts (from the repository root)
