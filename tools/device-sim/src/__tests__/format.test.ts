@@ -52,6 +52,10 @@ describe('describeTransportError', () => {
 
   it.each([
     ['ECONNREFUSED', 'server not reachable (connection refused)'],
+    [
+      'ECONNRESET',
+      "connection reset by the server — it may not trust this device's certificate",
+    ],
     ['ERR_SSL_TLSV1_ALERT_UNKNOWN_CA', notTrusted],
     ['ERR_SSL_SSLV3_ALERT_BAD_CERTIFICATE', notTrusted],
     ['ERR_SSL_TLSV13_ALERT_CERTIFICATE_REQUIRED', notTrusted],

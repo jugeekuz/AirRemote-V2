@@ -49,6 +49,11 @@ export function describeTransportError(error: {
   if (code === 'ECONNREFUSED') {
     return 'server not reachable (connection refused)';
   }
+  // With TLS 1.3, a client certificate the server refuses usually shows up as
+  // a reset rather than as a certificate alert.
+  if (code === 'ECONNRESET') {
+    return "connection reset by the server — it may not trust this device's certificate";
+  }
   if (SERVER_REJECTED_CERTIFICATE.some((part) => code.includes(part))) {
     return "the server does not trust this device's certificate";
   }

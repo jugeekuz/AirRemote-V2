@@ -31,7 +31,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'e2e',
-          include: ['backend/e2e/**/*.e2e.ts'],
+          include: ['backend/e2e/**/*.e2e.ts', 'tools/*/e2e/**/*.e2e.ts'],
           globalSetup: [postgresSetup, deviceCertsSetup],
           hookTimeout: 120_000,
         },

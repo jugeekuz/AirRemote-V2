@@ -1,4 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src", "e2e"]
+  "include": [
+    "src",
+    "e2e",
+    // Declares what the e2e tests' backend helpers inject.
+    "../../backend/src/__tests__/postgres.global-setup.ts"
+  ]
 }
