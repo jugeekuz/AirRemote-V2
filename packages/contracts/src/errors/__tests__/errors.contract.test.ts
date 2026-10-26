@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { errorResponseSchema } from '../errors.contract';
+import { errorCodeSchema, errorResponseSchema } from '../errors.contract';
 
 describe('errorResponseSchema', () => {
   it('accepts an error envelope with a known code', () => {
@@ -26,5 +26,20 @@ describe('errorResponseSchema', () => {
       errorResponseSchema.safeParse({ code: 'NOT_FOUND', message: 'x' })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('errorCodeSchema', () => {
+  it.each([
+    'REMOTE_NAME_TAKEN',
+    'BUTTON_NAME_TAKEN',
+    'DEVICE_OFFLINE',
+    'DEVICE_BUSY',
+    'IR_READ_TIMEOUT',
+    'IR_CODE_TOO_LONG',
+    'DEVICE_ERROR',
+    'DEVICE_NOT_RESPONDING',
+  ])('includes %s', (code) => {
+    expect(errorCodeSchema.options).toContain(code);
   });
 });

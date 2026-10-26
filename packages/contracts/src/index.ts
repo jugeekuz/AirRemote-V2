@@ -5,3 +5,6 @@ export * from './auth/auth.contract';
 export * from './device-protocol/device-protocol.contract';
 export * from './devices/devices.contract';
 export * from './remotes/remotes.contract';
+export * from './shared/names.contract';
+export * from './buttons/buttons.contract';
+export * from './device-commands/device-commands.contract';

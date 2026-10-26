@@ -1,0 +1,28 @@
+import { describe, expect, it } from 'vitest';
+import {
+  buttonResponseSchema,
+  learnButtonRequestSchema,
+} from '../buttons.contract';
+
+describe('learnButtonRequestSchema', () => {
+  it('accepts a valid body and trims the name', () => {
+    expect(learnButtonRequestSchema.parse({ name: ' Power ' })).toEqual({
+      name: 'Power',
+    });
+  });
+
+  it('rejects a missing name', () => {
+    expect(learnButtonRequestSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('buttonResponseSchema', () => {
+  it('accepts a button', () => {
+    const body = {
+      id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
+      remoteId: '0b6f8a52-3c1e-4d7a-9f10-5a2b8c4d6e11',
+      name: 'Power',
+    };
+    expect(buttonResponseSchema.parse(body)).toEqual(body);
+  });
+});
