@@ -13,6 +13,7 @@ export const testEnv: Env = {
   DATABASE_URL: 'postgres://test:test@127.0.0.1:5432/test',
   JWT_ACCESS_SECRET: 'test-access-secret-0123456789abcdef',
   JWT_REFRESH_SECRET: 'test-refresh-secret-0123456789abcdef',
+  DEVICE_PORT: 0,
 };
 
 export function fakeDb(execute: () => Promise<unknown>): DbHandle {
