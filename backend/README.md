@@ -104,8 +104,11 @@ AA:BB:CC:DD:EE:01` (see `tools/device-sim/README.md`).
 
 1. Add a file under `packages/db/src/schema/` and re-export it from
    `packages/db/src/schema/index.ts`.
-2. Run `pnpm db:generate`.
-3. Commit the schema file and the generated migration in
-   `packages/db/migrations/`.
+2. Run `pnpm db:generate --name <what_it_does>`.
+3. Put the table's rules in the database (checks, unique indexes, foreign
+   keys) and test them in `packages/db/src/schema/__tests__/`.
+4. Commit the schema file and the generated migration in
+   `packages/db/migrations/`. Hand-edit a migration only to change existing
+   data, and test that edit in `packages/db/src/__tests__/migrations.itest.ts`.
 
 The conventions for features, routes and tests are in the root `CLAUDE.md`.
