@@ -8,9 +8,11 @@ import {
   createDevicesService,
   type DevicesService,
 } from './features/devices/devices.service';
+import { devicesDeviceRoutes } from './features/devices/devices.device-routes';
 import { createDevicesSocketHandlers } from './features/devices/devices.socket';
 import { deviceGatewayPlugin } from './plugins/device-gateway';
 import { errorHandlerPlugin } from './plugins/error-handler';
+import { zodPlugin } from './plugins/zod';
 import type { DeviceConnections } from './shared/device-connections';
 
 export type BuildDeviceServerOptions = {
@@ -27,8 +29,8 @@ export type BuildDeviceServerOptions = {
 
 /**
  * Creates the device listener without listening: HTTPS that only accepts
- * clients with a certificate signed by the device CA, serving one WebSocket
- * route.
+ * clients with a certificate signed by the device CA, serving the WebSocket
+ * route and the pairing-code route.
  */
 export async function buildDeviceServer({
   env,
@@ -63,6 +65,7 @@ export async function buildDeviceServer({
       pairingCodeSecret: env.PAIRING_CODE_SECRET,
     });
 
+  await server.register(zodPlugin);
   await server.register(errorHandlerPlugin);
   await server.register(deviceGatewayPlugin, {
     authorize: (commonName) => devices.authorizeConnection(commonName),
@@ -70,6 +73,7 @@ export async function buildDeviceServer({
     connections,
     heartbeatIntervalMs,
   });
+  await server.register(devicesDeviceRoutes, { service: devices });
 
   return server;
 }

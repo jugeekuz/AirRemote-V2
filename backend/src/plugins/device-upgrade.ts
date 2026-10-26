@@ -1,6 +1,6 @@
-import type { TLSSocket } from 'node:tls';
 import { DEVICE_SUBPROTOCOL } from '@airremote/contracts';
 import type { FastifyRequest } from 'fastify';
+import { peerCommonName } from '../shared/device-certificate';
 import type { AuthorizedDevice } from '../shared/device-messages';
 
 /** Decides from the client certificate's Subject CN; null or a throw rejects. */
@@ -18,13 +18,6 @@ function requestsDeviceProtocol(request: FastifyRequest): boolean {
   return header
     .split(',')
     .some((protocol) => protocol.trim() === DEVICE_SUBPROTOCOL);
-}
-
-function peerCommonName(request: FastifyRequest): string | null {
-  const socket = request.raw.socket as TLSSocket;
-  // With two CN attributes Node returns an array; only a single CN identifies a device.
-  const commonName: unknown = socket.getPeerCertificate().subject?.CN;
-  return typeof commonName === 'string' ? commonName : null;
 }
 
 /**
