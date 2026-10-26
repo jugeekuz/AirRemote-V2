@@ -17,16 +17,19 @@ function withDatabase(url: string, database: string): string {
   return parsed.toString();
 }
 
-/** Creates a fresh, migrated database by cloning the run's template database. */
-export async function createTestDatabase(): Promise<TestDatabase> {
+/** Creates a database on the run's Postgres server, cloned from `template` or empty. */
+async function createDatabase(template?: string): Promise<TestDatabase> {
   const templateUrl = inject('postgresTemplateUrl');
-  const template = new URL(templateUrl).pathname.slice(1);
   const name = `test_${randomUUID().replaceAll('-', '')}`;
   const admin = postgres(withDatabase(templateUrl, 'postgres'), {
     max: 1,
     onnotice: () => {},
   });
-  await admin.unsafe(`CREATE DATABASE "${name}" TEMPLATE "${template}"`);
+  await admin.unsafe(
+    template
+      ? `CREATE DATABASE "${name}" TEMPLATE "${template}"`
+      : `CREATE DATABASE "${name}"`,
+  );
 
   const url = withDatabase(templateUrl, name);
   const client = postgres(url, { max: 1, onnotice: () => {} });
@@ -48,6 +51,18 @@ export async function createTestDatabase(): Promise<TestDatabase> {
       await admin.end();
     },
   };
+}
+
+/** Creates a fresh, migrated database by cloning the run's template database. */
+export function createTestDatabase(): Promise<TestDatabase> {
+  return createDatabase(
+    new URL(inject('postgresTemplateUrl')).pathname.slice(1),
+  );
+}
+
+/** Creates an empty, unmigrated database, for tests that run migrations themselves. */
+export function createEmptyTestDatabase(): Promise<TestDatabase> {
+  return createDatabase();
 }
 
 /**

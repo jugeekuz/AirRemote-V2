@@ -98,7 +98,10 @@ run one. Integration and e2e tests need Docker.
   `*.repository.ts` and `*.service.ts`. They run against a real Postgres
   started by Testcontainers. Call `useTestDatabase()` from
   `src/__tests__/test-db.ts` at the top of the file: it gives the file its own
-  migrated database and empties it before every test.
+  migrated database and empties it before every test. Database rules (checks,
+  unique indexes, cascades) are tested the same way in
+  `packages/db/src/schema/__tests__/`, and a migration that changes existing
+  data gets a test in `packages/db/src/__tests__/migrations.itest.ts`.
 - **E2E — `backend/e2e/*.e2e.ts`.** The real app (`buildApp()` on a random
   port) against a real database, called over HTTP with `fetch`. Call
   `useTestApp()` from `e2e/support/test-app.ts` for the base URL and `db`.
