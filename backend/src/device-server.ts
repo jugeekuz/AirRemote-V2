@@ -3,13 +3,15 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type { DeviceTls } from './config/device-tls';
 import type { Env } from './config/env';
 import { loggerOptions } from './config/logger';
+import { createDeviceCommandsRepository } from './features/device-commands/device-commands.repository';
+import { createDeviceCommandsService } from './features/device-commands/device-commands.service';
+import { createDeviceCommandsSocketHandlers } from './features/device-commands/device-commands.socket';
 import { createDevicesRepository } from './features/devices/devices.repository';
 import {
   createDevicesService,
   type DevicesService,
 } from './features/devices/devices.service';
 import { devicesDeviceRoutes } from './features/devices/devices.device-routes';
-import { createDevicesSocketHandlers } from './features/devices/devices.socket';
 import { deviceGatewayPlugin } from './plugins/device-gateway';
 import { errorHandlerPlugin } from './plugins/error-handler';
 import { zodPlugin } from './plugins/zod';
@@ -65,11 +67,24 @@ export async function buildDeviceServer({
       pairingCodeSecret: env.PAIRING_CODE_SECRET,
     });
 
+  const deviceCommands = createDeviceCommandsService({
+    repository: createDeviceCommandsRepository(db.db),
+    connections,
+  });
+  connections.onConnectionClosed((deviceId, connectionId) => {
+    deviceCommands.connectionClosed(deviceId, connectionId).catch((error) => {
+      server.log.error(
+        { err: error, deviceId, connectionId },
+        'Failed to fail the commands of a closed device connection',
+      );
+    });
+  });
+
   await server.register(zodPlugin);
   await server.register(errorHandlerPlugin);
   await server.register(deviceGatewayPlugin, {
     authorize: (commonName) => devices.authorizeConnection(commonName),
-    handlers: createDevicesSocketHandlers(),
+    handlers: createDeviceCommandsSocketHandlers({ service: deviceCommands }),
     connections,
     heartbeatIntervalMs,
   });
