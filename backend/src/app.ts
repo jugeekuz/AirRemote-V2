@@ -2,6 +2,7 @@ import { createDb, type DbHandle } from '@airremote/db';
 import cookie from '@fastify/cookie';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Env } from './config/env';
+import { loggerOptions } from './config/logger';
 import { authRoutes } from './features/auth/auth.routes';
 import { healthRoutes } from './features/health/health.routes';
 import { usersRoutes } from './features/users/users.routes';
@@ -20,14 +21,7 @@ export async function buildApp({
   env,
   db,
 }: BuildAppOptions): Promise<FastifyInstance> {
-  const app = Fastify({
-    logger: {
-      level: env.LOG_LEVEL,
-      ...(env.NODE_ENV === 'development'
-        ? { transport: { target: 'pino-pretty' } }
-        : {}),
-    },
-  });
+  const app = Fastify({ logger: loggerOptions(env) });
 
   await app.register(zodPlugin);
   await app.register(errorHandlerPlugin);

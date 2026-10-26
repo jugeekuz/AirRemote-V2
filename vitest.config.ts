@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
 const postgresSetup = 'backend/src/__tests__/postgres.global-setup.ts';
+const deviceCertsSetup = 'backend/e2e/support/device-certs.global-setup.ts';
 
 export default defineConfig({
   test: {
@@ -30,7 +31,7 @@ export default defineConfig({
         test: {
           name: 'e2e',
           include: ['backend/e2e/**/*.e2e.ts'],
-          globalSetup: [postgresSetup],
+          globalSetup: [postgresSetup, deviceCertsSetup],
           hookTimeout: 120_000,
         },
       },

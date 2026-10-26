@@ -45,4 +45,22 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // A separate rule from the Drizzle one above, so neither replaces the other.
+    files: ['backend/src/**/*.ts'],
+    ignores: ['backend/src/plugins/device-gateway.ts', '**/__tests__/**'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['ws', '@fastify/websocket'],
+              message: 'Only plugins/device-gateway.ts touches sockets.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );
