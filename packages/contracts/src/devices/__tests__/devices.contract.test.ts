@@ -60,8 +60,9 @@ describe('enrollDeviceRequestSchema', () => {
   it.each(['macAddress', 'pairingCode', 'name'] as const)(
     'rejects a request without %s',
     (field) => {
-      const { [field]: _omitted, ...rest } = valid;
-      expect(enrollDeviceRequestSchema.safeParse(rest).success).toBe(false);
+      const body: Partial<typeof valid> = { ...valid };
+      delete body[field];
+      expect(enrollDeviceRequestSchema.safeParse(body).success).toBe(false);
     },
   );
 });
