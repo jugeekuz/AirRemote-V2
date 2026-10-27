@@ -102,24 +102,6 @@ describe('the firmware against the device listener', () => {
     ).toHaveLength(1);
   });
 
-  it('answers an IR command with INVALID_COMMAND', async () => {
-    const token = await api.signIn('nick@example.com');
-    const deviceId = await api.enrollDevice(token);
-    await startConnected();
-    const remote = await api.createRemote(deviceId, token);
-    expect(remote.status).toBe(201);
-
-    const learning = await api.learn(remote.body.id, token);
-    expect(learning.status).toBe(202);
-
-    const settled = await api.pollUntilSettled(learning.body.id, token);
-    expect(settled.status).toBe('failed');
-    expect(settled.error?.code).toBe('DEVICE_ERROR');
-    expect((await server.findDeviceCommand(learning.body.id))?.errorCode).toBe(
-      'INVALID_COMMAND',
-    );
-  });
-
   it('reconnects and says hello again after the server drops it', async () => {
     const deviceId = await server.allowDevice('aa:bb:cc:dd:ee:01');
     const app = await startConnected();

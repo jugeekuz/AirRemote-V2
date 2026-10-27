@@ -4,6 +4,7 @@
 //   AIRREMOTE_CERT_FILE / _KEY_FILE  the device's identity (PEM); absent: not provisioned
 //   AIRREMOTE_MAC                    what status shows
 //   AIRREMOTE_NOT_ENROLLED_RETRY_MS  shortens the retry after a 403, for tests
+//   AIRREMOTE_IR_FILE                where the stand-in IR receiver looks for codes
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -19,6 +20,7 @@
 #include "core/device.hpp"
 #include "core/text.hpp"
 #include "esp_event.h"
+#include "file_ir_receiver.hpp"
 #include "psa/crypto.h"
 #include "runtime/console.hpp"
 #include "runtime/event_queue.hpp"
@@ -33,13 +35,6 @@ extern "C" int64_t esp_timer_get_time(void) {
 }
 
 namespace {
-
-// Until the receiver is wired in, a read never sees a code.
-class NoIrReceiver : public core::IrReceiver {
- public:
-  void start() override {}
-  void stop() override {}
-};
 
 std::string env(const char *name) {
   const char *value = getenv(name);
@@ -107,7 +102,7 @@ extern "C" void app_main(void) {
   static connection::WebSocketLink link(urls ? urls->websocket : "", tls, queue);
   static connection::HttpPairingApi pairing(urls ? urls->pairing : "", tls, queue);
   static runtime::FreeRtosTimers timers(queue);
-  static NoIrReceiver ir;
+  static FileIrReceiver ir(env("AIRREMOTE_IR_FILE"), queue);
 
   static core::Device device(
       core::DeviceInfo{AIRREMOTE_FIRMWARE_VERSION, env("AIRREMOTE_MAC"),
@@ -117,6 +112,7 @@ extern "C" void app_main(void) {
   link.attach(device);
   pairing.attach(device);
   timers.attach(device);
+  ir.attach(device);
 
   queue.post([] { device.start(); });
   runtime::start_console_reader(queue, device, isatty(fileno(stdin)) != 0);

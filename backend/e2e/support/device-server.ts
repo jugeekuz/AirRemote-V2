@@ -1,9 +1,11 @@
 import { request as httpsRequest } from 'node:https';
 import {
+  buttons,
   createDb,
   deviceCommands,
   devices,
   users,
+  type Button,
   type Database,
   type Device,
   type DeviceCommand,
@@ -273,6 +275,12 @@ export function useDeviceServer({
       if (!handle) throw new Error('useDeviceServer: database not ready yet');
       const rows = await handle.db.select().from(devices);
       return rows.find((row) => row.id === deviceId) ?? null;
+    },
+    /** A button's row, e.g. to check the timings a device read. */
+    async findButton(buttonId: string): Promise<Button | null> {
+      if (!handle) throw new Error('useDeviceServer: database not ready yet');
+      const rows = await handle.db.select().from(buttons);
+      return rows.find((row) => row.id === buttonId) ?? null;
     },
     /** A device command's row, e.g. to check the error the device reported. */
     async findDeviceCommand(commandId: string): Promise<DeviceCommand | null> {

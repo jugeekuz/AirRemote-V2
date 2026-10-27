@@ -1,5 +1,5 @@
-idf_component_register(SRCS "main.cpp"
-                       REQUIRES core runtime connection mbedtls esp_event)
+idf_component_register(SRCS "main.cpp" "file_ir_receiver.cpp"
+                       REQUIRES core runtime connection mbedtls esp_event esp_timer freertos)
 
 # ESP-IDF reads version.txt only from the project's own folder.
 file(READ "${CMAKE_CURRENT_LIST_DIR}/../../version.txt" firmware_version)
