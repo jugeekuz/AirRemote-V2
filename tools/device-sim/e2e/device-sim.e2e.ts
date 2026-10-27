@@ -24,6 +24,7 @@ function simulated(cert: TestClientName) {
     }),
     clock: systemClock,
     onEvent: (event) => events.push(event),
+    firmwareVersion: '0.0.0-sim',
     enrollRetryMs: 200,
   });
   running.push(device);

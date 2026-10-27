@@ -15,8 +15,11 @@ pnpm dev                                      # with the DEVICE_TLS_* lines in .
 pnpm device-sim --mac AA:BB:CC:DD:EE:01
 ```
 
-Options: `--server` (default `https://localhost:8443`) and `--certs`
-(default `certs/` at the repository root).
+Options: `--server` (default `https://localhost:8443`), `--certs`
+(default `certs/` at the repository root) and `--firmware-version` (default
+`0.0.0-sim`). Every time it connects, it first says
+`{ "type": "hello", "firmwareVersion": … }` with that version, as the real
+device does.
 
 ## Commands
 
@@ -31,7 +34,7 @@ Options: `--server` (default `https://localhost:8443`) and `--certs`
 | `/press [t1,t2,…]` | Answers a read in progress with a sample NEC-shaped IR code, or with the given timings in µs (comma-separated integers). |
 | `/pongs on\|off`   | Answers the server's pings or not; off gets it dropped by the heartbeat. |
 | `/send-fails on\|off` | Makes the device answer a `sendIr` with `SEND_FAILED` instead of confirming it. |
-| `/status`          | MAC, server, state, pending code, pending read, pongs, send failures.       |
+| `/status`          | MAC, firmware version, server, state, pending code, pending read, pongs, send failures. |
 | `/quit`            | Disconnects and exits (also Ctrl+C, Ctrl+D).                  |
 
 ## Enrolling it

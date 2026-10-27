@@ -12,8 +12,34 @@ describe('parseCliArgs', () => {
         mac: 'AA:BB:CC:DD:EE:01',
         server: 'https://localhost:8443',
         certsDir: repoCerts,
+        firmwareVersion: '0.0.0-sim',
       },
     });
+  });
+
+  it('takes --firmware-version', () => {
+    expect(
+      parseCliArgs([
+        '--mac',
+        'AA:BB:CC:DD:EE:01',
+        '--firmware-version',
+        '1.2.3',
+      ]),
+    ).toMatchObject({ ok: true, options: { firmwareVersion: '1.2.3' } });
+  });
+
+  it('explains --firmware-version for a version that is not like 1.2.3', () => {
+    const result = parseCliArgs([
+      '--mac',
+      'AA:BB:CC:DD:EE:01',
+      '--firmware-version',
+      'v1',
+    ]);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.message).toContain('--firmware-version');
+      expect(result.message).toContain('usage:');
+    }
   });
 
   it('takes --server and --certs', () => {

@@ -119,6 +119,7 @@ describe('renderStatus', () => {
     const status = renderStatus(
       {
         mac,
+        firmwareVersion: '1.2.3',
         state: 'waiting-for-enrollment',
         pongs: false,
         sendFails: true,
@@ -135,12 +136,14 @@ describe('renderStatus', () => {
     expect(status).toContain('off');
     expect(status).toMatch(/send fails\s+on/);
     expect(status).toContain('7K4M-Q9TX (1:01 left)');
+    expect(status).toMatch(/firmware\s+1\.2\.3/);
   });
 
   it('says when no code is pending', () => {
     const status = renderStatus(
       {
         mac,
+        firmwareVersion: '1.2.3',
         state: 'connected',
         pongs: true,
         sendFails: false,
@@ -161,6 +164,7 @@ describe('renderStatus', () => {
     const status = renderStatus(
       {
         mac,
+        firmwareVersion: '1.2.3',
         state: 'connected',
         pongs: true,
         sendFails: false,

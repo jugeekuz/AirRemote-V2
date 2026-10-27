@@ -85,6 +85,7 @@ describe('POST /devices', () => {
         userId: session.userId,
         macAddress: mac,
         name: 'Living room',
+        firmwareVersion: null,
       },
     ]);
 

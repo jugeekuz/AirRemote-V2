@@ -68,6 +68,7 @@ const device = createDevice({
   transport: createNodeTransport({ server, identity: loaded.identity }),
   clock: systemClock,
   onEvent,
+  firmwareVersion: parsed.options.firmwareVersion,
 });
 
 let quitting = false;

@@ -1,11 +1,17 @@
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+import { firmwareVersionSchema } from '@airremote/contracts';
 
-export type CliOptions = { mac: string; server: string; certsDir: string };
+export type CliOptions = {
+  mac: string;
+  server: string;
+  certsDir: string;
+  firmwareVersion: string;
+};
 
 const MAC_ADDRESS = /^[0-9a-f]{2}(:[0-9a-f]{2}){5}$/i;
 const USAGE =
-  'usage: pnpm device-sim --mac AA:BB:CC:DD:EE:FF [--server https://localhost:8443] [--certs ./certs]';
+  'usage: pnpm device-sim --mac AA:BB:CC:DD:EE:FF [--server https://localhost:8443] [--certs ./certs] [--firmware-version 0.0.0-sim]';
 
 function isHttpsUrl(value: string): boolean {
   try {
@@ -29,6 +35,7 @@ export function parseCliArgs(
         mac: { type: 'string' },
         server: { type: 'string', default: 'https://localhost:8443' },
         certs: { type: 'string', default: DEFAULT_CERTS_DIR },
+        'firmware-version': { type: 'string', default: '0.0.0-sim' },
       },
     }));
   } catch (error) {
@@ -44,12 +51,19 @@ export function parseCliArgs(
       message: `--server must be an https:// URL, e.g. https://localhost:8443\n${USAGE}`,
     };
   }
+  if (!firmwareVersionSchema.safeParse(values['firmware-version']).success) {
+    return {
+      ok: false,
+      message: `--firmware-version must look like 1.2.3 or 1.2.3-beta.1\n${USAGE}`,
+    };
+  }
   return {
     ok: true,
     options: {
       mac: values.mac.toUpperCase(),
       server: values.server,
       certsDir: values.certs,
+      firmwareVersion: values['firmware-version'],
     },
   };
 }

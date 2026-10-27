@@ -128,6 +128,7 @@ function device() {
     transport,
     clock,
     onEvent: (event) => events.push(event),
+    firmwareVersion: '1.2.3',
   });
 }
 
@@ -143,6 +144,12 @@ const reconnectDelays = () =>
     return match ? [Number(match[1])] : [];
   });
 const lastSocket = () => transport.sockets.at(-1)!;
+/** What the last socket sent after the `hello` that opens every connection. */
+const framesAfterHello = () => {
+  const [first, ...rest] = lastSocket().sent;
+  expect(JSON.parse(first!)).toMatchObject({ type: 'hello' });
+  return rest;
+};
 
 /** Starts a device that connects at once. */
 async function connected() {
@@ -250,7 +257,7 @@ describe('frames', () => {
   it('sends text exactly as given when connected', async () => {
     const subject = await connected();
     subject.send('{nope');
-    expect(lastSocket().sent).toEqual(['{nope']);
+    expect(framesAfterHello()).toEqual(['{nope']);
     expect(sent()).toContain('{nope');
   });
 
@@ -265,7 +272,7 @@ describe('frames', () => {
     const subject = await connected();
     subject.sendError('READ_TIMEOUT', 'IR receiver timed out');
     subject.sendError('BUSY');
-    expect(lastSocket().sent).toEqual([
+    expect(framesAfterHello()).toEqual([
       '{"type":"error","code":"READ_TIMEOUT","message":"IR receiver timed out"}',
       '{"type":"error","code":"BUSY"}',
     ]);
@@ -277,7 +284,7 @@ describe('frames', () => {
   ])('refuses an error with %s', async (_case, code, message) => {
     const subject = await connected();
     subject.sendError(code, message);
-    expect(lastSocket().sent).toEqual([]);
+    expect(framesAfterHello()).toEqual([]);
     expect(
       events.some(
         (event) =>
@@ -545,7 +552,7 @@ describe('reading IR codes', () => {
     lastSocket().events.message(readIr());
     subject.press([70_000]);
     expect(statuses().at(-1)).toMatch(/^invalid message/);
-    expect(lastSocket().sent).toEqual([]);
+    expect(framesAfterHello()).toEqual([]);
     expect(subject.status().pendingRead).not.toBeNull();
   });
 
@@ -553,14 +560,14 @@ describe('reading IR codes', () => {
     const subject = await connected();
     subject.press();
     expect(statuses().at(-1)).toBe('no read in progress');
-    expect(lastSocket().sent).toEqual([]);
+    expect(framesAfterHello()).toEqual([]);
   });
 
   it('sends READ_TIMEOUT by itself at the timeout', async () => {
     const subject = await connected();
     lastSocket().events.message(readIr(id, 5_000));
     await clock.advance(4_999);
-    expect(lastSocket().sent).toEqual([]);
+    expect(framesAfterHello()).toEqual([]);
     await clock.advance(1);
     expect(lastSent()).toEqual({
       type: 'error',
@@ -591,7 +598,7 @@ describe('reading IR codes', () => {
       JSON.stringify({ type: 'error', code: 'INVALID_JSON', message: 'x' }),
     );
     expect(subject.status().pendingRead).toBeNull();
-    expect(lastSocket().sent).toEqual([]);
+    expect(framesAfterHello()).toEqual([]);
   });
 
   it('stops listening when stopped or disconnected', async () => {
@@ -629,7 +636,7 @@ describe('sending IR codes', () => {
     lastSocket().events.message(sendIr());
     expect(statuses().at(-1)).toBe('sending an IR code (3 timings)');
     await clock.advance(99);
-    expect(lastSocket().sent).toEqual([]);
+    expect(framesAfterHello()).toEqual([]);
     await clock.advance(1);
     expect(lastSent()).toEqual({ type: 'sendIrResult', commandId: id });
     expect(clock.pending()).toBe(0);
@@ -697,6 +704,42 @@ describe('sending IR codes', () => {
     lastSocket().events.message(sendIr());
     lastSocket().events.close(1001, '');
     await clock.advance(100);
-    expect(lastSocket().sent).toEqual([]);
+    expect(framesAfterHello()).toEqual([]);
+  });
+});
+
+describe('hello', () => {
+  const hello = JSON.stringify({ type: 'hello', firmwareVersion: '1.2.3' });
+
+  it('says hello with its firmware version as soon as it connects', async () => {
+    await connected();
+    expect(lastSocket().sent[0]).toBe(hello);
+    expect(sent()[0]).toBe(hello);
+  });
+
+  it('says hello again on every reconnect', async () => {
+    await connected();
+    lastSocket().events.close(1001, '');
+    await clock.advance(1_000);
+    expect(transport.sockets).toHaveLength(2);
+    expect(transport.sockets.map((socket) => socket.sent[0])).toEqual([
+      hello,
+      hello,
+    ]);
+  });
+
+  it('says hello once an enrollment attempt connects', async () => {
+    transport.nextOpen = () => 403;
+    const subject = device();
+    await subject.enroll();
+    transport.nextOpen = () => 'accept';
+    await clock.advance(5_000);
+    expect(subject.status().state).toBe('connected');
+    expect(lastSocket().sent[0]).toBe(hello);
+  });
+
+  it('reports its firmware version in its status', async () => {
+    const subject = await connected();
+    expect(subject.status().firmwareVersion).toBe('1.2.3');
   });
 });

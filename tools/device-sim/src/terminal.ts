@@ -128,6 +128,7 @@ export function renderStatus(
     : 'no read in progress';
   const rows: [string, string][] = [
     ['MAC', status.mac],
+    ['firmware', status.firmwareVersion],
     ['server', server],
     ['state', status.state],
     ['pongs', status.pongs ? 'on' : 'off'],

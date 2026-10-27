@@ -54,6 +54,7 @@ export type DeviceState =
 
 export type DeviceStatus = {
   mac: string;
+  firmwareVersion: string;
   state: DeviceState;
   pongs: boolean;
   sendFails: boolean;
@@ -92,9 +93,12 @@ export function createDevice({
   transport,
   clock,
   onEvent,
+  firmwareVersion,
   enrollRetryMs = 5_000,
 }: {
   mac: string;
+  /** Sent in the `hello` that opens every connection. */
+  firmwareVersion: string;
   transport: Transport;
   clock: Clock;
   onEvent(event: DeviceEvent): void;
@@ -270,6 +274,7 @@ export function createDevice({
     if (result.ok) {
       current = socket = result.socket;
       state = 'connected';
+      sendMessage({ type: 'hello', firmwareVersion });
       backoffMs = FIRST_BACKOFF_MS;
       reconnecting = true;
       if (mode === 'enroll') {
@@ -467,6 +472,7 @@ export function createDevice({
     status(): DeviceStatus {
       return {
         mac,
+        firmwareVersion,
         state,
         pongs,
         sendFails,
