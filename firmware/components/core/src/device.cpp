@@ -43,17 +43,25 @@ const std::vector<uint16_t> &ir_self_test_code() {
 }
 
 Device::Device(DeviceInfo info, Ports ports, Timing timing)
-    : info_(std::move(info)), ports_(ports), timing_(timing) {}
+    : info_(std::move(info)),
+      backend_configured_(backend_urls(info_.backend_url).has_value()),
+      ports_(ports),
+      timing_(timing) {}
 
-bool Device::can_run() const { return info_.provisioned && info_.backend_configured; }
+bool Device::can_run() const { return info_.provisioned && backend_configured_; }
 
 void Device::start() {
   if (!info_.provisioned) {
     ports_.console.print("not provisioned — run scripts/provision-device.sh");
     return;
   }
-  if (!info_.backend_configured) {
+  if (info_.backend_url.empty()) {
     ports_.console.print("no backend address — write firmware/backend-url.txt and rebuild");
+    return;
+  }
+  if (!backend_configured_) {
+    ports_.console.print("backend address is not valid: " + info_.backend_url +
+                         " — write https://host:port to firmware/backend-url.txt and rebuild");
     return;
   }
   wifi_ = ports_.settings.load_wifi();
@@ -134,12 +142,20 @@ void Device::on_wifi_up() {
   open_link();
 }
 
-void Device::on_wifi_down() {
+namespace {
+
+std::string because(std::string_view reason) {
+  return reason.empty() ? "" : " (" + std::string(reason) + ")";
+}
+
+}  // namespace
+
+void Device::on_wifi_down(std::string_view reason) {
   wifi_up_ = false;
   drop_link();
   if (!wifi_) return;
   const uint32_t ms = next_backoff(wifi_attempt_);
-  ports_.console.print("Wi-Fi unavailable — retrying in " + seconds(ms));
+  ports_.console.print("Wi-Fi unavailable" + because(reason) + " — retrying in " + seconds(ms));
   ports_.timers.schedule(TimerId::WifiRetry, ms);
 }
 
@@ -189,11 +205,11 @@ void Device::on_link_refused(int http_status) {
   if (wifi_up_) retry_link(code_ ? timing_.pairing_retry_ms : timing_.not_enrolled_retry_ms);
 }
 
-void Device::on_link_failed() {
+void Device::on_link_failed(std::string_view reason) {
   backend_ = Backend::Offline;
   if (!wifi_up_) return;
   const uint32_t ms = next_backoff(link_attempt_);
-  ports_.console.print("backend unreachable — retrying in " + seconds(ms));
+  ports_.console.print("backend unreachable" + because(reason) + " — retrying in " + seconds(ms));
   retry_link(ms);
 }
 
@@ -271,6 +287,11 @@ void Device::pair() {
 
 void Device::on_pairing_code(std::string_view code, int64_t lifetime_ms) {
   requesting_code_ = false;
+  // Connected meanwhile (the 403 was the backend restarting): not needed.
+  if (backend_ == Backend::Connected) return;
+  // The server's TTL is minutes; a far-off expiresAt is clamped.
+  constexpr int64_t kMaxLifetimeMs = 60 * 60 * 1000;
+  if (lifetime_ms > kMaxLifetimeMs) lifetime_ms = kMaxLifetimeMs;
   if (lifetime_ms <= 0) {
     ports_.console.print("pairing code expired — type: pair");
     return;
@@ -460,7 +481,7 @@ void Device::on_timer(TimerId id) {
 }
 
 std::string Device::backend_state() const {
-  if (!info_.backend_configured) return "not configured";
+  if (!backend_configured_) return "not configured";
   switch (backend_) {
     case Backend::Offline: return "offline";
     case Backend::Connecting: return "connecting";

@@ -7,6 +7,31 @@
 
 namespace board {
 
+namespace {
+
+// Why the station is off the network, in a few words.
+const char *reason_text(uint8_t reason) {
+  switch (reason) {
+    case WIFI_REASON_NO_AP_FOUND:
+    case WIFI_REASON_NO_AP_FOUND_W_COMPATIBLE_SECURITY:
+    case WIFI_REASON_NO_AP_FOUND_IN_AUTHMODE_THRESHOLD:
+    case WIFI_REASON_NO_AP_FOUND_IN_RSSI_THRESHOLD:
+      return "network not found";
+    case WIFI_REASON_AUTH_FAIL:
+    case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+    case WIFI_REASON_HANDSHAKE_TIMEOUT:
+      return "wrong password?";
+    case WIFI_REASON_AUTH_EXPIRE:
+      return "the router did not answer";
+    case WIFI_REASON_BEACON_TIMEOUT:
+      return "signal lost";
+    default:
+      return "";
+  }
+}
+
+}  // namespace
+
 void EspWifi::start() {
   esp_netif_create_default_wifi_sta();
   wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
@@ -32,7 +57,7 @@ void EspWifi::connect(const core::WifiCredentials &credentials) {
   esp_wifi_set_config(WIFI_IF_STA, &config);
   if (esp_wifi_connect() != ESP_OK) {
     core::Device *device = device_;
-    queue_.post([device] { device->on_wifi_down(); });
+    queue_.post([device] { device->on_wifi_down("could not start joining"); });
   }
 }
 
@@ -45,7 +70,8 @@ void EspWifi::on_event(void *self, esp_event_base_t base, int32_t id, void *data
     // Our own esp_wifi_disconnect() in connect(): not news, a join follows.
     const auto *event = static_cast<wifi_event_sta_disconnected_t *>(data);
     if (event && event->reason == WIFI_REASON_ASSOC_LEAVE) return;
-    wifi->queue_.post([device] { device->on_wifi_down(); });
+    const char *why = event ? reason_text(event->reason) : "";
+    wifi->queue_.post([device, why] { device->on_wifi_down(why); });
   } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
     wifi->queue_.post([device] { device->on_wifi_up(); });
   }

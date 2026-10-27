@@ -1,6 +1,10 @@
 #include "connection/websocket_link.hpp"
 
+#include <cerrno>
 #include <cstdio>
+
+#include "esp_log.h"
+#include "esp_tls_errors.h"
 
 namespace connection {
 
@@ -8,12 +12,54 @@ namespace {
 
 constexpr int kTextFrame = 0x1;
 constexpr int kContinuation = 0x0;
+// The longest protocol message is ~12 KB (a 2048-timing sendIr).
+constexpr size_t kMaxMessage = 16 * 1024;
+
+// The libraries log every failed attempt to the console people type on;
+// Device prints one line with the reason instead.
+void quiet_libraries() {
+  for (const char *tag : {"websocket_client", "transport_ws", "transport_base", "trans_tcp",
+                          "esp-tls", "esp-tls-mbedtls", "HTTP_CLIENT"}) {
+    esp_log_level_set(tag, ESP_LOG_NONE);
+  }
+}
+
+// Why a connection failed, in a few words, from the client's error report.
+std::string describe(const esp_websocket_error_codes_t &error) {
+  if (error.error_type == WEBSOCKET_ERROR_TYPE_PONG_TIMEOUT) return "the backend stopped answering";
+  switch (error.esp_tls_stack_err) {
+    case -0x2700:  // MBEDTLS_ERR_X509_CERT_VERIFY_FAILED
+      return "TLS: the server certificate was rejected";
+    case -0x7780:  // MBEDTLS_ERR_SSL_FATAL_ALERT_MESSAGE
+      return "TLS: the backend rejected this device's certificate";
+    case 0:
+      break;
+    default: {
+      char text[40];
+      snprintf(text, sizeof(text), "TLS error -0x%04x", -error.esp_tls_stack_err);
+      return text;
+    }
+  }
+  switch (error.esp_tls_last_esp_err) {
+    case ESP_ERR_ESP_TLS_CANNOT_RESOLVE_HOSTNAME:
+      return "the host name does not resolve";
+    case ESP_ERR_ESP_TLS_CONNECTION_TIMEOUT:
+      return "no answer from the host";
+    case ESP_ERR_ESP_TLS_FAILED_CONNECT_TO_HOST:
+      return error.esp_transport_sock_errno == ECONNREFUSED ? "connection refused"
+                                                            : "cannot reach the host";
+    default:
+      return "";
+  }
+}
 
 }  // namespace
 
 WebSocketLink::WebSocketLink(std::string url, const TlsMaterial &tls,
                              runtime::EventQueue &queue)
-    : url_(std::move(url)), tls_(tls), queue_(queue) {}
+    : url_(std::move(url)), tls_(tls), queue_(queue) {
+  quiet_libraries();
+}
 
 WebSocketLink::~WebSocketLink() { destroy(); }
 
@@ -28,7 +74,9 @@ void WebSocketLink::open() {
   opened_ = false;
   reported_ = false;
   handshake_status_ = 0;
+  failure_.clear();
   message_.clear();
+  dropping_ = false;
 
   esp_websocket_client_config_t config = {};
   config.uri = url_.c_str();
@@ -45,22 +93,27 @@ void WebSocketLink::open() {
   // enough for it on the board.
   config.task_stack = 8192;
 
-  client_ = esp_websocket_client_init(&config);
-  if (!client_) {
-    post([](core::Device &device) { device.on_link_failed(); });
+  esp_websocket_client_handle_t client = esp_websocket_client_init(&config);
+  if (!client) {
+    post([](core::Device &device) { device.on_link_failed("out of memory"); });
     return;
   }
-  esp_websocket_register_events(client_, WEBSOCKET_EVENT_ANY, &WebSocketLink::on_event, this);
-  if (esp_websocket_client_start(client_) != ESP_OK) {
+  esp_websocket_register_events(client, WEBSOCKET_EVENT_ANY, &WebSocketLink::on_event, this);
+  client_ = client;
+  if (esp_websocket_client_start(client) != ESP_OK) {
     destroy();
     post([](core::Device &device) { device.on_link_failed(); });
   }
 }
 
 void WebSocketLink::send(std::string_view text) {
-  if (!client_ || !esp_websocket_client_is_connected(client_)) return;
-  esp_websocket_client_send_text(client_, text.data(), static_cast<int>(text.size()),
-                                 pdMS_TO_TICKS(2000));
+  esp_websocket_client_handle_t client = client_;
+  if (!client || !esp_websocket_client_is_connected(client) ||
+      esp_websocket_client_send_text(client, text.data(), static_cast<int>(text.size()),
+                                     pdMS_TO_TICKS(2000)) < 0) {
+    printf("could not send to the backend\n");
+    fflush(stdout);
+  }
 }
 
 // Device closes only to drop the link for good (e.g. Wi-Fi changed): nothing
@@ -68,17 +121,16 @@ void WebSocketLink::send(std::string_view text) {
 void WebSocketLink::close() { destroy(); }
 
 void WebSocketLink::destroy() {
-  if (!client_) return;
-  esp_websocket_client_handle_t client = client_;
-  client_ = nullptr;  // events from it are ignored from now on
-  esp_websocket_client_stop(client);
-  esp_websocket_client_destroy(client);
+  esp_websocket_client_handle_t client = client_.exchange(nullptr);
+  // Events from it are ignored from now on. destroy() stops it if it still
+  // runs (stopping one that already ended only warns).
+  if (client) esp_websocket_client_destroy(client);
 }
 
 void WebSocketLink::on_event(void *self, esp_event_base_t, int32_t id, void *data) {
   auto *event = static_cast<esp_websocket_event_data_t *>(data);
   auto *link = static_cast<WebSocketLink *>(self);
-  if (!event || event->client != link->client_) return;  // an old client's leftovers
+  if (!event || event->client != link->client_.load()) return;  // an old client's leftovers
   link->handle(id, event);
 }
 
@@ -91,9 +143,27 @@ void WebSocketLink::handle(int32_t id, esp_websocket_event_data_t *data) {
 
     case WEBSOCKET_EVENT_DATA: {
       if (data->op_code != kTextFrame && data->op_code != kContinuation) return;
-      if (data->payload_offset == 0) message_.clear();
-      message_.append(data->data_ptr, data->data_len);
-      if (data->payload_offset + data->data_len < data->payload_len) return;
+      // A text frame starts a message; continuation frames add to it.
+      if (data->op_code == kTextFrame && data->payload_offset == 0) {
+        message_.clear();
+        dropping_ = false;
+      }
+      if (!dropping_) {
+        if (message_.size() + data->data_len > kMaxMessage) {
+          dropping_ = true;
+          message_.clear();
+        } else {
+          message_.append(data->data_ptr, data->data_len);
+        }
+      }
+      const bool frame_done = data->payload_offset + data->data_len >= data->payload_len;
+      if (!frame_done || !data->fin) return;
+      if (dropping_) {
+        dropping_ = false;
+        printf("ignored a message from the backend over 16 KiB\n");
+        fflush(stdout);
+        return;
+      }
       std::string text = std::move(message_);
       message_.clear();
       post([text](core::Device &device) { device.on_link_message(text); });
@@ -104,6 +174,7 @@ void WebSocketLink::handle(int32_t id, esp_websocket_event_data_t *data) {
       if (data->error_handle.esp_ws_handshake_status_code != 0) {
         handshake_status_ = data->error_handle.esp_ws_handshake_status_code;
       }
+      if (std::string why = describe(data->error_handle); !why.empty()) failure_ = why;
       return;
 
     case WEBSOCKET_EVENT_DISCONNECTED:
@@ -119,7 +190,8 @@ void WebSocketLink::handle(int32_t id, esp_websocket_event_data_t *data) {
         const int status = handshake_status_;
         post([status](core::Device &device) { device.on_link_refused(status); });
       } else {
-        post([](core::Device &device) { device.on_link_failed(); });
+        const std::string why = failure_;
+        post([why](core::Device &device) { device.on_link_failed(why); });
       }
       return;
     }

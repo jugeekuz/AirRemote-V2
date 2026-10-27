@@ -109,7 +109,8 @@ extern "C" void app_main(void) {
 
   static core::Device device(
       core::DeviceInfo{AIRREMOTE_FIRMWARE_VERSION, env("AIRREMOTE_MAC"),
-                       cert.has_value() && key.has_value(), urls.has_value() && ca.has_value()},
+                       cert.has_value() && key.has_value(),
+                       ca.has_value() ? env("AIRREMOTE_BACKEND_URL") : ""},
       core::Ports{console, wifi, settings, link, pairing, timers, ir, ir_sender}, timing);
   wifi.attach(device);
   link.attach(device);

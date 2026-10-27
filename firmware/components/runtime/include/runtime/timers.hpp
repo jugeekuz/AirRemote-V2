@@ -2,6 +2,7 @@
 
 #include <array>
 #include <atomic>
+#include <cstdint>
 
 #include "core/device.hpp"
 #include "freertos/FreeRTOS.h"
@@ -36,6 +37,10 @@ class FreeRtosTimers : public core::Timers {
   std::array<Slot, kCount> slots_{};
   std::array<TimerHandle_t, kCount> timers_{};
   std::array<std::atomic<uint32_t>, kCount> generation_{};
+  // When each timer is due, owned by Device's task; a firing before it (one
+  // overtaken by a reschedule) or after a cancel (kNotArmed) is dropped.
+  static constexpr int64_t kNotArmed = INT64_MAX;
+  std::array<int64_t, kCount> due_ms_{};
 };
 
 }  // namespace runtime

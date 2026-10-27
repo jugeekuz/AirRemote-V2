@@ -1,6 +1,7 @@
 #include "runtime/console.hpp"
 
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 
 
@@ -30,12 +31,25 @@ void read_lines(void *arg) {
     // A pipe (the e2e tests): plain lines, no echo, no escape sequences.
     char buffer[512];
     for (;;) {
-      if (fgets(buffer, sizeof(buffer), stdin)) {
-        post_line(args, buffer);
-      } else {
+      if (!fgets(buffer, sizeof(buffer), stdin)) {
+        // The other end is gone (the test that started it): nothing more will
+        // come, so end, which lets docker --rm clean up.
+        if (feof(stdin)) exit(0);
         clearerr(stdin);
         vTaskDelay(pdMS_TO_TICKS(100));
+        continue;
       }
+      std::string line = buffer;
+      if (line.empty() || line.back() != '\n') {
+        // Longer than the buffer: drop the rest of it and the line, rather
+        // than read its pieces as commands.
+        int c;
+        while ((c = fgetc(stdin)) != EOF && c != '\n') {
+        }
+        post_line(args, std::string(300, 'x'));  // core rejects it as too long
+        continue;
+      }
+      post_line(args, line);
     }
   }
   // A terminal that doesn't answer linenoise's probe gets no line editing.

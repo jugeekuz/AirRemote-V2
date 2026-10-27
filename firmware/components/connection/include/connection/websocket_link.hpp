@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <string>
 
 #include "connection/tls.hpp"
@@ -32,12 +33,15 @@ class WebSocketLink : public core::Link {
   runtime::EventQueue &queue_;
   core::Device *device_ = nullptr;
 
-  esp_websocket_client_handle_t client_ = nullptr;
+  // Written on Device's task, read on the client's.
+  std::atomic<esp_websocket_client_handle_t> client_{nullptr};
   // Only the client task touches these, for the current client.
   bool opened_ = false;
   bool reported_ = false;
   int handshake_status_ = 0;
-  std::string message_;  // a text frame arriving in pieces
+  std::string failure_;   // why it failed, from the last error event
+  std::string message_;   // a text message arriving in pieces or frames
+  bool dropping_ = false;  // the message in progress is too long: skip it
 };
 
 }  // namespace connection

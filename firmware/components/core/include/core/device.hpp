@@ -23,7 +23,7 @@ struct DeviceInfo {
   std::string firmware_version;
   std::string mac;
   bool provisioned;         // the identity partition holds a key and certificate
-  bool backend_configured;  // a backend address was built in
+  std::string backend_url;  // as built in (https://host:port), or empty
 };
 
 struct Ports {
@@ -51,11 +51,12 @@ class Device {
   void on_line(std::string_view line);
 
   void on_wifi_up();
-  void on_wifi_down();
+  // `reason`: why, in a few words, when the driver knows.
+  void on_wifi_down(std::string_view reason = {});
 
   void on_link_opened();
   void on_link_refused(int http_status);
-  void on_link_failed();
+  void on_link_failed(std::string_view reason = {});
   void on_link_closed();
   void on_link_message(std::string_view text);
 
@@ -101,6 +102,7 @@ class Device {
   void self_test_result(const IrCapture::Result &result);
 
   DeviceInfo info_;
+  bool backend_configured_ = false;
   Ports ports_;
   Timing timing_;
 

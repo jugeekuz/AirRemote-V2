@@ -85,7 +85,7 @@ extern "C" void app_main(void) {
   static board::RmtIrSender ir_sender(GPIO_NUM_13, queue);
   static core::Device device(
       core::DeviceInfo{esp_app_get_description()->version, mac_address(), identity.has_value(),
-                       urls.has_value()},
+                       AIRREMOTE_BACKEND_URL},
       core::Ports{console, wifi, settings, link, pairing, timers, ir, ir_sender});
   wifi.attach(device);
   link.attach(device);

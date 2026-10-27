@@ -29,7 +29,8 @@ struct Rig {
                bool wifi_saved = true) {
     if (wifi_saved) settings.stored = core::WifiCredentials{"Home", "secret123"};
     device = std::make_unique<core::Device>(
-        core::DeviceInfo{"0.1.0", "24:DC:C3:8D:3E:0C", provisioned, backend_configured},
+        core::DeviceInfo{"0.1.0", "24:DC:C3:8D:3E:0C", provisioned,
+                         backend_configured ? "https://192.168.1.10:8443" : ""},
         core::Ports{console, wifi, settings, link, pairing, timers, ir, sender});
     timers.device = device.get();
   }
@@ -827,4 +828,56 @@ TEST_CASE("a self-test send failing after its read ended still says so", "[devic
   rig.timers.advance(80);
   rig.device->on_ir_sent(false);
   TEST_ASSERT_TRUE(rig.console.printed("IR self-test: FAILED — could not send"));
+}
+
+
+// --- Clearer lines, and edge cases ---
+
+TEST_CASE("a malformed backend address says so, not that it is missing", "[device]") {
+  FakeConsole console;
+  FakeWifi wifi;
+  FakeSettings settings;
+  FakeLink link;
+  FakePairing pairing;
+  FakeTimers timers;
+  FakeIr ir;
+  FakeIrSender sender;
+  core::Device device(core::DeviceInfo{"0.1.0", "AA", true, "http://192.168.1.10:8443"},
+                      core::Ports{console, wifi, settings, link, pairing, timers, ir, sender});
+  device.start();
+  TEST_ASSERT_TRUE(console.printed(
+      "backend address is not valid: http://192.168.1.10:8443 — write https://host:port to "
+      "firmware/backend-url.txt and rebuild"));
+  TEST_ASSERT_EQUAL(0, (int)wifi.connects.size());
+}
+
+TEST_CASE("Wi-Fi and link failures say why", "[device]") {
+  Rig rig;
+  rig.device->start();
+  rig.device->on_wifi_down("network not found");
+  TEST_ASSERT_TRUE(rig.console.printed("Wi-Fi unavailable (network not found) — retrying in 1 s"));
+  rig.device->on_wifi_up();
+  rig.device->on_link_failed("TLS: the server certificate was rejected");
+  TEST_ASSERT_TRUE(rig.console.printed(
+      "backend unreachable (TLS: the server certificate was rejected) — retrying in 1 s"));
+}
+
+TEST_CASE("a pairing code arriving after the link opened is dropped", "[device]") {
+  auto rig = Rig::not_enrolled();
+  rig->device->on_line("pair");
+  rig->timers.advance(30000);
+  rig->device->on_link_opened();  // e.g. the 403 was only the backend restarting
+  rig->device->on_pairing_code("7K4MQ9TX", 900000);
+  TEST_ASSERT_FALSE(rig->console.any_contains("pairing code: 7K4M"));
+  TEST_ASSERT_FALSE(rig->timers.pending(TimerId::PairingExpiry));
+  rig->device->on_line("status");
+  TEST_ASSERT_TRUE(rig->console.printed("pairing    none"));
+}
+
+TEST_CASE("a pairing code's lifetime is clamped to an hour", "[device]") {
+  auto rig = Rig::not_enrolled();
+  rig->device->on_line("pair");
+  rig->device->on_pairing_code("7K4MQ9TX", int64_t{49} * 24 * 3600 * 1000);
+  TEST_ASSERT_TRUE(rig->console.printed("pairing code: 7K4M-Q9TX (expires in 60 min)"));
+  TEST_ASSERT_EQUAL_UINT32(3600000, rig->timers.delays(TimerId::PairingExpiry).back());
 }
