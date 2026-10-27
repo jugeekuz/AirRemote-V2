@@ -15,7 +15,9 @@ captured.
 
 **Tech Stack:** ESP-IDF v6.0.3 RMT RX, C++, Unity, Vitest.
 
-**Spec:** `docs/superpowers/specs/2026-10-27-ir-reading-design.md`
+**Spec:** `docs/superpowers/specs/2026-10-27-ir-reading-design.md`, including
+its "Resolved after the builder check" section, which wins over anything
+below.
 
 ## Global Constraints
 
@@ -104,8 +106,8 @@ class IrCapture {
       p + [45000] + p;
     - three parts 35 ms apart give one code with gaps_ms {35, 35};
     - a second part 60 ms after the first: `add` returns false;
-    - 5 timings give `TooShort`; exactly 2048 give `Code`; 2049 give
-      `TooLong`; an overflowed part gives `TooLong`;
+    - 5 timings give `TooShort`; 2047 give `Code`; 2049 give `TooLong`; an
+      overflowed part gives `TooLong`;
     - a gap over 65535 µs can't be joined (it's ≥ 50 ms), so no spacer ever
       appears.
 
@@ -152,7 +154,10 @@ struct IrReceiver { virtual ~IrReceiver() = default; virtual void start() = 0; v
     - the link closing mid-read stops the receiver and sends nothing more;
     - a part arriving while idle is ignored;
     - a code finishing and the deadline expiring at the same instant give
-      one reply.
+      one reply;
+    - the deadline firing with a code half captured waits for the silence,
+      then replies with the code;
+    - `drop_link` (a `wifi` change) mid-read stops the receiver.
   - **`ir`:**
     - it prints `listening for an IR code (10 s) …`;
     - a code prints the summary and `timings:` lines;

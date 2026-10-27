@@ -226,3 +226,39 @@ captured, so real remotes can be checked rather than guessed at.
 - How the Linux stand-in's file is written and polled, within the format
   above.
 - The exact `status` wording.
+
+## Resolved after the builder check (the builder's calls, owner pre-approved)
+
+- **Held keys.** With a 50 ms join, a press longer than about 110 ms stores
+  extra frames:
+  - an NEC code gets one repeat frame;
+  - a Samsung32 code gets a second full frame;
+  - a Sony code sends its three frames 45 ms apart, so they merge into one
+    RMT part, and holding it for about 0.8 s or more fills the buffer, which
+    gives `CAPTURE_TOO_LONG`.
+
+  Each of these replays as a short press, so the rule stays. The README tells
+  people to press briefly. The board check with `ir` decides whether to
+  change it later.
+- **The Linux IR file:** two parts with no `gap` line between them are 30 ms
+  apart, the shortest gap the chip can report as separate parts. A `gap`
+  under 30 is rejected as unparseable.
+- **A deadline with a code half captured:** if `IrDeadline` fires while a
+  code is half captured (parts in, silence not yet over), the read waits for
+  the silence. A `Code` or `TooLong` result is the answer; `TooShort` becomes
+  `READ_TIMEOUT`.
+- **The longest code:** a code starts and ends with a mark, so its length is
+  odd and the most it can be is **2047**. Tests: 2047 is a code, 2049 is too
+  long.
+- **The clock:** `Timers` gains `now_us()` on `esp_timer_get_time()` (the
+  Linux shim on Linux). `ended_at_us` and `now_us` are the same clock;
+  `now_ms` stays for the existing timers.
+- **Stopping on a dropped link:** a `readIr` also stops when `Device` drops
+  the link itself (`drop_link`: a Wi-Fi change or Wi-Fi down), because
+  `Link::close()` reports nothing. A console `ir` doesn't depend on the link.
+- **Re-arming the receiver:** it gets only ~5 ms between parts 35 ms apart.
+  The ISR re-arms it with a second buffer, alternating between two buffers
+  (`CONFIG_RMT_RECV_FUNC_IN_IRAM=y`); the task copies out the finished one.
+- **A full buffer:** a capture of 447 or more symbols is treated as
+  overflowed. The board check verifies how the v6 driver reports a full
+  buffer on the classic ESP32. One RMT part holds at most about 895 timings.
