@@ -13,10 +13,11 @@
     "test": "jest"
   },
   "dependencies": {
-    "@expo/metro-runtime": "58.0.15",
     "@airremote/contracts": "workspace:*",
+    "@expo/metro-runtime": "58.0.15",
     "@gorhom/bottom-sheet": "5.2.14",
     "@react-native-community/netinfo": "12.0.1",
+    "@tanstack/react-query": "5.105.0",
     "axios": "1.21.0",
     "expo": "58.0.20",
     "expo-blur": "58.0.5",
