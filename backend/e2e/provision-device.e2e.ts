@@ -292,7 +292,10 @@ describe('scripts/provision-device.sh', () => {
   });
 
   it('says when the board is not connected', async () => {
-    const env = { ...process.env, ESPPORT: '/nonexistent/ttyUSB9' };
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      ESPPORT: '/nonexistent/ttyUSB9',
+    };
     delete env.PROVISION_IDF_SH;
     const result = await run('bash', [script, '--ca-dir', caDir], { env }).then(
       () => ({ code: 0, stderr: '' }),

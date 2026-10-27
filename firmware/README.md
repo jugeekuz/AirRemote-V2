@@ -62,6 +62,32 @@ The table itself is at `0x10000`. Bootloader rollback is on: an image
 installed over the air must mark itself valid, or the next boot returns to
 the previous one. An image flashed over USB is never rolled back.
 
+## Provisioning
+
+A board needs an identity before it can connect: a private key and a
+certificate whose CN is its MAC address, signed by the device CA. From the
+repository root, with the board on USB:
+
+```bash
+scripts/dev-certs.sh                  # once: the dev CA in certs/
+scripts/provision-device.sh           # reads the MAC, writes the identity
+```
+
+- `--ca-dir DIR` signs with another CA directory; `--force` replaces an
+  identity the board already has.
+- It writes only the `identity` partition, reads it back to check it, and
+  keeps the certificate in `<ca-dir>/devices/` as a record.
+- **The key is deleted from the computer.** After `erase-flash`, provision
+  again; the board gets a new key.
+- A replaced certificate is not revoked: it still connects for that MAC.
+
+What the firmware will read:
+
+| NVS namespace | Key    | Type   | Value                             |
+| ------------- | ------ | ------ | --------------------------------- |
+| `identity`    | `cert` | string | the device certificate, PEM       |
+| `identity`    | `key`  | string | its EC P-256 private key, PEM     |
+
 ## The board
 
 DFRobot FireBeetle ESP32 (DFR0478). The rest of the circuit is in V1's

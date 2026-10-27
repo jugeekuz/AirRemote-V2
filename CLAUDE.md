@@ -142,8 +142,9 @@ pinned Docker image; nothing ESP-IDF-related is installed on the host. See
   settings are fixed once boards exist: changing them means reflashing every
   board over USB.
 - A device's key and certificate live in their own `identity` partition,
-  apart from `nvs`, so a factory reset and app flashes keep them. Only the
-  provision script writes it.
+  apart from `nvs`, so a factory reset and app flashes keep them. Only
+  `scripts/provision-device.sh` writes it, and it deletes the key from the
+  computer afterwards.
 - Never burn eFuses on development boards: no secure boot or flash
   encryption until boards go to other people.
 - The firmware version is `firmware/version.txt`, bumped by hand.
