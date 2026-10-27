@@ -49,6 +49,16 @@ std::string encode_error(std::string_view code, std::string_view command_id,
   return print(json);
 }
 
+std::string encode_read_ir_result(std::string_view command_id,
+                                  const std::vector<uint16_t> &timings) {
+  Json json(cJSON_CreateObject());
+  add_string(json, "type", "readIrResult");
+  add_string(json, "commandId", command_id);
+  cJSON *array = cJSON_AddArrayToObject(json.get(), "timingsUs");
+  for (uint16_t timing : timings) cJSON_AddItemToArray(array, cJSON_CreateNumber(timing));
+  return print(json);
+}
+
 std::optional<ServerMessage> decode_server_message(std::string_view text) {
   Json json(cJSON_ParseWithLength(text.data(), text.size()));
   if (!json || !cJSON_IsObject(json.get())) return std::nullopt;
@@ -60,6 +70,10 @@ std::optional<ServerMessage> decode_server_message(std::string_view text) {
     if (!message.command_id.empty()) {
       message.type = type == "readIr" ? ServerMessage::Type::ReadIr
                                       : ServerMessage::Type::SendIr;
+      const cJSON *timeout = cJSON_GetObjectItemCaseSensitive(json.get(), "timeoutMs");
+      if (cJSON_IsNumber(timeout) && timeout->valuedouble > 0) {
+        message.timeout_ms = static_cast<uint32_t>(timeout->valuedouble);
+      }
     }
   } else if (type == "error") {
     message.type = ServerMessage::Type::Error;

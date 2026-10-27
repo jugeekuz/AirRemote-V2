@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace core {
 
@@ -13,11 +15,15 @@ std::string encode_hello(std::string_view firmware_version);
 // An error answering the command `command_id`.
 std::string encode_error(std::string_view code, std::string_view command_id,
                          std::string_view message);
+// The code a device read, answering readIr `command_id`.
+std::string encode_read_ir_result(std::string_view command_id,
+                                  const std::vector<uint16_t> &timings);
 
 struct ServerMessage {
   enum class Type { ReadIr, SendIr, Error, Unknown };
   Type type = Type::Unknown;
   std::string command_id;     // ReadIr, SendIr
+  uint32_t timeout_ms = 0;    // ReadIr
   std::string code, message;  // Error
 };
 

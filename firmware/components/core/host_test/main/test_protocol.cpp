@@ -66,3 +66,15 @@ TEST_CASE("decodes a pairing response's code and expiry", "[protocol]") {
   TEST_ASSERT_FALSE(core::decode_pairing_response(R"({"pairingCode":7})").has_value());
   TEST_ASSERT_FALSE(core::decode_pairing_response("nope").has_value());
 }
+
+TEST_CASE("encode_read_ir_result gives the read result frame", "[protocol]") {
+  TEST_ASSERT_EQUAL_STRING(
+      R"({"type":"readIrResult","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timingsUs":[9000,4500,560]})",
+      core::encode_read_ir_result(kCommandId, {9000, 4500, 560}).c_str());
+}
+
+TEST_CASE("decodes readIr's timeoutMs", "[protocol]") {
+  auto read = core::decode_server_message(
+      R"({"type":"readIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timeoutMs":15000})");
+  TEST_ASSERT_EQUAL_UINT32(15000, read->timeout_ms);
+}
