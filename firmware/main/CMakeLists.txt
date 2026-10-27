@@ -12,13 +12,17 @@ idf_component_register(SRCS "main.cpp"
                        EMBED_TXTFILES "${server_ca}")
 
 # The device listener's address, e.g. https://192.168.1.10:8443, from a
-# git-ignored file. Read on every configure, so an edit applies on the next
-# build (a missing file keeps the build reconfiguring until it exists).
+# git-ignored file, so an edit applies on the next build. CMake only notices a
+# file that existed when it configured; while it doesn't, watch the folder it
+# will appear in.
 set(url_file "${CMAKE_CURRENT_LIST_DIR}/../backend-url.txt")
 set(backend_url "")
 if(EXISTS "${url_file}")
   file(READ "${url_file}" backend_url)
   string(STRIP "${backend_url}" backend_url)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${url_file}")
+else()
+  message(WARNING "No firmware/backend-url.txt: the board will not connect.")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/..")
 endif()
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${url_file}")
 target_compile_definitions(${COMPONENT_LIB} PRIVATE AIRREMOTE_BACKEND_URL="${backend_url}")
