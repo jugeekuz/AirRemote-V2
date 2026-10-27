@@ -46,8 +46,11 @@ std::string describe(const esp_websocket_error_codes_t &error) {
     case ESP_ERR_ESP_TLS_CONNECTION_TIMEOUT:
       return "no answer from the host";
     case ESP_ERR_ESP_TLS_FAILED_CONNECT_TO_HOST:
-      return error.esp_transport_sock_errno == ECONNREFUSED ? "connection refused"
-                                                            : "cannot reach the host";
+      // lwIP reports a refused connection (a reset) as ECONNRESET.
+      return error.esp_transport_sock_errno == ECONNREFUSED ||
+                     error.esp_transport_sock_errno == ECONNRESET
+                 ? "connection refused — is the backend running?"
+                 : "cannot reach the host";
     default:
       return "";
   }
@@ -178,6 +181,9 @@ void WebSocketLink::handle(int32_t id, esp_websocket_event_data_t *data) {
       return;
 
     case WEBSOCKET_EVENT_DISCONNECTED:
+      // For a failed connect, the details come with this event, not ERROR.
+      if (std::string why = describe(data->error_handle); !why.empty()) failure_ = why;
+      [[fallthrough]];
     case WEBSOCKET_EVENT_CLOSED:
     // The client's task ending: a last chance to report, as some failures end
     // it without a DISCONNECTED.
