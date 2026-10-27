@@ -2,8 +2,8 @@
 
 The V2 firmware for the AirRemote board: ESP-IDF in C++. It joins Wi-Fi,
 connects to the backend's device listener over mTLS, gets enrolled, says
-`hello`, and reads IR codes for learning buttons. Sending IR is not there yet:
-it answers `sendIr` with `INVALID_COMMAND`.
+`hello`, reads IR codes to learn buttons, and sends them when a button is
+pressed.
 Everything a person does with it goes through the serial console. The designs
 are in `docs/superpowers/specs/2026-10-27-firmware-*-design.md`.
 
@@ -35,12 +35,13 @@ From the repository root, with Docker running and the board on USB:
 | `pair`                   | asks the backend for one pairing code and prints it |
 | `status`                 | firmware, MAC, identity, Wi-Fi, backend, pending code, IR |
 | `ir`                     | listens 10 s for one IR code and prints its parts, gaps and timings |
+| `ir selftest`            | sends a test code from the LEDs and checks the receiver hears it |
 | `help`                   | lists these                                        |
 
 ## Reading IR
 
-The TSOP38238 receiver is on **GPIO 2**, read by the RMT at 1 µs (the IR LEDs
-are on GPIO 13, for sending later). How a code is captured:
+The TSOP38238 receiver is on **GPIO 2**, read by the RMT at 1 µs. How a code
+is captured:
 
 - The RMT ends a capture after 30 ms of silence. `core` joins captures less
   than **50 ms** apart into one code (air-conditioner remotes send codes in
@@ -55,6 +56,21 @@ are on GPIO 13, for sending later). How a code is captured:
 
 `ir` shows exactly what was captured, e.g.
 `IR code: 3 parts, gaps 34 ms, 35 ms; 583 timings`, then the timings.
+
+## Sending IR
+
+The IR LEDs are on **GPIO 13** (through the transistor), driven by the RMT:
+marks are a 38 kHz carrier at 33% duty, spaces are off, and the LEDs are off
+after a code. A `sendIr` is answered with `sendIrResult` once the code has gone
+out, `SEND_FAILED`, or `BUSY` while the board is reading or sending.
+
+The receiver uses 7 of the RMT's 8 memory blocks and the transmitter the last
+one, refilled while it sends, so long codes go out whole.
+
+`ir selftest` checks the whole IR hardware without a remote: it listens, sends
+a fixed NEC-shaped code from the LEDs (right next to the receiver), and prints
+`IR self-test: OK (sent 67 timings, heard 67)` when every timing came back
+within 25% (or 200 µs).
 
 The board never asks for a pairing code by itself. Not enrolled, it retries
 the connection every 30 s; after `pair`, every 5 s until the code expires.
