@@ -2,8 +2,9 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { persistStorage } from '@adapters/storage';
-import { DEFAULT_LANGUAGE, type SupportedLanguage } from '@i18n/i18n.constants';
 import { STORE_PERSIST_KEY } from '@stores/stores.constants';
+import { isSupportedLanguage } from '@helpers/i18n';
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from '@i18n/i18n.constants';
 
 type PreferencesState = {
   language: SupportedLanguage;
@@ -13,11 +14,30 @@ const INITIAL_PREFERENCES_STATE: PreferencesState = {
   language: DEFAULT_LANGUAGE,
 };
 
+/**
+ * Restores only what is still valid: a language the app no longer ships (or a
+ * malformed value) keeps the default.
+ */
+function mergePersistedPreferences(
+  persisted: unknown,
+  current: PreferencesState,
+): PreferencesState {
+  const language =
+    typeof persisted === 'object' &&
+    persisted !== null &&
+    'language' in persisted &&
+    isSupportedLanguage(persisted.language)
+      ? persisted.language
+      : current.language;
+  return { ...current, language };
+}
+
 const usePreferencesStore = create<PreferencesState>()(
   persist(() => INITIAL_PREFERENCES_STATE, {
     name: STORE_PERSIST_KEY.PREFERENCES,
     storage: createJSONStorage(() => persistStorage),
     version: 1,
+    merge: mergePersistedPreferences,
   }),
 );
 

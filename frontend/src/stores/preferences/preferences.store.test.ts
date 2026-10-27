@@ -1,8 +1,8 @@
 import { act, renderHook } from '@testing-library/react-native';
 
 import { persistStorage } from '@adapters/storage';
-import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGE } from '@i18n/i18n.constants';
 import { STORE_PERSIST_KEY } from '@stores/stores.constants';
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGE } from '@i18n/i18n.constants';
 
 import { preferencesStore } from './preferences.store';
 
@@ -29,7 +29,21 @@ describe('preferencesStore', () => {
     });
   });
 
-  it('rehydrate restores a value persisted by an earlier run', async () => {
+  it('rehydrate restores a supported language persisted by an earlier run', async () => {
+    persistStorage.setItem(
+      STORE_PERSIST_KEY.PREFERENCES,
+      JSON.stringify({
+        state: { language: SUPPORTED_LANGUAGE.EN },
+        version: 1,
+      }),
+    );
+
+    await preferencesStore.rehydrate();
+
+    expect(preferencesStore.getLanguage()).toBe(SUPPORTED_LANGUAGE.EN);
+  });
+
+  it('rehydrate keeps the default for a language the app does not ship', async () => {
     persistStorage.setItem(
       STORE_PERSIST_KEY.PREFERENCES,
       JSON.stringify({ state: { language: 'fr' }, version: 1 }),
@@ -37,7 +51,18 @@ describe('preferencesStore', () => {
 
     await preferencesStore.rehydrate();
 
-    expect(preferencesStore.getLanguage()).toBe('fr');
+    expect(preferencesStore.getLanguage()).toBe(DEFAULT_LANGUAGE);
+  });
+
+  it('rehydrate keeps the default for a malformed persisted state', async () => {
+    persistStorage.setItem(
+      STORE_PERSIST_KEY.PREFERENCES,
+      JSON.stringify({ state: null, version: 1 }),
+    );
+
+    await preferencesStore.rehydrate();
+
+    expect(preferencesStore.getLanguage()).toBe(DEFAULT_LANGUAGE);
   });
 
   it('useLanguage reads the language reactively', async () => {
@@ -50,12 +75,8 @@ describe('preferencesStore', () => {
     expect(result.current).toBe(SUPPORTED_LANGUAGE.EN);
   });
 
-  it('reset returns to the default language', async () => {
-    persistStorage.setItem(
-      STORE_PERSIST_KEY.PREFERENCES,
-      JSON.stringify({ state: { language: 'fr' }, version: 1 }),
-    );
-    await preferencesStore.rehydrate();
+  it('reset returns to the default language', () => {
+    preferencesStore.setLanguage(SUPPORTED_LANGUAGE.EN);
 
     preferencesStore.reset();
 
