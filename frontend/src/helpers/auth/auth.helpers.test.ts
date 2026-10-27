@@ -14,7 +14,9 @@ function apiError(overrides: Partial<ApiError>): ApiError {
 describe('isSignedOutError', () => {
   it('is true for a 401 with any code', () => {
     expect(
-      isSignedOutError(apiError({ status: 401, code: 'INVALID_REFRESH_TOKEN' })),
+      isSignedOutError(
+        apiError({ status: 401, code: 'INVALID_REFRESH_TOKEN' }),
+      ),
     ).toBe(true);
     expect(
       isSignedOutError(apiError({ status: 401, code: 'UNAUTHORIZED' })),

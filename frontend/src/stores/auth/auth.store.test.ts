@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react-native';
+import { act, renderHook } from '@testing-library/react-native';
 
 import { AUTH_STATUS } from './auth.constants';
 import { authStore } from './auth.store';

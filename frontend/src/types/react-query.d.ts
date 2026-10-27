@@ -3,7 +3,10 @@ import '@tanstack/react-query';
 import type { ApiError } from './api.types';
 
 type AppQueryMeta = Record<string, unknown> & {
-  /** Fallback toast text when the server sends no userMessage. */
+  /**
+   * Toast text used when the error's code has no specific message (a generic
+   * code, see `isGenericErrorCode`). The server's message is never shown.
+   */
   errorMessage?: string;
   /** Skip the global error toast (the screen renders its own error UI). */
   silent?: boolean;

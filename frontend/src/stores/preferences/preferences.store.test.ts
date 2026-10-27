@@ -2,9 +2,21 @@ import { act, renderHook } from '@testing-library/react-native';
 
 import { persistStorage } from '@adapters/storage';
 import { STORE_PERSIST_KEY } from '@stores/stores.constants';
-import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGE } from '@i18n/i18n.constants';
+import {
+  DEFAULT_LANGUAGE,
+  SUPPORTED_LANGUAGE,
+  type SupportedLanguage,
+} from '@i18n/i18n.constants';
 
 import { preferencesStore } from './preferences.store';
+
+// The app ships only English, so a restored value can't differ from the
+// default. Pretend it also ships a stand-in language.
+const STAND_IN_LANGUAGE = 'el' as SupportedLanguage;
+
+jest.mock('@helpers/i18n', () => ({
+  isSupportedLanguage: (value: unknown) => value === 'en' || value === 'el',
+}));
 
 // The mocked `persistStorage` keeps its Map for the whole file, so each test
 // starts from an empty one as well as from the store's initial state.
@@ -33,14 +45,14 @@ describe('preferencesStore', () => {
     persistStorage.setItem(
       STORE_PERSIST_KEY.PREFERENCES,
       JSON.stringify({
-        state: { language: SUPPORTED_LANGUAGE.EN },
+        state: { language: STAND_IN_LANGUAGE },
         version: 1,
       }),
     );
 
     await preferencesStore.rehydrate();
 
-    expect(preferencesStore.getLanguage()).toBe(SUPPORTED_LANGUAGE.EN);
+    expect(preferencesStore.getLanguage()).toBe(STAND_IN_LANGUAGE);
   });
 
   it('rehydrate keeps the default for a language the app does not ship', async () => {
@@ -76,7 +88,7 @@ describe('preferencesStore', () => {
   });
 
   it('reset returns to the default language', () => {
-    preferencesStore.setLanguage(SUPPORTED_LANGUAGE.EN);
+    preferencesStore.setLanguage(STAND_IN_LANGUAGE);
 
     preferencesStore.reset();
 
