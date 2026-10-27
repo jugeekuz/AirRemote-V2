@@ -43,6 +43,11 @@ TEST_CASE("wifi refuses an SSID or password of the wrong length", "[commands]") 
   TEST_ASSERT_TRUE(core::parse_command("wifi Home 12345678").kind == Kind::Wifi);
 }
 
+TEST_CASE("ir is a command of its own", "[commands]") {
+  TEST_ASSERT_TRUE(core::parse_command("ir").kind == Kind::Ir);
+  TEST_ASSERT_TRUE(core::parse_command("ir now").kind == Kind::Invalid);
+}
+
 TEST_CASE("pair, status and help, with surrounding spaces", "[commands]") {
   TEST_ASSERT_TRUE(core::parse_command("pair").kind == Kind::Pair);
   TEST_ASSERT_TRUE(core::parse_command("  status  ").kind == Kind::Status);

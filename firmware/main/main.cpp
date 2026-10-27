@@ -25,6 +25,13 @@ extern const char server_ca_start[] asm("_binary_device_ca_crt_start");
 
 namespace {
 
+// Until the receiver is wired in, a read never sees a code.
+class NoIrReceiver : public core::IrReceiver {
+ public:
+  void start() override {}
+  void stop() override {}
+};
+
 // Settings only: unlike identity, nvs may be wiped when its layout is stale.
 void init_settings_storage() {
   esp_err_t err = nvs_flash_init();
@@ -77,10 +84,11 @@ extern "C" void app_main(void) {
   static connection::WebSocketLink link(urls ? urls->websocket : "", tls, queue);
   static connection::HttpPairingApi pairing(urls ? urls->pairing : "", tls, queue);
   static runtime::FreeRtosTimers timers(queue);
+  static NoIrReceiver ir;
   static core::Device device(
       core::DeviceInfo{esp_app_get_description()->version, mac_address(), identity.has_value(),
                        urls.has_value()},
-      core::Ports{console, wifi, settings, link, pairing, timers});
+      core::Ports{console, wifi, settings, link, pairing, timers, ir});
   wifi.attach(device);
   link.attach(device);
   pairing.attach(device);

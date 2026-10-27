@@ -1,5 +1,7 @@
 #include "runtime/timers.hpp"
 
+#include "esp_timer.h"
+
 namespace runtime {
 
 FreeRtosTimers::FreeRtosTimers(EventQueue &queue) : queue_(queue) {
@@ -12,6 +14,8 @@ FreeRtosTimers::FreeRtosTimers(EventQueue &queue) : queue_(queue) {
 int64_t FreeRtosTimers::now_ms() {
   return static_cast<int64_t>(xTaskGetTickCount()) * portTICK_PERIOD_MS;
 }
+
+int64_t FreeRtosTimers::now_us() { return esp_timer_get_time(); }
 
 void FreeRtosTimers::schedule(core::TimerId id, uint32_t ms) {
   const size_t i = static_cast<size_t>(id);

@@ -51,6 +51,19 @@ struct FakeLink : core::Link {
   void close() override { closes++; }
 };
 
+struct FakeIr : core::IrReceiver {
+  int starts = 0, stops = 0;
+  bool listening = false;
+  void start() override {
+    starts++;
+    listening = true;
+  }
+  void stop() override {
+    stops++;
+    listening = false;
+  }
+};
+
 struct FakePairing : core::PairingApi {
   int requests = 0;
   void request() override { requests++; }
@@ -65,6 +78,7 @@ struct FakeTimers : core::Timers {
   std::vector<std::pair<core::TimerId, uint32_t>> scheduled;
 
   int64_t now_ms() override { return now; }
+  int64_t now_us() override { return now * 1000; }
   void schedule(core::TimerId id, uint32_t ms) override {
     due[id] = now + ms;
     scheduled.emplace_back(id, ms);

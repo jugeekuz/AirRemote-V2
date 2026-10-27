@@ -34,6 +34,13 @@ extern "C" int64_t esp_timer_get_time(void) {
 
 namespace {
 
+// Until the receiver is wired in, a read never sees a code.
+class NoIrReceiver : public core::IrReceiver {
+ public:
+  void start() override {}
+  void stop() override {}
+};
+
 std::string env(const char *name) {
   const char *value = getenv(name);
   return value ? value : "";
@@ -100,11 +107,12 @@ extern "C" void app_main(void) {
   static connection::WebSocketLink link(urls ? urls->websocket : "", tls, queue);
   static connection::HttpPairingApi pairing(urls ? urls->pairing : "", tls, queue);
   static runtime::FreeRtosTimers timers(queue);
+  static NoIrReceiver ir;
 
   static core::Device device(
       core::DeviceInfo{AIRREMOTE_FIRMWARE_VERSION, env("AIRREMOTE_MAC"),
                        cert.has_value() && key.has_value(), urls.has_value() && ca.has_value()},
-      core::Ports{console, wifi, settings, link, pairing, timers}, timing);
+      core::Ports{console, wifi, settings, link, pairing, timers, ir}, timing);
   wifi.attach(device);
   link.attach(device);
   pairing.attach(device);

@@ -45,13 +45,23 @@ struct PairingApi {
   virtual void request() = 0;
 };
 
-enum class TimerId { WifiRetry, LinkRetry, PairingExpiry };
+// The IR receiver. While started it reports each stretch of IR it captures
+// with Device::on_ir_part; stop() ends that.
+struct IrReceiver {
+  virtual ~IrReceiver() = default;
+  virtual void start() = 0;
+  virtual void stop() = 0;
+};
+
+enum class TimerId { WifiRetry, LinkRetry, PairingExpiry, IrSilence, IrDeadline };
 
 // One-shot timers that call Device::on_timer. Scheduling an id that is already
 // scheduled replaces it.
 struct Timers {
   virtual ~Timers() = default;
   virtual int64_t now_ms() = 0;
+  // The clock IrPart::ended_at_us is on (esp_timer_get_time()).
+  virtual int64_t now_us() = 0;
   virtual void schedule(TimerId id, uint32_t ms) = 0;
   virtual void cancel(TimerId id) = 0;
 };

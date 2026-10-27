@@ -18,11 +18,12 @@ class FreeRtosTimers : public core::Timers {
   void attach(core::Device &device) { device_ = &device; }
 
   int64_t now_ms() override;
+  int64_t now_us() override;
   void schedule(core::TimerId id, uint32_t ms) override;
   void cancel(core::TimerId id) override;
 
  private:
-  static constexpr size_t kCount = 3;
+  static constexpr size_t kCount = 5;
   // What each FreeRTOS timer's ID points to.
   struct Slot {
     FreeRtosTimers *owner;
