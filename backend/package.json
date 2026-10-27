@@ -9,12 +9,14 @@
     "dev": "node --env-file-if-exists=../.env --watch --import tsx src/server.ts",
     "build": "tsup",
     "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "openapi": "tsx src/openapi.ts"
   },
   "dependencies": {
     "@airremote/contracts": "workspace:*",
     "@airremote/db": "workspace:*",
     "@fastify/cookie": "^11.1.3",
+    "@fastify/swagger": "^9.9.2",
     "@fastify/websocket": "^11.3.4",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.7",

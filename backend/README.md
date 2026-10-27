@@ -128,6 +128,15 @@ that set `$TOKEN`, `$DEVICE_ID`, `$REMOTE` and `$BUTTON` and make these requests
 | `pnpm test:e2e`         | HTTP tests against the running app and Postgres (Docker)      |
 | `pnpm db:generate`      | Generates a migration from the Drizzle schema                 |
 | `pnpm db:migrate`       | Applies pending migrations to `DATABASE_URL`                  |
+| `pnpm openapi`          | Writes the API's OpenAPI document to `openapi.json`           |
+
+## OpenAPI and Postman
+
+`pnpm openapi` writes `openapi.json` (OpenAPI 3.1, git-ignored) at the
+repository root from the routes' Zod schemas; it needs no database or `.env`.
+In Postman, choose **Import** and pick the file. Requests that need a signed-in
+user use bearer auth: set the collection's token to the `accessToken` from
+`POST /auth/login`.
 
 ## Adding a table
 

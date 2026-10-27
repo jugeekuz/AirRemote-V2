@@ -14,6 +14,7 @@ import { usersRoutes } from './features/users/users.routes';
 import { authenticatePlugin } from './plugins/authenticate';
 import { dbPlugin } from './plugins/db';
 import { errorHandlerPlugin } from './plugins/error-handler';
+import { openApiPlugin } from './plugins/openapi';
 import { zodPlugin } from './plugins/zod';
 import {
   createDeviceConnections,
@@ -62,6 +63,7 @@ export async function buildApp({
       refreshSecret: env.JWT_REFRESH_SECRET,
     },
   });
+  await app.register(openApiPlugin);
 
   await app.register(healthRoutes);
   await app.register(usersRoutes, { prefix: '/users' });

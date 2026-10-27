@@ -18,7 +18,8 @@
     "test:integration": "vitest run --project integration",
     "test:e2e": "vitest run --project e2e",
     "db:generate": "pnpm --filter @airremote/db generate",
-    "db:migrate": "pnpm --filter @airremote/db migrate"
+    "db:migrate": "pnpm --filter @airremote/db migrate",
+    "openapi": "pnpm --silent --filter @airremote/backend openapi"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
