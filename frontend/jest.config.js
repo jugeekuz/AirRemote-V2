@@ -38,7 +38,7 @@ module.exports = {
   // `.pnpm/<package>/node_modules/` segment makes the pattern work with
   // pnpm's isolated node_modules.
   transformIgnorePatterns: [
-    'node_modules/(?!(?:\\.pnpm/.+?/node_modules/)?(?:(?:jest-)?react-native|@react-native|expo|@expo|@react-navigation|uniwind|tailwind-variants|react-native-reanimated|react-native-worklets|@gorhom|@airremote/contracts))',
+    'node_modules/(?!(?:\\.pnpm/.+?/node_modules/)?(?:(?:jest-)?react-native|@react-native|expo|@expo|@react-navigation|uniwind|tailwind-variants|react-native-reanimated|react-native-worklets|react-native-mmkv|react-native-nitro-modules|@gorhom|@airremote/contracts))',
   ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
