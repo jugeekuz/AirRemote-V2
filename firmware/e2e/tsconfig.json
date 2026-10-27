@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  // The global setups declare what the tests inject().
+  "include": [
+    "**/*.ts",
+    "../../backend/src/__tests__/postgres.global-setup.ts",
+    "../../backend/e2e/support/device-certs.global-setup.ts"
+  ]
+}

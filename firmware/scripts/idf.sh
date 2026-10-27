@@ -10,6 +10,7 @@ Usage:
 
 Runs in firmware/ inside the ESP-IDF image. Set ESPPORT for a port other
 than /dev/ttyUSB0; it is passed to the container only when it exists.
+IDF_DOCKER_ARGS adds docker run options (split on spaces).
 EOF_USAGE
 }
 
@@ -30,8 +31,24 @@ port="${ESPPORT:-/dev/ttyUSB0}"
 args=(--rm -v "$firmware_dir:/project:Z" -w /project
   -u "$(id -u):$(id -g)" -e HOME=/tmp)
 
+# stdin always reaches the container (tests pipe console lines in); a TTY only
+# when there is one.
+args+=(-i)
 if [[ -t 0 && -t 1 ]]; then
-  args+=(-it)
+  args+=(-t)
+fi
+
+# The firmware embeds the CA that signed the device listener's certificate.
+# Only that certificate is visible to the container, never the keys beside it.
+ca="$firmware_dir/../certs/device-ca.crt"
+if [[ -f "$ca" ]]; then
+  args+=(-v "$(cd "$(dirname "$ca")" && pwd)/device-ca.crt:/certs/device-ca.crt:ro,z")
+fi
+
+# Extra docker run options, e.g. "--network host --name x -e KEY=value".
+if [[ -n "${IDF_DOCKER_ARGS:-}" ]]; then
+  read -r -a extra <<<"$IDF_DOCKER_ARGS"
+  args+=("${extra[@]}")
 fi
 
 # The port's group, not membership of dialout on the host, gives access.

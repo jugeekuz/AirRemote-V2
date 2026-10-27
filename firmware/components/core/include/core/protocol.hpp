@@ -25,4 +25,11 @@ struct ServerMessage {
 // is Unknown: there is nothing to answer.
 std::optional<ServerMessage> decode_server_message(std::string_view text);
 
+// The body of a 201 from POST /pairing-code.
+struct PairingResponse {
+  std::string code;
+  std::string expires_at;  // ISO 8601, UTC
+};
+std::optional<PairingResponse> decode_pairing_response(std::string_view body);
+
 }  // namespace core

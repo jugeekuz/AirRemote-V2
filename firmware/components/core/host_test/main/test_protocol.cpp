@@ -55,3 +55,14 @@ TEST_CASE("text that is not a JSON object decodes to nothing", "[protocol]") {
   TEST_ASSERT_FALSE(core::decode_server_message(R"("str")").has_value());
   TEST_ASSERT_FALSE(core::decode_server_message("").has_value());
 }
+
+TEST_CASE("decodes a pairing response's code and expiry", "[protocol]") {
+  auto pairing = core::decode_pairing_response(
+      R"({"pairingCode":"7K4MQ9TX","expiresAt":"2026-10-27T12:15:00.000Z"})");
+  TEST_ASSERT_TRUE(pairing.has_value());
+  TEST_ASSERT_EQUAL_STRING("7K4MQ9TX", pairing->code.c_str());
+  TEST_ASSERT_EQUAL_STRING("2026-10-27T12:15:00.000Z", pairing->expires_at.c_str());
+  TEST_ASSERT_FALSE(core::decode_pairing_response(R"({"pairingCode":"7K4MQ9TX"})").has_value());
+  TEST_ASSERT_FALSE(core::decode_pairing_response(R"({"pairingCode":7})").has_value());
+  TEST_ASSERT_FALSE(core::decode_pairing_response("nope").has_value());
+}

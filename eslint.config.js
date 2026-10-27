@@ -9,6 +9,8 @@ export default tseslint.config(
       '**/dist/**',
       '**/node_modules/**',
       'packages/db/migrations/**',
+      'firmware/**/build/**',
+      '**/managed_components/**',
     ],
   },
   js.configs.recommended,

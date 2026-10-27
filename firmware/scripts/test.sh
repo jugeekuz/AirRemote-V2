@@ -28,3 +28,7 @@ for test_dir in components/*/host_test; do
   scripts/idf.sh -C "$test_dir" build
   scripts/idf.sh exec "$test_dir/build/${name}_host_test.elf"
 done
+
+# The Linux app must keep building too; firmware/e2e runs it (pnpm test:firmware).
+echo "== linux"
+scripts/idf.sh -C linux build >/dev/null

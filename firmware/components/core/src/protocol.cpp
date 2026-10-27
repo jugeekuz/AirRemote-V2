@@ -69,4 +69,13 @@ std::optional<ServerMessage> decode_server_message(std::string_view text) {
   return message;
 }
 
+std::optional<PairingResponse> decode_pairing_response(std::string_view body) {
+  Json json(cJSON_ParseWithLength(body.data(), body.size()));
+  if (!json || !cJSON_IsObject(json.get())) return std::nullopt;
+  PairingResponse response{string_field(json.get(), "pairingCode"),
+                           string_field(json.get(), "expiresAt")};
+  if (response.code.empty() || response.expires_at.empty()) return std::nullopt;
+  return response;
+}
+
 }  // namespace core

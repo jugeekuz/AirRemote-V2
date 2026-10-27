@@ -4,6 +4,7 @@ import {
   devices,
   users,
   type Database,
+  type Device,
   type DbHandle,
 } from '@airremote/db';
 import type { FastifyInstance } from 'fastify';
@@ -264,6 +265,12 @@ export function useDeviceServer({
         .values({ userId: user!.id, macAddress, name: 'Test device' })
         .returning();
       return device!.id;
+    },
+    /** The device's row, e.g. to check what it reported; null if there is none. */
+    async findDevice(deviceId: string): Promise<Device | null> {
+      if (!handle) throw new Error('useDeviceServer: database not ready yet');
+      const rows = await handle.db.select().from(devices);
+      return rows.find((row) => row.id === deviceId) ?? null;
     },
     /** POSTs to the device listener with a client certificate. */
     post(path: string, cert: TestClientName | null) {
