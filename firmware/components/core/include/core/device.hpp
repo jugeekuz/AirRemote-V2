@@ -34,7 +34,11 @@ struct Ports {
   PairingApi &pairing;
   Timers &timers;
   IrReceiver &ir;
+  IrSender &ir_sender;
 };
+
+// The code `ir selftest` sends: NEC-shaped, 67 timings.
+const std::vector<uint16_t> &ir_self_test_code();
 
 // Everything the device decides: joining Wi-Fi, keeping the link to the
 // backend open, pairing on request, answering the server. Not thread-safe:
@@ -60,13 +64,15 @@ class Device {
 
   // A stretch of IR the receiver captured; ignored unless reading.
   void on_ir_part(IrPart part);
+  // The transmitter finished the code it was given.
+  void on_ir_sent(bool ok);
 
   void on_timer(TimerId id);
 
  private:
   // One IR read at a time: for a backend readIr, or the console's ir.
   struct Read {
-    enum class For { Backend, Console };
+    enum class For { Backend, Console, SelfTest };
     For who;
     std::string command_id;  // For::Backend
     IrCapture capture;
@@ -91,6 +97,8 @@ class Device {
   void wait_for_silence();
   void end_read();
   void read_timed_out();
+  bool ir_busy() const { return read_.has_value() || send_.has_value(); }
+  void self_test_result(const IrCapture::Result &result);
 
   DeviceInfo info_;
   Ports ports_;
@@ -109,6 +117,13 @@ class Device {
   int64_t code_deadline_ms_ = 0;
 
   std::optional<Read> read_;
+
+  // The code being transmitted: for a backend sendIr, or the self-test.
+  struct Send {
+    std::string command_id;  // empty for the self-test
+    bool reply = true;       // false once the link closed
+  };
+  std::optional<Send> send_;
 };
 
 }  // namespace core

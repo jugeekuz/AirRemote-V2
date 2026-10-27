@@ -66,6 +66,11 @@ struct FakeIr : core::IrReceiver {
   }
 };
 
+struct FakeIrSender : core::IrSender {
+  std::vector<std::vector<core::IrSymbol>> sends;
+  void send(std::vector<core::IrSymbol> symbols) override { sends.push_back(std::move(symbols)); }
+};
+
 struct FakePairing : core::PairingApi {
   int requests = 0;
   void request() override { requests++; }

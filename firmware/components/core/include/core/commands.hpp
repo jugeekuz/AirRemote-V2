@@ -12,14 +12,14 @@ struct WifiCredentials {
 
 // A line typed on the console.
 struct Command {
-  enum class Kind { Wifi, Pair, Status, Help, Ir, Invalid };
+  enum class Kind { Wifi, Pair, Status, Help, Ir, IrSelfTest, Invalid };
   Kind kind = Kind::Invalid;
   WifiCredentials wifi;  // Kind::Wifi
   std::string error;     // Kind::Invalid: the line to print; empty prints nothing
 };
 
 // `wifi <ssid> [password]` (double quotes around values with spaces, \" inside
-// them), `pair`, `status`, `ir`, `help`.
+// them), `pair`, `status`, `ir`, `ir selftest`, `help`.
 Command parse_command(std::string_view line);
 
 // The lines `help` prints.

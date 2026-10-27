@@ -4,6 +4,7 @@
 
 #include <unity.h>
 
+#include "core/ir_symbols.hpp"
 #include "core/protocol.hpp"
 #include "fakes.hpp"
 
@@ -21,6 +22,7 @@ struct Rig {
   FakePairing pairing;
   FakeTimers timers;
   FakeIr ir;
+  FakeIrSender sender;
   std::unique_ptr<core::Device> device;
 
   explicit Rig(bool provisioned = true, bool backend_configured = true,
@@ -28,7 +30,7 @@ struct Rig {
     if (wifi_saved) settings.stored = core::WifiCredentials{"Home", "secret123"};
     device = std::make_unique<core::Device>(
         core::DeviceInfo{"0.1.0", "24:DC:C3:8D:3E:0C", provisioned, backend_configured},
-        core::Ports{console, wifi, settings, link, pairing, timers, ir});
+        core::Ports{console, wifi, settings, link, pairing, timers, ir, sender});
     timers.device = device.get();
   }
 
@@ -288,16 +290,6 @@ TEST_CASE("a failed pairing request is printed and pair can be tried again", "[d
   TEST_ASSERT_EQUAL(2, rig->pairing.requests);
 }
 
-TEST_CASE("sendIr is answered with INVALID_COMMAND", "[device]") {
-  auto rig = Rig::connected();
-  rig->device->on_link_message(
-      R"({"type":"sendIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timingsUs":[1]})");
-  TEST_ASSERT_EQUAL(2, (int)rig->link.sent.size());
-  TEST_ASSERT_EQUAL_STRING(
-      core::encode_error("INVALID_COMMAND", kCommandId, "sending IR is not supported yet").c_str(),
-      rig->link.sent[1].c_str());
-}
-
 TEST_CASE("the server's error is printed, garbage is ignored", "[device]") {
   auto rig = Rig::connected();
   rig->device->on_link_message(R"({"type":"error","code":"INVALID_JSON","message":"bad"})");
@@ -471,7 +463,7 @@ TEST_CASE("a second readIr while reading answers BUSY and leaves the first", "[d
   rig->device->on_link_message(kReadIr);
   rig->device->on_link_message(read_ir(kOtherId));
   TEST_ASSERT_EQUAL_STRING(
-      core::encode_error("BUSY", kOtherId, "already reading an IR code").c_str(),
+      core::encode_error("BUSY", kOtherId, "already using IR").c_str(),
       rig->link.sent.back().c_str());
   rig->device->on_ir_part(part_now(*rig, code_of(67)));
   rig->timers.advance(80);
@@ -536,12 +528,7 @@ TEST_CASE("a deadline with only noise captured is a timeout", "[device][ir]") {
   TEST_ASSERT_FALSE(rig->ir.listening);
 }
 
-TEST_CASE("sendIr still answers INVALID_COMMAND", "[device][ir]") {
-  auto rig = Rig::connected();
-  rig->device->on_link_message(
-      R"({"type":"sendIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timingsUs":[1]})");
-  TEST_ASSERT_TRUE(rig->link.sent.back().find("INVALID_COMMAND") != std::string::npos);
-}
+
 
 TEST_CASE("ir prints what it captured, parts joined on the receiver's real timing",
           "[device][ir]") {
@@ -644,13 +631,13 @@ TEST_CASE("ir and readIr refuse each other", "[device][ir]") {
   rig->device->on_line("ir");
   rig->device->on_link_message(kReadIr);
   TEST_ASSERT_EQUAL_STRING(
-      core::encode_error("BUSY", kCommandId, "already reading an IR code").c_str(),
+      core::encode_error("BUSY", kCommandId, "already using IR").c_str(),
       rig->link.sent.back().c_str());
 
   auto backend = Rig::connected();
   backend->device->on_link_message(kReadIr);
   backend->device->on_line("ir");
-  TEST_ASSERT_TRUE(backend->console.printed("busy — already reading an IR code"));
+  TEST_ASSERT_TRUE(backend->console.printed("busy — already using IR"));
 }
 
 TEST_CASE("status shows what IR is doing", "[device][ir]") {
@@ -660,4 +647,149 @@ TEST_CASE("status shows what IR is doing", "[device][ir]") {
   rig->device->on_link_message(kReadIr);
   rig->device->on_line("status");
   TEST_ASSERT_TRUE(rig->console.printed("IR         reading (backend)"));
+}
+
+
+// --- Sending IR ---
+
+namespace {
+
+const std::string kSendIr =
+    R"({"type":"sendIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timingsUs":[9000,4500,560]})";
+
+std::string send_ir(const char *id) {
+  return std::string(R"({"type":"sendIr","commandId":")") + id +
+         R"(","timingsUs":[9000,4500,560]})";
+}
+
+}  // namespace
+
+TEST_CASE("sendIr transmits the code once and answers when it has gone out", "[device][send]") {
+  auto rig = Rig::connected();
+  rig->device->on_link_message(kSendIr);
+  TEST_ASSERT_EQUAL(1, (int)rig->sender.sends.size());
+  TEST_ASSERT_TRUE(core::to_timings(rig->sender.sends[0]) ==
+                   (std::vector<uint16_t>{9000, 4500, 560}));
+  TEST_ASSERT_EQUAL(1, (int)rig->link.sent.size());  // no reply yet
+  rig->device->on_ir_sent(true);
+  TEST_ASSERT_EQUAL_STRING(core::encode_send_ir_result(kCommandId).c_str(),
+                           rig->link.sent.back().c_str());
+  rig->device->on_ir_sent(true);  // a stray second report
+  TEST_ASSERT_EQUAL(2, (int)rig->link.sent.size());
+}
+
+TEST_CASE("a failed transmission answers SEND_FAILED", "[device][send]") {
+  auto rig = Rig::connected();
+  rig->device->on_link_message(kSendIr);
+  rig->device->on_ir_sent(false);
+  TEST_ASSERT_EQUAL_STRING(
+      core::encode_error("SEND_FAILED", kCommandId, "the IR code could not be sent").c_str(),
+      rig->link.sent.back().c_str());
+}
+
+TEST_CASE("sending and reading refuse each other with BUSY", "[device][send]") {
+  auto reading = Rig::connected();
+  reading->device->on_link_message(kReadIr);
+  reading->device->on_link_message(send_ir(kOtherId));
+  TEST_ASSERT_EQUAL_STRING(
+      core::encode_error("BUSY", kOtherId, "already using IR").c_str(),
+      reading->link.sent.back().c_str());
+  TEST_ASSERT_EQUAL(0, (int)reading->sender.sends.size());
+
+  auto sending = Rig::connected();
+  sending->device->on_link_message(kSendIr);
+  sending->device->on_link_message(read_ir(kOtherId));
+  sending->device->on_link_message(send_ir(kOtherId));
+  TEST_ASSERT_EQUAL(1, (int)sending->sender.sends.size());
+  TEST_ASSERT_FALSE(sending->ir.listening);
+  TEST_ASSERT_EQUAL(3, (int)sending->link.sent.size());  // hello + two BUSY
+  sending->device->on_line("ir");
+  TEST_ASSERT_TRUE(sending->console.printed("busy — already using IR"));
+}
+
+TEST_CASE("a link closing mid-send gets no reply, and the next send works", "[device][send]") {
+  auto rig = Rig::connected();
+  rig->device->on_link_message(kSendIr);
+  rig->device->on_link_closed();
+  rig->device->on_ir_sent(true);
+  TEST_ASSERT_EQUAL(1, (int)rig->link.sent.size());
+  rig->timers.advance(1000);
+  rig->device->on_link_opened();
+  rig->device->on_link_message(kSendIr);
+  TEST_ASSERT_EQUAL(2, (int)rig->sender.sends.size());
+  rig->device->on_ir_sent(true);
+  TEST_ASSERT_EQUAL_STRING(core::encode_send_ir_result(kCommandId).c_str(),
+                           rig->link.sent.back().c_str());
+}
+
+TEST_CASE("status shows a send", "[device][send]") {
+  auto rig = Rig::connected();
+  rig->device->on_link_message(kSendIr);
+  rig->device->on_line("status");
+  TEST_ASSERT_TRUE(rig->console.printed("IR         sending"));
+}
+
+// --- The self-test ---
+
+TEST_CASE("ir selftest listens, sends the test code, and passes on its echo", "[device][selftest]") {
+  Rig rig;
+  rig.device->on_line("ir selftest");
+  TEST_ASSERT_TRUE(rig.ir.listening);
+  TEST_ASSERT_EQUAL(1, (int)rig.sender.sends.size());
+  const auto sent = core::to_timings(rig.sender.sends[0]);
+  TEST_ASSERT_TRUE(sent == core::ir_self_test_code());
+  rig.device->on_ir_sent(true);
+  // What the receiver hears is never exact: each timing a bit off.
+  std::vector<uint16_t> heard = sent;
+  for (size_t i = 0; i < heard.size(); i++) heard[i] += (i % 2 ? -60 : 60);
+  rig.device->on_ir_part(core::IrPart{heard, rig.timers.now_us(), false});
+  rig.timers.advance(80);
+  TEST_ASSERT_TRUE(rig.console.printed("IR self-test: OK (sent 67 timings, heard 67)"));
+  TEST_ASSERT_FALSE(rig.ir.listening);
+}
+
+TEST_CASE("ir selftest fails on silence, a wrong timing, a wrong length, or a failed send",
+          "[device][selftest]") {
+  Rig silent;
+  silent.device->on_line("ir selftest");
+  silent.device->on_ir_sent(true);
+  silent.timers.advance(10000);
+  TEST_ASSERT_TRUE(silent.console.printed("IR self-test: FAILED — heard nothing"));
+
+  Rig wrong;
+  wrong.device->on_line("ir selftest");
+  wrong.device->on_ir_sent(true);
+  auto heard = core::ir_self_test_code();
+  heard[5] = heard[5] / 2;
+  wrong.device->on_ir_part(core::IrPart{heard, wrong.timers.now_us(), false});
+  wrong.timers.advance(80);
+  TEST_ASSERT_TRUE(wrong.console.any_contains("IR self-test: FAILED — timing 5: sent"));
+
+  Rig shorter;
+  shorter.device->on_line("ir selftest");
+  shorter.device->on_ir_sent(true);
+  auto cut = core::ir_self_test_code();
+  cut.resize(65);
+  shorter.device->on_ir_part(core::IrPart{cut, shorter.timers.now_us(), false});
+  shorter.timers.advance(80);
+  TEST_ASSERT_TRUE(shorter.console.printed("IR self-test: FAILED — sent 67 timings, heard 65"));
+
+  Rig failed;
+  failed.device->on_line("ir selftest");
+  failed.device->on_ir_sent(false);
+  TEST_ASSERT_TRUE(failed.console.printed("IR self-test: FAILED — could not send"));
+  TEST_ASSERT_FALSE(failed.ir.listening);
+}
+
+TEST_CASE("during the self-test, readIr and sendIr are BUSY", "[device][selftest]") {
+  auto rig = Rig::connected();
+  rig->device->on_line("ir selftest");
+  rig->device->on_link_message(kReadIr);
+  rig->device->on_link_message(send_ir(kOtherId));
+  TEST_ASSERT_EQUAL(3, (int)rig->link.sent.size());
+  TEST_ASSERT_TRUE(rig->link.sent[1].find("BUSY") != std::string::npos);
+  TEST_ASSERT_TRUE(rig->link.sent[2].find("BUSY") != std::string::npos);
+  TEST_ASSERT_EQUAL(1, (int)rig->sender.sends.size());
+  rig->device->on_line("status");
+  TEST_ASSERT_TRUE(rig->console.printed("IR         self-test"));
 }

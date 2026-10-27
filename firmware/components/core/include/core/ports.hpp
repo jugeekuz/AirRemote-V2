@@ -3,8 +3,10 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 #include "core/commands.hpp"
+#include "core/ir_symbols.hpp"
 
 namespace core {
 
@@ -55,6 +57,13 @@ struct IrReceiver {
   // not: a part is reported only after it ends, so this tells Device that one
   // is still on the air.
   virtual int64_t last_activity_us() = 0;
+};
+
+// The IR transmitter. Reports back with Device::on_ir_sent once the code has
+// gone out (or failed).
+struct IrSender {
+  virtual ~IrSender() = default;
+  virtual void send(std::vector<IrSymbol> symbols) = 0;
 };
 
 enum class TimerId { WifiRetry, LinkRetry, PairingExpiry, IrSilence, IrDeadline };

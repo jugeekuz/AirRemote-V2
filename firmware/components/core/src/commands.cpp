@@ -10,6 +10,7 @@ const char *const kHelpLines[] = {
     "pair                    get a pairing code to enroll this device",
     "status                  what the device knows",
     "ir                      listen for one IR code and print it",
+    "ir selftest             send a test code from the LEDs and check it is heard",
     "help                    this list",
     nullptr,
 };
@@ -82,7 +83,14 @@ Command parse_command(std::string_view line) {
   if (name == "pair") return simple(Command::Kind::Pair, *tokens);
   if (name == "status") return simple(Command::Kind::Status, *tokens);
   if (name == "help") return simple(Command::Kind::Help, *tokens);
-  if (name == "ir") return simple(Command::Kind::Ir, *tokens);
+  if (name == "ir") {
+    if (tokens->size() == 2 && (*tokens)[1] == "selftest") {
+      Command command;
+      command.kind = Command::Kind::IrSelfTest;
+      return command;
+    }
+    return simple(Command::Kind::Ir, *tokens);
+  }
   if (name != "wifi") return invalid("unknown command: " + name + " — type help");
 
   if (tokens->size() < 2 || tokens->size() > 3) return invalid(kWifiUsage);

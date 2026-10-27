@@ -1,7 +1,9 @@
 #include "core/device.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 
+#include "core/ir_symbols.hpp"
 #include "core/protocol.hpp"
 #include "core/text.hpp"
 
@@ -26,6 +28,19 @@ std::string join(const std::vector<uint16_t> &values) {
 }
 
 }  // namespace
+
+const std::vector<uint16_t> &ir_self_test_code() {
+  static const std::vector<uint16_t> code = [] {
+    std::vector<uint16_t> c = {9000, 4500};
+    for (char bit : std::string("00100000010000001100000000111111")) {
+      c.push_back(560);
+      c.push_back(bit == '1' ? 1690 : 560);
+    }
+    c.push_back(560);
+    return c;
+  }();
+  return code;
+}
 
 Device::Device(DeviceInfo info, Ports ports, Timing timing)
     : info_(std::move(info)), ports_(ports), timing_(timing) {}
@@ -64,9 +79,19 @@ void Device::on_line(std::string_view line) {
     case Command::Kind::Pair:
       pair();
       return;
+    case Command::Kind::IrSelfTest:
+      if (ir_busy()) {
+        ports_.console.print("busy — already using IR");
+      } else {
+        ports_.console.print("IR self-test: sending a test code …");
+        start_read(Read::For::SelfTest, "", kConsoleReadMs);
+        send_ = Send{"", true};
+        ports_.ir_sender.send(to_ir_symbols(ir_self_test_code()));
+      }
+      return;
     case Command::Kind::Ir:
-      if (read_) {
-        ports_.console.print("busy — already reading an IR code");
+      if (ir_busy()) {
+        ports_.console.print("busy — already using IR");
       } else {
         ports_.console.print("listening for an IR code (10 s) …");
         start_read(Read::For::Console, "", kConsoleReadMs);
@@ -125,6 +150,7 @@ void Device::open_link() {
 
 void Device::drop_link() {
   if (read_ && read_->who == Read::For::Backend) end_read();
+  if (send_ && !send_->command_id.empty()) send_->reply = false;
   ports_.timers.cancel(TimerId::LinkRetry);
   if (backend_ == Backend::Connected || backend_ == Backend::Connecting) ports_.link.close();
   backend_ = Backend::Offline;
@@ -172,8 +198,10 @@ void Device::on_link_failed() {
 }
 
 void Device::on_link_closed() {
-  // The backend fails the command itself when a device disconnects.
+  // The backend fails the command itself when a device disconnects. A send in
+  // progress finishes, unanswered.
   if (read_ && read_->who == Read::For::Backend) end_read();
+  if (send_ && !send_->command_id.empty()) send_->reply = false;
   const bool was_connected = backend_ == Backend::Connected;
   backend_ = Backend::Offline;
   if (!wifi_up_) return;
@@ -192,16 +220,22 @@ void Device::on_link_message(std::string_view text) {
   }
   switch (message->type) {
     case ServerMessage::Type::ReadIr:
-      if (read_) {
-        ports_.link.send(encode_error("BUSY", message->command_id, "already reading an IR code"));
+      if (ir_busy()) {
+        ports_.link.send(encode_error("BUSY", message->command_id, "already using IR"));
       } else {
         start_read(Read::For::Backend, message->command_id,
                    message->timeout_ms ? message->timeout_ms : 15000);
       }
       return;
     case ServerMessage::Type::SendIr:
-      ports_.link.send(encode_error("INVALID_COMMAND", message->command_id,
-                                    "sending IR is not supported yet"));
+      if (ir_busy()) {
+        ports_.link.send(encode_error("BUSY", message->command_id, "already using IR"));
+      } else {
+        send_ = Send{message->command_id, true};
+        ports_.console.print("sending an IR code: " + std::to_string(message->timings.size()) +
+                             " timings");
+        ports_.ir_sender.send(to_ir_symbols(message->timings));
+      }
       return;
     case ServerMessage::Type::Error:
       ports_.console.print("server error " + message->code + ": " + message->message);
@@ -300,7 +334,9 @@ void Device::finish_code() {
     if (read_->deadline_passed) read_timed_out();
     return;
   }
-  if (read_->who == Read::For::Backend) {
+  if (read_->who == Read::For::SelfTest) {
+    self_test_result(result);
+  } else if (read_->who == Read::For::Backend) {
     if (result.kind == Kind::Code) {
       ports_.link.send(encode_read_ir_result(read_->command_id, result.timings));
       ports_.console.print("read an IR code: " + std::to_string(result.timings.size()) +
@@ -323,8 +359,56 @@ void Device::finish_code() {
   end_read();
 }
 
+void Device::on_ir_sent(bool ok) {
+  if (!send_) return;
+  const Send send = *send_;
+  send_.reset();
+  if (send.command_id.empty()) {
+    // The self-test: its read decides, unless nothing was sent at all.
+    if (!ok && read_ && read_->who == Read::For::SelfTest) {
+      ports_.console.print("IR self-test: FAILED — could not send");
+      end_read();
+    }
+    return;
+  }
+  if (!send.reply) return;
+  ports_.link.send(ok ? encode_send_ir_result(send.command_id)
+                      : encode_error("SEND_FAILED", send.command_id,
+                                     "the IR code could not be sent"));
+}
+
+// What the receiver heard against what was sent: each timing within 25% or
+// 200 µs, whichever is larger.
+void Device::self_test_result(const IrCapture::Result &result) {
+  const auto &sent = ir_self_test_code();
+  const std::string prefix = "IR self-test: ";
+  if (result.kind == IrCapture::Result::Kind::TooLong) {
+    ports_.console.print(prefix + "FAILED — heard a code that is too long");
+    return;
+  }
+  const auto &heard = result.timings;
+  if (heard.size() != sent.size()) {
+    ports_.console.print(prefix + "FAILED — sent " + std::to_string(sent.size()) +
+                         " timings, heard " + std::to_string(heard.size()));
+    return;
+  }
+  for (size_t i = 0; i < sent.size(); i++) {
+    const int tolerance = std::max<int>(sent[i] / 4, 200);
+    if (std::abs(int{heard[i]} - int{sent[i]}) > tolerance) {
+      ports_.console.print(prefix + "FAILED — timing " + std::to_string(i) + ": sent " +
+                           std::to_string(sent[i]) + " µs, heard " + std::to_string(heard[i]) +
+                           " µs");
+      return;
+    }
+  }
+  ports_.console.print(prefix + "OK (sent " + std::to_string(sent.size()) + " timings, heard " +
+                       std::to_string(heard.size()) + ")");
+}
+
 void Device::read_timed_out() {
-  if (read_->who == Read::For::Backend) {
+  if (read_->who == Read::For::SelfTest) {
+    ports_.console.print("IR self-test: FAILED — heard nothing");
+  } else if (read_->who == Read::For::Backend) {
     ports_.link.send(
         encode_error("READ_TIMEOUT", read_->command_id, "no IR code within the timeout"));
   } else {
@@ -385,10 +469,15 @@ void Device::print_status() {
   ports_.console.print("Wi-Fi      " + (wifi_ ? wifi_->ssid + (wifi_up_ ? " (connected)" : " (connecting)")
                                             : std::string("not set")));
   ports_.console.print("backend    " + backend_state());
-  ports_.console.print(std::string("IR         ") +
-                       (!read_ ? "idle"
-                        : read_->who == Read::For::Backend ? "reading (backend)"
-                                                           : "reading (console)"));
+  std::string ir = "idle";
+  if (read_ && read_->who == Read::For::SelfTest) {
+    ir = "self-test";
+  } else if (read_) {
+    ir = read_->who == Read::For::Backend ? "reading (backend)" : "reading (console)";
+  } else if (send_) {
+    ir = "sending";
+  }
+  ports_.console.print("IR         " + ir);
   if (code_) {
     const int64_t left = code_deadline_ms_ - ports_.timers.now_ms();
     ports_.console.print("pairing    " + group_pairing_code(*code_) + " (" +

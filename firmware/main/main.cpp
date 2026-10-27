@@ -26,6 +26,21 @@ extern const char server_ca_start[] asm("_binary_device_ca_crt_start");
 
 namespace {
 
+// Until the transmitter is wired in, every send fails.
+class NoIrSender : public core::IrSender {
+ public:
+  explicit NoIrSender(runtime::EventQueue &queue) : queue_(queue) {}
+  void attach(core::Device &device) { device_ = &device; }
+  void send(std::vector<core::IrSymbol>) override {
+    core::Device *device = device_;
+    queue_.post([device] { device->on_ir_sent(false); });
+  }
+
+ private:
+  runtime::EventQueue &queue_;
+  core::Device *device_ = nullptr;
+};
+
 // Settings only: unlike identity, nvs may be wiped when its layout is stale.
 void init_settings_storage() {
   esp_err_t err = nvs_flash_init();
@@ -80,15 +95,17 @@ extern "C" void app_main(void) {
   static runtime::FreeRtosTimers timers(queue);
   // The TSOP38238's output, as on V1's board.
   static board::RmtIrReceiver ir(GPIO_NUM_2, queue);
+  static NoIrSender ir_sender(queue);
   static core::Device device(
       core::DeviceInfo{esp_app_get_description()->version, mac_address(), identity.has_value(),
                        urls.has_value()},
-      core::Ports{console, wifi, settings, link, pairing, timers, ir});
+      core::Ports{console, wifi, settings, link, pairing, timers, ir, ir_sender});
   wifi.attach(device);
   link.attach(device);
   pairing.attach(device);
   timers.attach(device);
   ir.attach(device);
+  ir_sender.attach(device);
   ir.init();
   wifi.start();
 

@@ -36,6 +36,21 @@ extern "C" int64_t esp_timer_get_time(void) {
 
 namespace {
 
+// Until the transmitter is wired in, every send fails.
+class NoIrSender : public core::IrSender {
+ public:
+  explicit NoIrSender(runtime::EventQueue &queue) : queue_(queue) {}
+  void attach(core::Device &device) { device_ = &device; }
+  void send(std::vector<core::IrSymbol>) override {
+    core::Device *device = device_;
+    queue_.post([device] { device->on_ir_sent(false); });
+  }
+
+ private:
+  runtime::EventQueue &queue_;
+  core::Device *device_ = nullptr;
+};
+
 std::string env(const char *name) {
   const char *value = getenv(name);
   return value ? value : "";
@@ -103,16 +118,18 @@ extern "C" void app_main(void) {
   static connection::HttpPairingApi pairing(urls ? urls->pairing : "", tls, queue);
   static runtime::FreeRtosTimers timers(queue);
   static FileIrReceiver ir(env("AIRREMOTE_IR_FILE"), queue);
+  static NoIrSender ir_sender(queue);
 
   static core::Device device(
       core::DeviceInfo{AIRREMOTE_FIRMWARE_VERSION, env("AIRREMOTE_MAC"),
                        cert.has_value() && key.has_value(), urls.has_value() && ca.has_value()},
-      core::Ports{console, wifi, settings, link, pairing, timers, ir}, timing);
+      core::Ports{console, wifi, settings, link, pairing, timers, ir, ir_sender}, timing);
   wifi.attach(device);
   link.attach(device);
   pairing.attach(device);
   timers.attach(device);
   ir.attach(device);
+  ir_sender.attach(device);
 
   queue.post([] { device.start(); });
   runtime::start_console_reader(queue, device, isatty(fileno(stdin)) != 0);
