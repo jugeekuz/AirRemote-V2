@@ -49,7 +49,8 @@ export function plan(ctx) {
       },
     ],
     edits: [],
-    notes: [
+    notes: [],
+    hints: [
       `The ${camel} api uses placeholder schemas defined in ${api}/${kebab}.api.ts.`,
       `Replace them (and ${path}) with the schemas and types from @airremote/contracts once the backend defines them; the contract is the source of the types.`,
       `Call the queries and mutations from hooks (src/hooks) or screens; they don't know about stores or the UI.`,

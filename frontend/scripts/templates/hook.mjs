@@ -24,6 +24,7 @@ export function plan(ctx) {
       ? [appendLine(`${layer}/index.ts`, `export * from './${file}';`)]
       : [],
     notes: [],
+    hints: [],
   };
 }
 

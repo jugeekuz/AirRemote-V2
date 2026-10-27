@@ -282,14 +282,61 @@ describe('create-new', () => {
       'helpers',
       'utils',
       'constants',
-      'screens',
     ]) {
       expect(exists(`${base}/${folder}/.gitkeep`)).toBe(true);
     }
     expect(exists(`${base}/navigation/pairing-navigator.tsx`)).toBe(true);
-    expect(JSON.parse(read(`${base}/i18n/locales/en/pairing.json`))).toEqual(
-      {},
+  });
+
+  it('gives a new module a starter screen that its navigator renders', () => {
+    const { stdout } = runOk(['module', 'pairing-flow']);
+
+    const base = 'src/modules/pairing-flow';
+    const screens = `${base}/screens/pairing-flow-screen`;
+    expect(exists(`${screens}/pairing-flow-screen.tsx`)).toBe(true);
+    expect(exists(`${screens}/pairing-flow-screen.test.tsx`)).toBe(true);
+    expect(read(`${screens}/index.ts`)).toBe(
+      "export { default } from './pairing-flow-screen';\n",
     );
+    expect(
+      JSON.parse(read(`${base}/i18n/locales/en/pairing-flow.json`)),
+    ).toEqual({ 'pairing-flow': { title: 'Pairing flow' } });
+
+    const navigator = read(`${base}/navigation/pairing-flow-navigator.tsx`);
+    expect(navigator).toContain(
+      "import PairingFlowScreen from '@modules/pairing-flow/screens/pairing-flow-screen';",
+    );
+    expect(navigator).toContain('<Stack.Navigator');
+    expect(navigator).toContain('component={PairingFlowScreen}');
+    expect(navigator).toContain("useTranslation('pairing-flow')");
+    expect(navigator).not.toContain(
+      '<Stack.Navigator screenOptions={{ headerShown: false }} />',
+    );
+
+    expect(stdout).toContain(
+      'export type PairingFlowStackParamList = { PairingFlow: undefined };',
+    );
+  });
+
+  it('separates the lines to add by hand from the advice', () => {
+    const { stdout } = runOk(['module', 'pairing']);
+
+    const [required = '', advice = ''] = stdout.split('Next:');
+    expect(required).toContain('Add by hand:');
+    expect(required).toContain('src/i18n/resources.ts');
+    expect(required).not.toContain('create-new screen');
+    expect(advice).toContain('create-new screen <Name> --module pairing');
+  });
+
+  it('suggests formatting only the files prettier can format', () => {
+    const { stdout } = runOk(['module', 'pairing']);
+
+    const command = stdout
+      .split('\n')
+      .find((line) => line.includes('prettier --write'));
+    expect(command).toContain('pairing-screen.tsx');
+    expect(command).toContain('pairing.json');
+    expect(command).not.toContain('.gitkeep');
   });
 
   it('gives a screen its title in the module namespace', () => {

@@ -9,10 +9,7 @@ import { addScreenTitle, layerAlias, layerDir, toNames } from './shared.mjs';
  * @returns {import('./shared.mjs').Plan}
  */
 export function plan(ctx) {
-  const base = ctx.names.kebab.replace(/(?<=.)-screen$/, '');
-  const { pascal, words } = toNames(base, 'screen name');
-  const file = `${base}-screen`;
-  const component = `${pascal}Screen`;
+  const { base, pascal, words, file, component } = screenNames(ctx.names.kebab);
   const namespace = ctx.module ?? 'screens';
   const dir = `${layerDir(ctx, 'screens')}/${file}`;
   const i18nFile = ctx.module
@@ -46,8 +43,24 @@ export function plan(ctx) {
       `  (t comes from useTranslation('${namespace}'))`,
       `Add the route to that stack's param list in src/types/navigation.types.ts:`,
       `  ${pascal}: undefined;`,
-      `To open it from a URL, add it to src/navigation/linking.ts.`,
     ],
+    hints: ['To open it from a URL, add it to src/navigation/linking.ts.'],
+  };
+}
+
+/**
+ * The names a screen goes by.
+ * @param {string} kebab the name given, in kebab-case
+ */
+export function screenNames(kebab) {
+  const base = kebab.replace(/(?<=.)-screen$/, '');
+  const { pascal, words } = toNames(base, 'screen name');
+  return {
+    base,
+    pascal,
+    words,
+    file: `${base}-screen`,
+    component: `${pascal}Screen`,
   };
 }
 

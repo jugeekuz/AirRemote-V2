@@ -39,7 +39,8 @@ export function plan(ctx) {
       },
     ],
     edits: [],
-    notes: [
+    notes: [],
+    hints: [
       `If ${camel}Store holds data of the signed-in user, call ${camel}Store.reset() in authStore.signOut (src/stores/auth/auth.store.ts).`,
     ],
   };

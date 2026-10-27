@@ -33,7 +33,8 @@ export class GeneratorError extends Error {}
  * @typedef {object} Plan
  * @property {{ path: string, content: string }[]} files  new files; the run fails if one exists
  * @property {Edit[]} edits  changes to files that may exist already
- * @property {string[]} notes  what the user must add by hand
+ * @property {string[]} notes  lines the user must add by hand for the code to compile
+ * @property {string[]} hints  advice that is not required
  */
 
 const PASCAL = /^[A-Z][A-Za-z0-9]*$/;
@@ -161,5 +162,5 @@ export function addScreenTitle(path, key, title) {
 
 /** @returns {Plan} */
 export function emptyPlan() {
-  return { files: [], edits: [], notes: [] };
+  return { files: [], edits: [], notes: [], hints: [] };
 }

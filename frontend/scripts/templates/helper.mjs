@@ -31,6 +31,7 @@ export function plan(ctx) {
     ],
     edits: [],
     notes: [],
+    hints: [],
   };
 }
 

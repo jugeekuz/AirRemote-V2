@@ -63,9 +63,10 @@ is not persisted unless flagged. Run it from frontend/.`;
  * Writes the files of one new thing. Everything is checked before anything is
  * written, so a refusal leaves the project as it was.
  * @param {GenerateOptions} options
- * @returns {{ files: string[], updated: string[], notes: string[] }}
+ * @returns {{ files: string[], updated: string[], notes: string[], hints: string[] }}
  *   `files` are the new files and `updated` the existing files that changed,
- *   both relative to `root`; `notes` are the lines to add by hand.
+ *   both relative to `root`; `notes` are the lines to add by hand
+ *   for the code to compile and `hints` further advice.
  */
 export function generate({
   kind,
@@ -107,7 +108,7 @@ export function generate({
   if (kind === 'domain') {
     const contract = `../packages/contracts/src/${names.kebab}`;
     if (fs.existsSync(path.join(root, contract))) {
-      plan.notes.unshift(
+      plan.hints.unshift(
         `A contract exists at packages/contracts/src/${names.kebab}: use its schemas instead of the placeholders.`,
       );
     }
@@ -146,6 +147,7 @@ export function generate({
     files: [...created],
     updated: [...updated],
     notes: plan.notes,
+    hints: plan.hints,
   };
 }
 
@@ -288,7 +290,7 @@ async function main(argv) {
   }
   const args = await promptForMissing(parsed);
   const root = path.resolve(args.root ?? process.cwd());
-  const { files, updated, notes } = generate({
+  const { files, updated, notes, hints } = generate({
     kind: args.kind ?? '',
     name: args.name ?? '',
     module: args.module,
@@ -302,15 +304,23 @@ async function main(argv) {
   for (const file of updated) {
     console.log(`${styleText('cyan', 'updated')} ${file}`);
   }
-  if (files.length > 0) {
-    console.log(
-      `\nLong names can need wrapping: pnpm exec prettier --write ${files.join(' ')}`,
-    );
-  }
+  const formattable = files.filter((file) => /\.(tsx?|json)$/.test(file));
   if (notes.length > 0) {
     console.log(`\n${styleText('yellow', 'Add by hand:')}`);
     for (const note of notes) {
       console.log(note);
+    }
+  }
+  const next = [...hints];
+  if (formattable.length > 0) {
+    next.push(
+      `Long names can need wrapping: pnpm exec prettier --write ${formattable.join(' ')}`,
+    );
+  }
+  if (next.length > 0) {
+    console.log(`\n${styleText('cyan', 'Next:')}`);
+    for (const hint of next) {
+      console.log(hint);
     }
   }
 }
