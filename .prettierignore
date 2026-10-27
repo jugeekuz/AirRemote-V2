@@ -3,6 +3,8 @@ frontend/android
 frontend/ios
 frontend/.expo
 frontend/web-build
+frontend/src/ui/heroui
+frontend/src/ui/uniwind-types.d.ts
 dist/
 pnpm-lock.yaml
 packages/db/migrations/

@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+@import './heroui/styles/index.css';
+
+/* Scan the kit and the app code for class names. */
+@source './heroui';
+@source '..';

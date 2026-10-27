@@ -1,0 +1,253 @@
+import type { ReactNode } from 'react';
+import type { StyleProp, TextProps, ViewProps, ViewStyle } from 'react-native';
+import type { SharedValue } from 'react-native-reanimated';
+import type {
+  AnimationRootDisableAll,
+  PopupDialogContentAnimation,
+  PopupOverlayAnimation,
+  PopupOverlayBlurViewProps,
+  PopupOverlayVariant,
+} from '../../helpers/internal/types';
+import type * as DialogPrimitivesTypes from '../../primitives/dialog/dialog.types';
+import type { CloseButtonProps } from '../close-button/close-button.types';
+
+/**
+ * Props for the Dialog.ContentBackground sub-component.
+ * Generic absolute-fill container behind the dialog content. When no
+ * `children` are given, the active library theme decides the default
+ * content (e.g. a frosted-glass blur layer when the theme is `glass`).
+ */
+export type DialogContentBackgroundProps = ViewProps & {
+  /** Additional CSS classes */
+  className?: string;
+};
+
+/**
+ * Dialog internal state for animation coordination
+ */
+export type DialogState = 'idle' | 'open' | 'close';
+
+/**
+ * Context value for dialog animation state
+ */
+export interface DialogAnimationContextValue {
+  /** Animation progress shared value (0=idle, 1=open, 2=close) */
+  progress: SharedValue<number>;
+  /** Dragging state shared value */
+  isDragging: SharedValue<boolean>;
+  /** Gesture release animation running state shared value */
+  isGestureReleaseAnimationRunning: SharedValue<boolean>;
+}
+
+/**
+ * Dialog Root component props
+ */
+export interface DialogRootProps extends DialogPrimitivesTypes.RootProps {
+  /**
+   * The content of the dialog
+   */
+  children?: ReactNode;
+  /**
+   * Animation configuration for dialog root
+   * - `"disable-all"`: Disable all animations including children
+   * - `false` or `"disabled"`: Disable only root animations
+   * - `true` or `undefined`: Use default animations
+   */
+  animation?: AnimationRootDisableAll;
+}
+
+/**
+ * Dialog Trigger component props
+ */
+export interface DialogTriggerProps extends DialogPrimitivesTypes.TriggerProps {
+  /**
+   * The trigger element content
+   */
+  children?: ReactNode;
+}
+
+/**
+ * Dialog Portal component props
+ */
+export interface DialogPortalProps extends DialogPrimitivesTypes.PortalProps {
+  /**
+   * When true, uses a regular View instead of FullWindowOverlay on iOS.
+   * Enables React Native element inspector but overlay won't appear above native modals.
+   * @default false
+   */
+  disableFullWindowOverlay?: boolean;
+  /**
+   * Controls whether VoiceOver treats the overlay window as a modal container.
+   * When `false`, VoiceOver can still access elements behind the overlay.
+   * When `true`, VoiceOver is restricted to elements inside the overlay.
+   * @default false
+   * @platform ios
+   * @unstable This prop maps directly to the native `accessibilityViewIsModal`
+   * on the container view and may change in a future react-native-screens release.
+   */
+  unstable_accessibilityContainerViewIsModal?: boolean;
+  /**
+   * Additional CSS class for the portal container
+   */
+  className?: string;
+  /**
+   * Additional style for the portal container
+   */
+  style?: StyleProp<ViewStyle>;
+  /**
+   * The portal content
+   */
+  children: ReactNode;
+}
+
+/**
+ * Animation configuration for Dialog Overlay component
+ */
+export type DialogOverlayAnimation = PopupOverlayAnimation;
+
+/**
+ * Visual variant of the Dialog Overlay component
+ */
+export type DialogOverlayVariant = PopupOverlayVariant;
+
+/**
+ * Props forwarded to the BlurView rendered by the `blur` overlay variant
+ */
+export type DialogOverlayBlurViewProps = PopupOverlayBlurViewProps;
+
+/**
+ * Dialog Overlay component props
+ */
+export interface DialogOverlayProps
+  extends Omit<DialogPrimitivesTypes.OverlayProps, 'asChild'> {
+  /**
+   * Additional CSS class for the overlay
+   *
+   * @note The following style properties are occupied by animations and cannot be set via className:
+   * - `opacity` - Animated for overlay show/hide transitions (idle: 0, open: 1, close: 0)
+   *
+   * To customize this property, use the `animation` prop:
+   * ```tsx
+   * <Dialog.Overlay
+   *   animation={{
+   *     opacity: { value: [0, 1, 0] }
+   *   }}
+   * />
+   * ```
+   *
+   * To completely disable animated styles and use your own via className or style prop, set `isAnimatedStyleActive={false}`.
+   */
+  className?: string;
+  /**
+   * Animation configuration for overlay
+   * - `false` or `"disabled"`: Disable all animations
+   * - `true` or `undefined`: Use default animations
+   * - `object`: Custom animation configuration
+   */
+  animation?: DialogOverlayAnimation;
+  /**
+   * Whether animated styles (react-native-reanimated) are active
+   * When `false`, the animated style is removed and you can implement custom logic
+   * This prop should only be used when you want to write custom styling logic instead of the default animated styles
+   * @default true for the `default` variant, false for the `blur` variant (the animated blur intensity replaces the opacity animation)
+   */
+  isAnimatedStyleActive?: boolean;
+  /**
+   * Visual variant of the overlay
+   * - `default`: solid backdrop colored by the `--color-backdrop` token
+   * - `blur`: blur backdrop (iOS only, requires expo-blur; falls back to `default` otherwise)
+   * @default 'blur' when the library theme is `glass`, otherwise 'default'
+   */
+  variant?: DialogOverlayVariant;
+  /**
+   * Props forwarded to the BlurView rendered by the `blur` variant.
+   * `intensity` is treated as the maximum (animated) blur intensity.
+   */
+  blurViewProps?: DialogOverlayBlurViewProps;
+}
+
+/**
+ * Animation configuration for Dialog Content component
+ * Reuses PopupDialogContentAnimation since they share the same animation behavior
+ */
+export type DialogContentAnimation = PopupDialogContentAnimation;
+
+/**
+ * Dialog Content component props
+ */
+export interface DialogContentProps
+  extends Omit<DialogPrimitivesTypes.ContentProps, 'asChild'> {
+  /**
+   * Additional CSS class for the content container
+   *
+   * @note The following style properties are occupied by animations and cannot be set via className:
+   * - `opacity` - Animated for content show/hide transitions (idle: 0, open: 1, close: 0)
+   * - `transform` (specifically `scale`) - Animated for content show/hide transitions (idle: 0.97, open: 1, close: 0.97)
+   *
+   * To customize these properties, use the `animation` prop:
+   * ```tsx
+   * <Dialog.Content
+   *   animation={{
+   *     opacity: { value: [0, 1, 0] },
+   *     scale: { value: [0.97, 1, 0.97] }
+   *   }}
+   * />
+   * ```
+   *
+   * To completely disable animated styles and use your own via className or style prop, set `isAnimatedStyleActive={false}`.
+   */
+  className?: string;
+  /**
+   * The dialog content
+   */
+  children?: ReactNode;
+  /**
+   * Background layer rendered behind the dialog content.
+   * - `undefined` (default): renders `Dialog.ContentBackground`, whose
+   *   content is decided by the active library theme
+   * - custom node: replaces the default layer entirely (wrap content in
+   *   `Dialog.ContentBackground` to keep the absolute-fill and clipping)
+   * - `null`: removes the background layer
+   */
+  background?: ReactNode;
+  /**
+   * Animation configuration for content
+   * - `false` or `"disabled"`: Disable all animations
+   * - `true` or `undefined`: Use default animations
+   * - `object`: Custom animation configuration
+   */
+  animation?: DialogContentAnimation;
+  /**
+   * Whether the dialog content can be swiped to dismiss
+   * @default true
+   */
+  isSwipeable?: boolean;
+}
+
+/**
+ * Dialog Close component props
+ *
+ * Extends CloseButtonProps, allowing full override of all close button props.
+ * Automatically handles dialog close functionality when pressed.
+ */
+export type DialogCloseProps = CloseButtonProps;
+
+/**
+ * Dialog Title component props
+ */
+export interface DialogTitleProps extends TextProps {
+  /**
+   * Additional CSS class for the title
+   */
+  className?: string;
+}
+
+/**
+ * Dialog Description component props
+ */
+export interface DialogDescriptionProps extends TextProps {
+  /**
+   * Additional CSS class for the description
+   */
+  className?: string;
+}

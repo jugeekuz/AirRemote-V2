@@ -16,6 +16,8 @@ export default tseslint.config(
       'frontend/ios/**',
       'frontend/web-build/**',
       'frontend/coverage/**',
+      'frontend/src/ui/heroui/**',
+      'frontend/src/ui/uniwind-types.d.ts',
     ],
   },
   js.configs.recommended,
@@ -75,8 +77,8 @@ export default tseslint.config(
     },
   },
   {
-    // Expo's Metro, Babel and Jest configs are CommonJS.
-    files: ['frontend/*.config.js'],
+    // Expo's Metro, Babel and Jest configs (and Jest's resolver) are CommonJS.
+    files: ['frontend/*.config.js', 'frontend/jest.resolver.js'],
     languageOptions: {
       sourceType: 'commonjs',
       globals: {
