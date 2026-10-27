@@ -27,6 +27,11 @@ export type DevicesService = {
   enroll(userId: string, input: EnrollDeviceRequest): Promise<DeviceResponse>;
   /** The user's devices, by name ignoring case. */
   list(userId: string): Promise<DeviceResponse[]>;
+  /** What the device said it runs, from its `hello`. */
+  recordFirmwareVersion(
+    deviceId: string,
+    firmwareVersion: string,
+  ): Promise<void>;
 };
 
 const alreadyRegistered = () =>
@@ -109,6 +114,10 @@ export function createDevicesService({
         macAddress,
         name,
       }));
+    },
+
+    async recordFirmwareVersion(deviceId, firmwareVersion) {
+      await repository.setFirmwareVersion(deviceId, firmwareVersion);
     },
   };
 }

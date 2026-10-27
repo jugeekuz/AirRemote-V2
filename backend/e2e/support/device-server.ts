@@ -60,6 +60,7 @@ export function fakeDevicesService(
     issuePairingCode: unexpected('issuePairingCode'),
     enroll: unexpected('enroll'),
     list: unexpected('list'),
+    recordFirmwareVersion: unexpected('recordFirmwareVersion'),
     ...methods,
   };
 }

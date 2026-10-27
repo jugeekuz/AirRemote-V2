@@ -43,6 +43,13 @@
       "when": 1793045075327,
       "tag": "0005_device_command_send_ir",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793101296427,
+      "tag": "0006_device_firmware_version",
+      "breakpoints": true
     }
   ]
 }

@@ -42,6 +42,9 @@ async function appWith(enroll: DevicesService['enroll']) {
       issuePairingCode: async () => {
         throw new Error('not expected');
       },
+      recordFirmwareVersion: async () => {
+        throw new Error('not expected');
+      },
       enroll: async (userId, input) => {
         received.push([userId, input]);
         return enroll(userId, input);

@@ -10,6 +10,8 @@ export const devices = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     macAddress: macaddr('mac_address').notNull().unique(),
     name: text('name').notNull(),
+    /** What the device last said it runs, in its `hello`; null until then. */
+    firmwareVersion: text('firmware_version'),
   },
   (table) => [index('devices_user_id_idx').on(table.userId)],
 );

@@ -10,6 +10,7 @@ const device: Device = {
   userId: '6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11',
   macAddress: 'aa:bb:cc:dd:ee:01',
   name: 'Living room',
+  firmwareVersion: '0.1.0',
 };
 
 const secret = 'test-pairing-secret-0123456789abcdef';
@@ -29,6 +30,7 @@ function serviceWith({
     savePairingCode: vi.fn(async () => {}),
     enroll: vi.fn(enrolled),
     listForUser: vi.fn(listed),
+    setFirmwareVersion: vi.fn(async () => {}),
   };
   const service = createDevicesService({
     repository: repository satisfies DevicesRepository,
@@ -169,7 +171,7 @@ describe('devices service: enroll', () => {
 });
 
 describe('devices service: list', () => {
-  it('returns the user’s devices without their owner', async () => {
+  it('returns the user’s devices without their owner or firmware version', async () => {
     const { service, repository } = serviceWith();
 
     await expect(service.list(device.userId)).resolves.toEqual([
@@ -183,5 +185,18 @@ describe('devices service: list', () => {
   it('returns an empty list when there are none', async () => {
     const { service } = serviceWith({ listed: async () => [] });
     await expect(service.list(device.userId)).resolves.toEqual([]);
+  });
+});
+
+describe('devices service: recordFirmwareVersion', () => {
+  it('stores the version the device said hello with', async () => {
+    const { service, repository } = serviceWith();
+
+    await service.recordFirmwareVersion(device.id, '0.2.0');
+
+    expect(repository.setFirmwareVersion).toHaveBeenCalledExactlyOnceWith(
+      device.id,
+      '0.2.0',
+    );
   });
 });

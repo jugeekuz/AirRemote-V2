@@ -225,3 +225,48 @@ describe('devices repository: pairing and enrollment', () => {
     ]);
   });
 });
+
+describe('devices repository: setFirmwareVersion', () => {
+  async function firmwareVersions() {
+    const rows = await testDb.db.select().from(devices);
+    return Object.fromEntries(rows.map((row) => [row.id, row.firmwareVersion]));
+  }
+
+  it('starts without a version', async () => {
+    expect(await firmwareVersions()).toEqual({ [deviceId]: null });
+  });
+
+  it('stores the version, and a later one replaces it', async () => {
+    const repository = createDevicesRepository(testDb.db);
+    await repository.setFirmwareVersion(deviceId, '0.1.0');
+    await repository.setFirmwareVersion(deviceId, '0.2.0-beta.1');
+    expect(await firmwareVersions()).toEqual({ [deviceId]: '0.2.0-beta.1' });
+  });
+
+  it('leaves other devices alone', async () => {
+    const [other] = await testDb.db
+      .insert(devices)
+      .values({
+        userId: await insertUser('maria@example.com'),
+        macAddress: 'aa:bb:cc:dd:ee:09',
+        name: 'Kitchen',
+      })
+      .returning();
+    await createDevicesRepository(testDb.db).setFirmwareVersion(
+      deviceId,
+      '0.1.0',
+    );
+    expect(await firmwareVersions()).toEqual({
+      [deviceId]: '0.1.0',
+      [other!.id]: null,
+    });
+  });
+
+  it('does nothing for an unknown device', async () => {
+    await createDevicesRepository(testDb.db).setFirmwareVersion(
+      '00000000-0000-4000-8000-000000000000',
+      '0.1.0',
+    );
+    expect(await firmwareVersions()).toEqual({ [deviceId]: null });
+  });
+});

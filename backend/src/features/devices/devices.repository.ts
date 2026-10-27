@@ -23,6 +23,8 @@ export type DevicesRepository = {
    * Consumes a live pairing code and creates the device, in one transaction:
    * when the device cannot be created, the code is left unused.
    */
+  /** A device deleted in the meantime is a no-op. */
+  setFirmwareVersion(deviceId: string, firmwareVersion: string): Promise<void>;
   enroll(input: {
     macAddress: string;
     codeHash: string;
@@ -58,6 +60,13 @@ export function createDevicesRepository(db: Database): DevicesRepository {
           target: pairingCodes.macAddress,
           set: { codeHash: code.codeHash, expiresAt: code.expiresAt },
         });
+    },
+
+    async setFirmwareVersion(deviceId, firmwareVersion) {
+      await db
+        .update(devices)
+        .set({ firmwareVersion })
+        .where(eq(devices.id, deviceId));
     },
 
     async enroll({ macAddress, codeHash, now, userId, name }) {
