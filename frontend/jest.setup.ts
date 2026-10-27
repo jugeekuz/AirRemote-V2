@@ -67,13 +67,30 @@ jest.mock('react-i18next', () => ({
 
 // Jest has no compiled CSS (Metro's Uniwind transformer makes it), so give
 // the theme variables the kit reads from JavaScript their stylesheet values
-// (heroui/styles/theme.css and variables.css, with `var()`s resolved; both
-// themes use the same accent). Button reads `--color-accent-hover`.
-const ACCENT_HOVER =
-  'color-mix(in oklab, oklch(0.6204 0.195 253.83) 90%, oklch(0.9911 0 0) 10%)';
+// (heroui/styles/theme.css and variables.css, with `var()`s resolved). Button
+// reads the four hover colours below.
+const SNOW = 'oklch(0.9911 0 0)';
+const ECLIPSE = 'oklch(0.2103 0.0059 285.89)';
+const ACCENT = 'oklch(0.6204 0.195 253.83)';
+const THEME_DEFAULTS = {
+  light: {
+    default: 'oklch(94% 0.001 286.375)',
+    foreground: ECLIPSE,
+    danger: 'oklch(0.6532 0.2328 25.74)',
+  },
+  dark: {
+    default: 'oklch(27.4% 0.006 286.033)',
+    foreground: SNOW,
+    danger: 'oklch(0.594 0.1967 24.63)',
+  },
+} as const;
 for (const theme of ['light', 'dark'] as const) {
+  const colors = THEME_DEFAULTS[theme];
   Uniwind.updateCSSVariables(theme, {
     '--theme': 'default',
-    '--color-accent-hover': ACCENT_HOVER,
+    '--color-accent-hover': `color-mix(in oklab, ${ACCENT} 90%, ${SNOW} 10%)`,
+    '--color-default-hover': `color-mix(in oklab, ${colors.default} 96%, ${colors.foreground} 4%)`,
+    '--color-danger-hover': `color-mix(in oklab, ${colors.danger} 90%, ${SNOW} 10%)`,
+    '--color-danger-soft-hover': `color-mix(in oklab, ${colors.danger} 20%, transparent)`,
   });
 }
