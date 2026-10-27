@@ -117,11 +117,20 @@ mac="$(grep -oE 'MAC:[[:space:]]+([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}' "$tmp/out" 
 in_idf 'reading the identity partition' \
   esptool read-flash "$offset" "$size" "$rel/before.bin"
 # ESP-IDF's parser can crash on another firmware's leftovers. An identity this
-# script wrote always parses, so a region it can't read holds none.
+# script wrote always parses, so a region it crashes on holds none: but only a
+# crash of the parser itself (a Python traceback) says that, and only if the
+# region doesn't even contain the namespace name. Anything else (the container
+# not starting, the tool missing) could hide an identity, so it stops.
 if ! "$idf" exec bash -c \
   "python \"\$IDF_PATH/components/nvs_flash/nvs_partition_tool/nvs_tool.py\" \
     -f json -d minimal $rel/before.bin > $rel/before.json" >"$tmp/out" 2>&1; then
-  echo '[]' >"$tmp/before.json"
+  if grep -q '^Traceback' "$tmp/out" && ! grep -aq identity "$tmp/before.bin"; then
+    echo 'provision-device: the identity partition holds no NVS data; treating it as empty' >&2
+    echo '[]' >"$tmp/before.json"
+  else
+    cat "$tmp/out" >&2
+    fail 'could not read the identity partition (see above); nothing was changed'
+  fi
 fi
 # Blank flash or another firmware's leftovers parse to no identity entries.
 has_identity="$(python3 - "$tmp/before.json" "$tmp/existing.crt" <<'EOF'

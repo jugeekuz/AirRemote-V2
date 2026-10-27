@@ -343,4 +343,21 @@ describe('scripts/provision-device.sh', () => {
     },
     TIMEOUT_MS,
   );
+
+  it(
+    'refuses when the NVS parser could not run at all, rather than replace an identity',
+    async () => {
+      await provision();
+      const record = await readFile(join(caDir, `${RECORD}.crt`));
+      const before = await readFile(flash);
+
+      const result = await provision([], { FAKE_PARSE_FAILS: '1' });
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain('could not read the identity partition');
+      expect(await readFile(flash)).toEqual(before);
+      expect(await readFile(join(caDir, `${RECORD}.crt`))).toEqual(record);
+    },
+    TIMEOUT_MS,
+  );
 });

@@ -1,7 +1,5 @@
 #include "board/ir_sender.hpp"
 
-#include <numeric>
-
 #include "esp_log.h"
 #include "freertos/task.h"
 
@@ -76,9 +74,14 @@ void RmtIrSender::run(void *self) {
     bool ok = !words.empty() &&
               rmt_transmit(sender->channel_, sender->encoder_, words.data(),
                            words.size() * sizeof(rmt_symbol_word_t), &transmit) == ESP_OK;
-    if (ok) {
-      ok = rmt_tx_wait_all_done(sender->channel_, static_cast<int>(total_us / 1000) + 1000) ==
-           ESP_OK;
+    if (ok && rmt_tx_wait_all_done(sender->channel_, static_cast<int>(total_us / 1000) + 1000) !=
+                  ESP_OK) {
+      // Still sending after its length plus a second: abort it before `words`
+      // (which the RMT refills from) goes away; disabling also turns the LEDs
+      // off, and enabling again leaves the channel ready for the next code.
+      ok = false;
+      rmt_disable(sender->channel_);
+      rmt_enable(sender->channel_);
     }
     if (!ok) ESP_LOGE(TAG, "could not send the IR code");
     core::Device *device = sender->device_;

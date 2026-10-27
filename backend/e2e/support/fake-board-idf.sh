@@ -7,6 +7,8 @@
 #   FAKE_FLASH             the identity partition's bytes
 #   FAKE_MAC               what read-mac reports, e.g. aa:bb:cc:dd:ee:07
 #   FAKE_CORRUPT_READBACK  1: a read after a write returns flipped bytes
+#   FAKE_PARSE_FAILS       1: running ESP-IDF's NVS parser fails (as a broken
+#                          container or a moved tool would), without a traceback
 set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -53,6 +55,11 @@ open(sys.argv[2], "wb").write(bytes(b ^ 0xFF for b in data))' "$FAKE_FLASH" "$fi
       ;;
   esac
   exit 0
+fi
+
+if [[ "${FAKE_PARSE_FAILS:-}" == 1 && "$*" == *nvs_tool.py* ]]; then
+  echo 'fake board: the container could not start' >&2
+  exit 125
 fi
 
 ESPPORT=/nonexistent exec "$firmware/scripts/idf.sh" "$@"
