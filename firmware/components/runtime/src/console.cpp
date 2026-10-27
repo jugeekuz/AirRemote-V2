@@ -3,7 +3,6 @@
 #include <cstdio>
 #include <string>
 
-#include <unistd.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -16,6 +15,7 @@ namespace {
 struct ReaderArgs {
   EventQueue *queue;
   core::Device *device;
+  bool line_editing;
 };
 
 void post_line(ReaderArgs *args, std::string text) {
@@ -26,7 +26,7 @@ void post_line(ReaderArgs *args, std::string text) {
 
 void read_lines(void *arg) {
   auto *args = static_cast<ReaderArgs *>(arg);
-  if (!isatty(fileno(stdin))) {
+  if (!args->line_editing) {
     // A pipe (the e2e tests): plain lines, no echo, no escape sequences.
     char buffer[512];
     for (;;) {
@@ -58,9 +58,9 @@ void StdoutConsole::print(std::string_view line) {
   fflush(stdout);
 }
 
-void start_console_reader(EventQueue &queue, core::Device &device) {
+void start_console_reader(EventQueue &queue, core::Device &device, bool line_editing) {
   static ReaderArgs args;
-  args = ReaderArgs{&queue, &device};
+  args = ReaderArgs{&queue, &device, line_editing};
   xTaskCreate(read_lines, "console", 6144, &args, 5, nullptr);
 }
 

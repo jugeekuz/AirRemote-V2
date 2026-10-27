@@ -1,8 +1,42 @@
 # AirRemote firmware
 
-The V2 firmware for the AirRemote board: ESP-IDF in C++. It has no features
-yet. The design is in
-`docs/superpowers/specs/2026-10-27-firmware-scaffold-design.md`.
+The V2 firmware for the AirRemote board: ESP-IDF in C++. It joins Wi-Fi,
+connects to the backend's device listener over mTLS, gets enrolled, and says
+`hello`. IR is not there yet: it answers IR commands with `INVALID_COMMAND`.
+Everything a person does with it goes through the serial console. The designs
+are in `docs/superpowers/specs/2026-10-27-firmware-*-design.md`.
+
+## Setting up a board
+
+From the repository root, with Docker running and the board on USB:
+
+1. `scripts/dev-certs.sh --host <your LAN IP>`: the dev CA, and a server
+   certificate the board accepts at that address. Put the printed
+   `DEVICE_TLS_*` lines in `.env` and start (or restart) `pnpm dev`.
+2. `echo https://<your LAN IP>:8443 > firmware/backend-url.txt` (git-ignored).
+3. `firmware/scripts/idf.sh build flash`, then
+   `scripts/provision-device.sh` once per board.
+4. `firmware/scripts/idf.sh monitor` and type on the console:
+   - `wifi <ssid> <password>` (quote values with spaces); it is kept in `nvs`
+     and used after every reboot;
+   - `pair` when it says `not enrolled — type: pair`; it prints a pairing
+     code, valid 15 minutes;
+   - enroll it with that code: `POST /devices` as its owner
+     (`backend/README.md`, "Enrolling a device");
+   - it prints `connected` within seconds, then reconnects by itself after a
+     reboot, a lost Wi-Fi or a backend restart.
+
+## The console
+
+| Command                  | Does                                               |
+| ------------------------ | -------------------------------------------------- |
+| `wifi <ssid> [password]` | saves the network and joins it (empty password: open network) |
+| `pair`                   | asks the backend for one pairing code and prints it |
+| `status`                 | firmware, MAC, identity, Wi-Fi, backend, pending code |
+| `help`                   | lists these                                        |
+
+The board never asks for a pairing code by itself. Not enrolled, it retries
+the connection every 30 s; after `pair`, every 5 s until the code expires.
 
 ## Prerequisites
 
@@ -19,14 +53,28 @@ Run them from `firmware/`.
 ```bash
 scripts/idf.sh build                     # build the image
 scripts/idf.sh flash monitor             # flash it, then show the log (Ctrl+] quits)
-scripts/test.sh                          # core's include check, then every host test
+scripts/test.sh                          # core's include check, host tests, Linux build
 scripts/idf.sh exec esptool chip-id      # chip type, revision and MAC
 scripts/idf.sh exec esptool flash-id     # flash size
 ```
 
 `scripts/idf.sh <args>` runs `idf.py <args>`. `scripts/idf.sh exec <command>`
 runs any command in the container.
-`idf.py monitor` needs a terminal; in a script, read the port another way.
+`idf.py monitor` needs a terminal. `IDF_DOCKER_ARGS` adds `docker run`
+options (the e2e tests use it for host networking).
+
+The build embeds `certs/device-ca.crt`, which `idf.sh` mounts read-only (only
+that file, never the keys next to it), and reads `backend-url.txt`. Without
+the CA the build stops; without the URL the board says so instead of
+connecting.
+
+## The Linux build and its tests
+
+`linux/` builds the same `core`, `runtime` and `connection` as a Linux
+program, with stand-ins for Wi-Fi (always up), settings (in memory) and the
+identity (files). `pnpm test:firmware` (repository root) builds it once and
+runs `e2e/*.e2e.ts` against the real device listener over mTLS; `pnpm test`
+includes it, `pnpm test:e2e` does not.
 
 `idf.py flash` writes the bootloader, partition table, `otadata` and the app.
 It leaves `identity` and `nvs` alone. **`idf.py erase-flash` wipes
@@ -40,9 +88,16 @@ CMakeLists.txt        the project (airremote)
 version.txt           the firmware version; bump it by hand
 partitions.csv        fixed once boards exist
 sdkconfig.defaults    committed; sdkconfig is generated and git-ignored
-main/                 app_main: wires drivers to core
-components/core/      platform-free logic, tested on the host
-  host_test/          its Unity tests, an ESP-IDF app for the linux target
+backend-url.txt       the device listener's address (git-ignored)
+main/                 the board's app_main: wires board drivers to core
+linux/                the same, as a Linux program for the e2e tests
+e2e/                  Vitest tests running linux/ against the device listener
+components/
+  core/               platform-free: Device (every decision), protocol, console parser
+    host_test/        its Unity tests, an ESP-IDF app for the linux target
+  runtime/            event queue, timers, console reader (esp32 and linux)
+  connection/         the WebSocket and POST /pairing-code over mTLS (esp32 and linux)
+  board/              ESP32 only: Wi-Fi, settings in nvs, the identity reader
 scripts/              idf.sh (ESP-IDF in Docker), test.sh
 ```
 
@@ -81,7 +136,7 @@ scripts/provision-device.sh           # reads the MAC, writes the identity
   again; the board gets a new key.
 - A replaced certificate is not revoked: it still connects for that MAC.
 
-What the firmware will read:
+What the firmware reads (never writes):
 
 | NVS namespace | Key    | Type   | Value                             |
 | ------------- | ------ | ------ | --------------------------------- |

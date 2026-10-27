@@ -12,6 +12,8 @@
 #include <sstream>
 #include <string>
 
+#include <unistd.h>
+
 #include "connection/pairing_api.hpp"
 #include "connection/websocket_link.hpp"
 #include "core/device.hpp"
@@ -109,6 +111,6 @@ extern "C" void app_main(void) {
   timers.attach(device);
 
   queue.post([] { device.start(); });
-  runtime::start_console_reader(queue, device);
+  runtime::start_console_reader(queue, device, isatty(fileno(stdin)) != 0);
   queue.run();
 }

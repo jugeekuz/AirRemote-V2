@@ -12,7 +12,8 @@ class StdoutConsole : public core::Console {
 };
 
 // Reads console lines on its own task and posts each to Device::on_line.
-// Call after stdin is set up (the board's UART driver).
-void start_console_reader(EventQueue &queue, core::Device &device);
+// Call after stdin is set up (the board's UART driver). `line_editing`: echo
+// and editing for a person at a terminal; off for plain lines from a pipe.
+void start_console_reader(EventQueue &queue, core::Device &device, bool line_editing);
 
 }  // namespace runtime

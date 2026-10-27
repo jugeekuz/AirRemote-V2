@@ -16,6 +16,7 @@ build/
 firmware/**/sdkconfig
 firmware/**/sdkconfig.old
 managed_components/
+firmware/backend-url.txt
 
 # Environment
 .env
