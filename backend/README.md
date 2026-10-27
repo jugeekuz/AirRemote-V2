@@ -27,8 +27,7 @@ the API (`api`) on http://localhost:3000. Check it with
 cp .env.example .env        # once
 pnpm install
 docker compose up -d db     # Postgres only
-pnpm db:migrate
-pnpm dev                    # restarts on file changes
+pnpm dev                    # applies pending migrations, then restarts on file changes
 ```
 
 ## Device listener
@@ -115,7 +114,7 @@ that set `$TOKEN`, `$DEVICE_ID`, `$REMOTE` and `$BUTTON` and make these requests
 
 | Script                  | What it does                                                  |
 | ----------------------- | ------------------------------------------------------------- |
-| `pnpm dev`              | Runs the API from source with watch mode                      |
+| `pnpm dev`              | Applies pending migrations, then runs the API with watch mode |
 | `pnpm build`            | Builds the API and the migrate script to `dist/`              |
 | `pnpm typecheck`        | Type-checks every package                                     |
 | `pnpm lint`             | Runs ESLint                                                   |
