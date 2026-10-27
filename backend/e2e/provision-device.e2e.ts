@@ -199,4 +199,106 @@ describe('scripts/provision-device.sh', () => {
     },
     TIMEOUT_MS,
   );
+
+  it(
+    'refuses a board that already has an identity',
+    async () => {
+      await provision();
+      const record = await pem(`${RECORD}.crt`);
+      const flashBefore = await readFile(flash);
+      const fingerprint = (
+        await openssl([
+          'x509',
+          '-noout',
+          '-fingerprint',
+          '-sha256',
+          '-in',
+          record.path,
+        ])
+      ).split('=')[1]!;
+
+      const result = await provision();
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain('the board already has an identity');
+      expect(result.stderr).toContain(fingerprint);
+      expect(result.stderr).toContain('not revoked');
+      expect(await readFile(flash)).toEqual(flashBefore);
+      expect((await pem(`${RECORD}.crt`)).text).toBe(record.text);
+      expect(await exists(join(caDir, `${RECORD}.key`))).toBe(false);
+      expect(await provisionFolders()).toEqual([]);
+    },
+    TIMEOUT_MS,
+  );
+
+  it(
+    'replaces it with --force',
+    async () => {
+      await provision();
+      const first = (await parseIdentity()).find((e) => e.key === 'cert')!.data;
+
+      expect(await provision(['--force'])).toMatchObject({ code: 0 });
+
+      const second = (await parseIdentity()).find(
+        (e) => e.key === 'cert',
+      )!.data;
+      expect(second).not.toBe(first);
+      expect((await pem(`${RECORD}.crt`)).text).toBe(second);
+      expect(await exists(join(caDir, `${RECORD}.key`))).toBe(false);
+    },
+    TIMEOUT_MS,
+  );
+
+  it(
+    'fails when the read-back differs, leaving no key or certificate',
+    async () => {
+      const result = await provision([], { FAKE_CORRUPT_READBACK: '1' });
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain('could not be confirmed');
+      expect(await exists(join(caDir, `${RECORD}.key`))).toBe(false);
+      expect(await exists(join(caDir, `${RECORD}.crt`))).toBe(false);
+      expect(await provisionFolders()).toEqual([]);
+    },
+    TIMEOUT_MS,
+  );
+
+  it(
+    'with --force, a failed run keeps the previous certificate record',
+    async () => {
+      await provision();
+      const before = await readFile(join(caDir, `${RECORD}.crt`));
+
+      const result = await provision(['--force'], {
+        FAKE_CORRUPT_READBACK: '1',
+      });
+
+      expect(result.code).toBe(1);
+      expect(await readFile(join(caDir, `${RECORD}.crt`))).toEqual(before);
+      expect(await exists(join(caDir, `${RECORD}.key`))).toBe(false);
+    },
+    TIMEOUT_MS,
+  );
+
+  it('says to create the CA when it is missing', async () => {
+    const empty = await mkdtemp(join(tmpdir(), 'airremote-no-ca-'));
+    try {
+      const result = await provision(['--ca-dir', empty]);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain('run scripts/dev-certs.sh first');
+    } finally {
+      await rm(empty, { recursive: true, force: true });
+    }
+  });
+
+  it('says when the board is not connected', async () => {
+    const env = { ...process.env, ESPPORT: '/nonexistent/ttyUSB9' };
+    delete env.PROVISION_IDF_SH;
+    const result = await run('bash', [script, '--ca-dir', caDir], { env }).then(
+      () => ({ code: 0, stderr: '' }),
+      (error: Result) => error,
+    );
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('no board on /nonexistent/ttyUSB9');
+  });
 });

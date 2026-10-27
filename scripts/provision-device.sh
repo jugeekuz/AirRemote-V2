@@ -122,7 +122,14 @@ print('yes' if any(e.get('key') in ('cert', 'key') for e in entries) else 'no')
 EOF
 )"
 if [[ "$has_identity" == yes && "$force" != true ]]; then
-  fail 'the board already has an identity; --force replaces it on the board'
+  existing='unknown'
+  if [[ -s "$tmp/existing.crt" ]]; then
+    existing="$(openssl x509 -noout -fingerprint -sha256 -in "$tmp/existing.crt" |
+      cut -d= -f2)" || existing='unreadable'
+  fi
+  echo "provision-device: the board already has an identity (certificate SHA256 $existing); --force replaces it on the board" >&2
+  echo 'provision-device: the old certificate is not revoked: it still connects for this MAC' >&2
+  exit 1
 fi
 
 dashed="${mac//:/-}"
