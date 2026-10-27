@@ -22,6 +22,11 @@ export type FirmwareApp = {
     withinMs?: number,
     from?: number,
   ): Promise<string>;
+  /**
+   * Makes the stand-in IR receiver see these parts (µs timings), `gapsMs[i]`
+   * apart between part i and i + 1 (default 30 ms), once it is listening.
+   */
+  pressIr(parts: number[][], gapsMs?: number[]): Promise<void>;
   stop(): Promise<void>;
 };
 
