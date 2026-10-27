@@ -1,12 +1,21 @@
+import '@ui/global.css';
+
 import { StatusBar } from 'expo-status-bar';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { Text, UiProvider } from '@ui';
 
 // Temporary: replaced by the real app shell.
 export default function App() {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>AirRemote</Text>
-      <StatusBar style="auto" />
-    </View>
+    <SafeAreaProvider>
+      <UiProvider>
+        <View className="flex-1 items-center justify-center bg-background">
+          <Text>AirRemote</Text>
+        </View>
+        <StatusBar style="auto" />
+      </UiProvider>
+    </SafeAreaProvider>
   );
 }

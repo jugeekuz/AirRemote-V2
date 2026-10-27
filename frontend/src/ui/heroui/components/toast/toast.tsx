@@ -234,6 +234,7 @@ const ToastRoot = forwardRef<ViewRef, ToastRootProps>((props, ref) => {
                 });
               }}
               {...restProps}
+              aria-hidden
             >
               {children}
             </AnimatedToastRoot>

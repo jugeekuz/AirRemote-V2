@@ -24,7 +24,10 @@ function toModuleNameMapper(paths) {
 module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  resolver: '<rootDir>/jest.resolver.js',
   moduleNameMapper: {
+    // First, so `@ui/global.css` matches it before the `@ui/*` alias.
+    '\\.css$': '<rootDir>/mocks/file.mock.ts',
     ...toModuleNameMapper(config.compilerOptions.paths),
     '\\.(png|jpe?g|gif|webp|svg|ttf|otf|woff2?|mp3|wav)$':
       '<rootDir>/mocks/file.mock.ts',
