@@ -66,6 +66,12 @@ certificates stay valid); `--force` replaces it.
 `scripts/dev-certs.sh device AA:BB:CC:DD:EE:01` plays the factory: it issues
 a device certificate with that MAC as its CN, in `certs/devices/`.
 
+The server certificate names `localhost` and `127.0.0.1`, which is enough for
+the simulator and the tests. A real board reaches your machine at its LAN
+address, so name that too: `scripts/dev-certs.sh --host 192.168.1.10` (repeat
+`--host` for more names). It reissues the server certificate and keeps the
+CA; restart `pnpm dev` to pick it up.
+
 ## Enrolling a device
 
 A device is allowed on the WebSocket once its owner has enrolled it:
@@ -74,7 +80,8 @@ A device is allowed on the WebSocket once its owner has enrolled it:
    listener (same mTLS, no body). It gets `{ pairingCode, expiresAt }`: an
    8-character code valid for 15 minutes. Asking again replaces the code; an
    enrolled device gets `409 DEVICE_ALREADY_REGISTERED`.
-2. The device shows its MAC address and the code as a QR code.
+2. The device shows the code: the simulator as a QR code, a real board
+   over its serial console (`pair`; see `firmware/README.md`).
 3. The signed-in owner calls `POST /devices` on the API with
    `{ macAddress, pairingCode, name }`. A wrong, expired or used code is
    `400 INVALID_PAIRING_CODE`.

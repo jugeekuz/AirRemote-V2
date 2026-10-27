@@ -5,11 +5,14 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/dev-certs.sh [--out DIR] [--force]    CA and server certificate
+  scripts/dev-certs.sh [--out DIR] [--force] [--host NAME_OR_IP]...
+                                                CA and server certificate
   scripts/dev-certs.sh [--out DIR] device MAC   device certificate (CN = MAC)
 
   --out DIR   where to write (default: certs/ at the repository root)
   --force     replace the CA too; existing device certificates stop working
+  --host      also name this host or IP in the server certificate, e.g. your
+              machine's LAN address for a real board (repeatable)
 
 The CA is kept between runs, so device certificates stay valid.
 EOF
@@ -23,6 +26,7 @@ fail() {
 out="$(cd "$(dirname "$0")/.." && pwd)/certs"
 force=false
 mac=''
+hosts=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,6 +38,11 @@ while [[ $# -gt 0 ]]; do
     --force)
       force=true
       shift
+      ;;
+    --host)
+      [[ $# -ge 2 && -n "$2" ]] || fail '--host needs a name or an IP address'
+      hosts+=("$2")
+      shift 2
       ;;
     -h | --help)
       usage
@@ -121,8 +130,18 @@ else
   echo "Keeping the existing device CA in $out."
 fi
 
+# An IPv4 or IPv6 address is an IP entry; anything else a DNS name.
+san='DNS:localhost,IP:127.0.0.1'
+for host in "${hosts[@]}"; do
+  if [[ "$host" =~ ^[0-9]+(\.[0-9]+){3}$ || "$host" == *:* ]]; then
+    san+=",IP:$host"
+  else
+    san+=",DNS:$host"
+  fi
+done
+
 issue "$out/device-server" '/CN=localhost' 730 \
-  'subjectAltName=DNS:localhost,IP:127.0.0.1' 'extendedKeyUsage=serverAuth'
+  "subjectAltName=$san" 'extendedKeyUsage=serverAuth'
 
 cat <<EOF
 Device listener certificates are in $out.

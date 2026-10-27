@@ -180,4 +180,31 @@ describe('scripts/dev-certs.sh', () => {
       await server.close();
     }
   });
+
+  it('names more hosts in the server certificate with --host, keeping the CA', async () => {
+    await devCerts();
+    const ca = await fingerprint(file('device-ca.crt'));
+
+    await devCerts('--host', '192.168.1.10', '--host', 'airremote.local');
+
+    const { stdout } = await run('openssl', [
+      'x509',
+      '-noout',
+      '-ext',
+      'subjectAltName',
+      '-in',
+      file('device-server.crt'),
+    ]);
+    expect(stdout).toContain(
+      'DNS:localhost, IP Address:127.0.0.1, IP Address:192.168.1.10, DNS:airremote.local',
+    );
+    expect(await verify(file('device-server.crt'))).toMatch(/: OK$/);
+    expect(await fingerprint(file('device-ca.crt'))).toBe(ca);
+  });
+
+  it('refuses --host without a value', async () => {
+    const { code, stderr } = await devCertsFailure('--host');
+    expect(code).toBe(1);
+    expect(stderr).toContain('--host');
+  });
 });
