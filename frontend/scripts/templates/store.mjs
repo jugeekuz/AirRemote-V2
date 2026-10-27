@@ -41,7 +41,9 @@ export function plan(ctx) {
     edits: [],
     notes: [],
     hints: [
-      `If ${camel}Store holds data of the signed-in user, call ${camel}Store.reset() in authStore.signOut (src/stores/auth/auth.store.ts).`,
+      ctx.module
+        ? `If ${camel}Store holds data of the signed-in user, reset it when the module's screens unmount (they do on sign-out): call ${camel}Store.reset() in the cleanup of an effect in the module's entry hook. authStore.signOut can't reset it, since shared layers never import @modules; a store that must reset with the session belongs in src/stores.`
+        : `If ${camel}Store holds data of the signed-in user, call ${camel}Store.reset() in authStore.signOut (src/stores/auth/auth.store.ts).`,
     ],
   };
 

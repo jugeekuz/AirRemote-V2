@@ -9,11 +9,11 @@ export class GeneratorError extends Error {}
 
 /**
  * @typedef {object} Names
- * @property {string} kebab   product-card
- * @property {string} pascal  ProductCard
- * @property {string} camel   productCard
- * @property {string} constant PRODUCT_CARD
- * @property {string} words   Product card
+ * @property {string} kebab   device-card
+ * @property {string} pascal  DeviceCard
+ * @property {string} camel   deviceCard
+ * @property {string} constant DEVICE_CARD
+ * @property {string} words   Device card
  */
 
 /**
@@ -48,7 +48,7 @@ const KEBAB = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 export function toNames(input, what) {
   if (!PASCAL.test(input) && !KEBAB.test(input)) {
     throw new GeneratorError(
-      `Invalid ${what} "${input}": use PascalCase (ProductCard) or kebab-case (product-card).`,
+      `Invalid ${what} "${input}": use PascalCase (DeviceCard) or kebab-case (device-card).`,
     );
   }
   const kebab = input
@@ -69,20 +69,6 @@ export function toNames(input, what) {
 /** @param {string} text */
 export function capitalize(text) {
   return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-/**
- * Naive English plural, for REST paths. Edit the generated path if it is wrong.
- * @param {string} word
- */
-export function pluralize(word) {
-  if (/[^aeiou]y$/.test(word)) {
-    return `${word.slice(0, -1)}ies`;
-  }
-  if (/(s|x|z|ch|sh)$/.test(word)) {
-    return `${word}es`;
-  }
-  return `${word}s`;
 }
 
 /**

@@ -68,19 +68,19 @@ afterEach(() => {
 
 describe('create-new', () => {
   it('turns PascalCase into kebab-case files', () => {
-    runOk(['component', 'ProductCard']);
+    runOk(['component', 'DeviceCard']);
 
-    const dir = 'src/components/product-card';
-    expect(exists(`${dir}/product-card.tsx`)).toBe(true);
-    expect(exists(`${dir}/product-card.test.tsx`)).toBe(true);
+    const dir = 'src/components/device-card';
+    expect(exists(`${dir}/device-card.tsx`)).toBe(true);
+    expect(exists(`${dir}/device-card.test.tsx`)).toBe(true);
     expect(read(`${dir}/index.ts`)).toBe(
-      "export { default } from './product-card';\n",
+      "export { default } from './device-card';\n",
     );
-    expect(read(`${dir}/product-card.tsx`)).toContain(
-      'export default function ProductCard(',
+    expect(read(`${dir}/device-card.tsx`)).toContain(
+      'export default function DeviceCard(',
     );
-    expect(read(`${dir}/product-card.test.tsx`)).toContain(
-      "describe('ProductCard'",
+    expect(read(`${dir}/device-card.test.tsx`)).toContain(
+      "describe('DeviceCard'",
     );
   });
 
@@ -140,11 +140,11 @@ describe('create-new', () => {
   });
 
   it('refuses to overwrite', () => {
-    runOk(['component', 'ProductCard']);
-    const file = 'src/components/product-card/product-card.tsx';
+    runOk(['component', 'DeviceCard']);
+    const file = 'src/components/device-card/device-card.tsx';
     write(file, '// edited by hand\n');
 
-    const result = run(['component', 'ProductCard']);
+    const result = run(['component', 'DeviceCard']);
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain(file);
@@ -152,16 +152,16 @@ describe('create-new', () => {
   });
 
   it('writes nothing when it refuses', () => {
-    write('src/components/product-card/index.ts', '// mine\n');
+    write('src/components/device-card/index.ts', '// mine\n');
 
-    const result = run(['component', 'ProductCard']);
+    const result = run(['component', 'DeviceCard']);
 
     expect(result.status).not.toBe(0);
-    expect(exists('src/components/product-card/product-card.tsx')).toBe(false);
+    expect(exists('src/components/device-card/device-card.tsx')).toBe(false);
   });
 
   it('fails for a module that does not exist', () => {
-    const result = run(['component', 'ProductCard', '--module', 'ghost']);
+    const result = run(['component', 'DeviceCard', '--module', 'ghost']);
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('Module "ghost" does not exist');
@@ -169,7 +169,7 @@ describe('create-new', () => {
   });
 
   it('prints the failure in red', () => {
-    const result = run(['component', 'ProductCard', '--module', 'ghost'], {
+    const result = run(['component', 'DeviceCard', '--module', 'ghost'], {
       NO_COLOR: '',
       FORCE_COLOR: '1',
     });
@@ -178,7 +178,7 @@ describe('create-new', () => {
     expect(result.stderr).toContain('\u001b[31m');
   });
 
-  it.each(['productCard', 'product_card', 'Product Card', '../escape', '1abc'])(
+  it.each(['deviceCard', 'device_card', 'Device Card', '../escape', '1abc'])(
     'refuses the name %j',
     (name) => {
       const result = run(['component', name]);
@@ -392,17 +392,71 @@ describe('create-new', () => {
     ]) {
       expect(exists(file)).toBe(true);
     }
-    expect(read('src/api/scratch/scratch.api.ts')).toContain("'/scratches'");
     expect(read('src/queries/scratch/scratch.queries.ts')).toContain(
       'export const scratchKeys',
     );
     expect(stdout).toContain('@airremote/contracts');
   });
 
-  it('lists what it created', () => {
-    const { stdout } = runOk(['component', 'ProductCard']);
+  it('uses the domain name as given for its path', () => {
+    runOk(['domain', 'devices']);
 
-    expect(stdout).toContain('src/components/product-card/product-card.tsx');
+    const api = read('src/api/devices/devices.api.ts');
+    expect(api).toContain("httpClient.get('/devices',");
+    expect(api).not.toContain('/deviceses');
+    expect(api).toContain('export const devicesApi');
+  });
+
+  it('groups the query options in xQueries next to xKeys', () => {
+    runOk(['domain', 'device-commands']);
+
+    const queries = read(
+      'src/queries/device-commands/device-commands.queries.ts',
+    );
+    expect(queries).toContain('export const deviceCommandsKeys = {');
+    expect(queries).toContain('export const deviceCommandsQueries = {');
+    expect(queries).toContain('list: () =>');
+    expect(queries).toContain('detail: (id: string) =>');
+    expect(queries).not.toContain('QueryOptions =');
+    expect(read('src/queries/device-commands/index.ts')).toContain(
+      "export { deviceCommandsKeys, deviceCommandsQueries } from './device-commands.queries';",
+    );
+    expect(
+      read('src/queries/device-commands/device-commands.queries.test.tsx'),
+    ).toContain('useQuery(deviceCommandsQueries.detail(');
+    expect(read('src/api/device-commands/device-commands.api.ts')).toContain(
+      "'/device-commands'",
+    );
+  });
+
+  it('tells a global store to reset in authStore.signOut', () => {
+    const { stdout } = runOk(['store', 'Session']);
+
+    expect(stdout).toContain('sessionStore.reset() in authStore.signOut');
+  });
+
+  it('tells a module store to reset from the module, not authStore.signOut', () => {
+    const { stdout } = runOk(['store', 'Pairing', '--module', 'devices']);
+
+    expect(stdout).not.toContain('reset() in authStore.signOut');
+    expect(stdout).toContain(
+      'pairingStore.reset() in the cleanup of an effect',
+    );
+    expect(stdout).toContain('src/stores');
+  });
+
+  it('shows AirRemote names in its usage', () => {
+    const { stdout, status } = run(['--help']);
+
+    expect(status).toBe(0);
+    expect(stdout).toContain('DeviceCard, device-card');
+    expect(stdout).not.toContain('Product');
+  });
+
+  it('lists what it created', () => {
+    const { stdout } = runOk(['component', 'DeviceCard']);
+
+    expect(stdout).toContain('src/components/device-card/device-card.tsx');
   });
 
   it('exports generate for other tools', () => {

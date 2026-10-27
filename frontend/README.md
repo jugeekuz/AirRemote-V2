@@ -107,9 +107,10 @@ what to add by hand (a navigator registration, a param list entry, a
 | `module`    | `src/modules/<name>/` with its folders, navigator, i18n and a first screen |
 
 Each comes with its test and `index.ts`. `--module <m>` puts a component,
-screen, hook, store or helper inside `src/modules/<m>/`. A domain starts with
-placeholder schemas and a URL that is a naive plural of the name: replace
-both with the contract's. After creating a module, restart your editor's
+screen, hook, store or helper inside `src/modules/<m>/`. A domain is named like
+its backend resource (`domain devices` calls `/devices`) and starts with
+placeholder schemas and a list, get and create call: replace the schemas with
+the contract's and keep only the calls the backend has. After creating a module, restart your editor's
 ESLint server so the module's import rules apply.
 
 ## Manual checks on a device

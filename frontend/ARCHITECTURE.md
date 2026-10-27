@@ -401,8 +401,12 @@ A store is a private `useXStore` and an exported facade `xStore`
 
 - State holds data only (serializable). Actions are facade functions that
   call `setState`.
-- Every store has `INITIAL_<NAME>_STATE` and `reset()`. A store with data of
-  the signed-in user is reset in `authStore.signOut()`.
+- Every store has `INITIAL_<NAME>_STATE` and `reset()`. A global store with
+  data of the signed-in user is reset in `authStore.signOut()`. A module's
+  store can't be (shared layers never import `@modules`): reset it in the
+  cleanup of an effect in the module's entry hook, since the signed-in
+  screens unmount on sign-out. State that must reset with the session itself
+  belongs in a global store.
 - `getX()` reads outside React; `useX()` subscribes. Each `useX()` selects
   one primitive or one stable reference; to read several fields, use
   `useShallow` from `zustand/react/shallow`. In Zustand 5 a selector that

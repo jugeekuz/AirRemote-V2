@@ -43,7 +43,7 @@ const MODULE_KINDS = ['component', 'screen', 'hook', 'store', 'helper'];
 const USAGE = `Usage: create-new <kind> [name] [--module <m>] [--persisted]
 
   kind     ${KINDS.join(' | ')}
-  name     PascalCase or kebab-case (ProductCard, product-card)
+  name     PascalCase or kebab-case (DeviceCard, device-card)
   --module put a component, screen, hook, store or helper inside src/modules/<m>
   --persisted  a store kept across restarts (adds a STORE_PERSIST_KEY entry)
 

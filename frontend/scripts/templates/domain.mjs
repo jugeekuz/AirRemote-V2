@@ -1,5 +1,5 @@
 // @ts-check
-import { GeneratorError, pluralize } from './shared.mjs';
+import { GeneratorError } from './shared.mjs';
 
 /**
  * @param {import('./shared.mjs').Context} ctx
@@ -12,7 +12,9 @@ export function plan(ctx) {
     );
   }
   const { kebab, pascal, camel } = ctx.names;
-  const path = `/${pluralize(kebab)}`;
+  // A domain is named like its backend resource (devices, device-commands),
+  // so the name is the path.
+  const path = `/${kebab}`;
   const api = `src/api/${kebab}`;
   const queries = `src/queries/${kebab}`;
 
@@ -45,14 +47,14 @@ export function plan(ctx) {
       },
       {
         path: `${queries}/index.ts`,
-        content: `export {\n  ${camel}DetailQueryOptions,\n  ${camel}Keys,\n  ${camel}ListQueryOptions,\n} from './${kebab}.queries';\nexport { useCreate${pascal}Mutation } from './${kebab}.mutations';\n`,
+        content: `export { ${camel}Keys, ${camel}Queries } from './${kebab}.queries';\nexport { useCreate${pascal}Mutation } from './${kebab}.mutations';\n`,
       },
     ],
     edits: [],
     notes: [],
     hints: [
       `The ${camel} api uses placeholder schemas defined in ${api}/${kebab}.api.ts.`,
-      `Replace them (and ${path}) with the schemas and types from @airremote/contracts once the backend defines them; the contract is the source of the types.`,
+      `Replace them with the schemas and types from @airremote/contracts once the backend defines them; the contract is the source of the types. Check ${path} and the calls against the backend's routes, and drop the ones it doesn't have.`,
       `Call the queries and mutations from hooks (src/hooks) or screens; they don't know about stores or the UI.`,
     ],
   };
@@ -184,18 +186,23 @@ export const ${camel}Keys = {
   detail: (id: string) => [...${camel}Keys.all, 'detail', id] as const,
 };
 
-/** Passes TanStack Query's \`signal\` on, so a query nobody needs any more is cancelled. */
-export const ${camel}ListQueryOptions = () =>
-  queryOptions({
-    queryKey: ${camel}Keys.lists(),
-    queryFn: ({ signal }) => ${camel}Api.list({ signal }),
-  });
-
-export const ${camel}DetailQueryOptions = (id: string) =>
-  queryOptions({
-    queryKey: ${camel}Keys.detail(id),
-    queryFn: ({ signal }) => ${camel}Api.get(id, { signal }),
-  });
+/**
+ * \`queryOptions\` factories, used as \`useQuery(${camel}Queries.list())\`. Each
+ * passes TanStack Query's \`signal\` on, so a query nobody needs any more is
+ * cancelled.
+ */
+export const ${camel}Queries = {
+  list: () =>
+    queryOptions({
+      queryKey: ${camel}Keys.lists(),
+      queryFn: ({ signal }) => ${camel}Api.list({ signal }),
+    }),
+  detail: (id: string) =>
+    queryOptions({
+      queryKey: ${camel}Keys.detail(id),
+      queryFn: ({ signal }) => ${camel}Api.get(id, { signal }),
+    }),
+};
 `;
 }
 
@@ -210,11 +217,7 @@ export function queriesTest(pascal, camel, kebab) {
 import { createQueryWrapper, renderHook, waitFor } from '@utils/tests';
 import { ${camel}Api, type ${pascal} } from '@api/${kebab}';
 
-import {
-  ${camel}DetailQueryOptions,
-  ${camel}Keys,
-  ${camel}ListQueryOptions,
-} from './${kebab}.queries';
+import { ${camel}Keys, ${camel}Queries } from './${kebab}.queries';
 
 jest.mock('@api/${kebab}');
 
@@ -237,7 +240,7 @@ describe('${camel} queries', () => {
     api.list.mockResolvedValueOnce([item]);
 
     const { result } = await renderHook(
-      () => useQuery(${camel}ListQueryOptions()),
+      () => useQuery(${camel}Queries.list()),
       { wrapper: createQueryWrapper() },
     );
 
@@ -252,7 +255,7 @@ describe('${camel} queries', () => {
     api.get.mockResolvedValueOnce(item);
 
     const { result } = await renderHook(
-      () => useQuery(${camel}DetailQueryOptions('a1')),
+      () => useQuery(${camel}Queries.detail('a1')),
       { wrapper: createQueryWrapper() },
     );
 
