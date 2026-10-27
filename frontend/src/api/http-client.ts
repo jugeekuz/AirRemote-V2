@@ -8,7 +8,7 @@ import axios, {
 } from 'axios';
 import { z } from 'zod';
 
-import type { ApiError } from '@app-types';
+import type { ApiError, RequestOptions } from '@app-types';
 
 import { toApiError } from './api-error';
 import { HTTP_HEADER, HTTP_STATUS, REQUEST_TIMEOUT_MS } from './api.constants';
@@ -20,8 +20,21 @@ export type HttpClientHooks = {
   getAccessToken: () => string | null;
   /** Gets a new access token (from the refresh cookie) and stores it; rejects when it can't. */
   refreshAccessToken: () => Promise<string>;
-  /** Called once when a refresh fails or the refreshed token is refused: sign out locally. */
+  /**
+   * Called when a refresh fails or the refreshed token is refused. Signs out
+   * locally, so `getAccessToken` returns null afterwards.
+   */
   onSessionExpired: () => void;
+};
+
+/** What a call may set on a request; everything else is the client's. */
+export type HttpRequestConfig = RequestOptions & {
+  /** Send no access token and never refresh (the /auth calls). */
+  skipAuth?: boolean;
+  /** Send cookies cross-origin on web (the refresh cookie). */
+  withCredentials?: boolean;
+  /** Query string parameters. */
+  params?: Record<string, unknown>;
 };
 
 export type HttpClientOptions = {
@@ -42,30 +55,30 @@ export type HttpClient = {
   get: <S extends z.ZodType>(
     url: string,
     schema: S,
-    config?: AxiosRequestConfig,
+    config?: HttpRequestConfig,
   ) => Promise<z.output<S>>;
   post: <S extends z.ZodType>(
     url: string,
     body: unknown,
     schema: S,
-    config?: AxiosRequestConfig,
+    config?: HttpRequestConfig,
   ) => Promise<z.output<S>>;
   put: <S extends z.ZodType>(
     url: string,
     body: unknown,
     schema: S,
-    config?: AxiosRequestConfig,
+    config?: HttpRequestConfig,
   ) => Promise<z.output<S>>;
   patch: <S extends z.ZodType>(
     url: string,
     body: unknown,
     schema: S,
-    config?: AxiosRequestConfig,
+    config?: HttpRequestConfig,
   ) => Promise<z.output<S>>;
   delete: <S extends z.ZodType>(
     url: string,
     schema: S,
-    config?: AxiosRequestConfig,
+    config?: HttpRequestConfig,
   ) => Promise<z.output<S>>;
 };
 
@@ -94,6 +107,33 @@ function isRefusedAccessToken(
 
 function bearer(token: string): string {
   return `Bearer ${token}`;
+}
+
+/** Whether the request went out with this token (not an older one). */
+function sentToken(
+  config: InternalAxiosRequestConfig,
+  token: string | null,
+): boolean {
+  return (
+    token !== null &&
+    config.headers.get(HTTP_HEADER.AUTHORIZATION) === bearer(token)
+  );
+}
+
+const CANCELLED: ApiError = {
+  code: 'REQUEST_CANCELLED',
+  message: 'The request was cancelled.',
+  isNetworkError: false,
+};
+
+/** Builds the axios config from the fields a call may set, and nothing else. */
+function toAxiosConfig({
+  signal,
+  skipAuth,
+  withCredentials,
+  params,
+}: HttpRequestConfig = {}): AxiosRequestConfig {
+  return { signal, skipAuth, withCredentials, params };
 }
 
 function parseBody<S extends z.ZodType>(
@@ -160,23 +200,8 @@ export function createHttpClient({
     return config;
   });
 
-  instance.interceptors.response.use(undefined, async (error: unknown) => {
-    const apiError = toApiError(error);
-    const config = isAxiosError(error) ? error.config : undefined;
-    if (!config || !isRefusedAccessToken(config, apiError)) {
-      throw apiError;
-    }
-    if (config.retried) {
-      // The refreshed token was refused too: the session is gone.
-      hooks.onSessionExpired();
-      throw apiError;
-    }
-    let token: string;
-    try {
-      token = await refreshOnce();
-    } catch {
-      throw apiError;
-    }
+  /** The one retry of a refused request, with a newer token. */
+  function retry(config: InternalAxiosRequestConfig, token: string) {
     return instance.request({
       ...config,
       retried: true,
@@ -185,15 +210,51 @@ export function createHttpClient({
         bearer(token),
       ),
     });
+  }
+
+  instance.interceptors.response.use(undefined, async (error: unknown) => {
+    const apiError = toApiError(error);
+    const config = isAxiosError(error) ? error.config : undefined;
+    if (!config || !isRefusedAccessToken(config, apiError)) {
+      throw apiError;
+    }
+    const current = hooks.getAccessToken();
+    if (config.retried) {
+      // A refreshed token was refused too. Only end the session if it is
+      // still the current one: another refused retry may have ended it, or
+      // a newer token may exist.
+      if (sentToken(config, current)) {
+        hooks.onSessionExpired();
+      }
+      throw apiError;
+    }
+    if (current === null) {
+      // Signed out while the request was in flight.
+      throw apiError;
+    }
+    if (!sentToken(config, current)) {
+      // Another request refreshed the token meanwhile: use the new one.
+      return retry(config, current);
+    }
+    let token: string;
+    try {
+      token = await refreshOnce();
+    } catch {
+      throw apiError;
+    }
+    if (config.signal?.aborted) {
+      throw CANCELLED;
+    }
+    return retry(config, token);
   });
 
   async function send<S extends z.ZodType>(
-    config: AxiosRequestConfig,
+    request: AxiosRequestConfig,
     schema: S,
   ): Promise<z.output<S>> {
     let response: AxiosResponse<unknown>;
     try {
-      response = await instance.request<unknown>(config);
+      response = await instance.request<unknown>(request);
     } catch (error) {
       throw toApiError(error);
     }
@@ -205,15 +266,24 @@ export function createHttpClient({
       hooks = nextHooks;
     },
     get: (url, schema, config) =>
-      send({ ...config, method: 'get', url }, schema),
+      send({ ...toAxiosConfig(config), method: 'get', url }, schema),
     post: (url, body, schema, config) =>
-      send({ ...config, method: 'post', url, data: body }, schema),
+      send(
+        { ...toAxiosConfig(config), method: 'post', url, data: body },
+        schema,
+      ),
     put: (url, body, schema, config) =>
-      send({ ...config, method: 'put', url, data: body }, schema),
+      send(
+        { ...toAxiosConfig(config), method: 'put', url, data: body },
+        schema,
+      ),
     patch: (url, body, schema, config) =>
-      send({ ...config, method: 'patch', url, data: body }, schema),
+      send(
+        { ...toAxiosConfig(config), method: 'patch', url, data: body },
+        schema,
+      ),
     delete: (url, schema, config) =>
-      send({ ...config, method: 'delete', url }, schema),
+      send({ ...toAxiosConfig(config), method: 'delete', url }, schema),
   };
 }
 

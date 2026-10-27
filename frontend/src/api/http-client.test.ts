@@ -45,7 +45,7 @@ const unauthorized = (message = 'Invalid access token') => ({
   error: { code: 'UNAUTHORIZED', message },
 });
 
-/** A promise settled from outside, to hold a refresh open. */
+/** A promise settled from outside, to hold a refresh or an answer open. */
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
   let reject: (reason: unknown) => void = () => {};
@@ -61,24 +61,83 @@ const settle = () => new Promise((resolve) => setImmediate(resolve));
 
 const idSchema = z.object({ id: z.string() });
 
-function setup(token: string | null = 'old') {
+const invalidRefreshToken: ApiError = {
+  status: 401,
+  code: 'INVALID_REFRESH_TOKEN',
+  message: 'Invalid refresh token',
+  isNetworkError: false,
+};
+
+function setup(initialToken: string | null = 'old') {
   // Each test queues its answers with mockImplementationOnce.
   const adapter = jest.fn<Promise<AxiosResponse>, [InternalAxiosRequestConfig]>(
     () => Promise.reject(new Error('No answer queued')),
   );
+  // The hooks behave like the auth store: a refresh stores its token, and
+  // ending the session clears it.
+  const session = { token: initialToken };
   const hooks = {
-    getAccessToken: jest.fn<string | null, []>(() => token),
+    getAccessToken: jest.fn<string | null, []>(() => session.token),
     refreshAccessToken: jest.fn<Promise<string>, []>(),
-    onSessionExpired: jest.fn<void, []>(),
+    onSessionExpired: jest.fn<void, []>(() => {
+      session.token = null;
+    }),
   } satisfies HttpClientHooks;
   const client = createHttpClient({ baseURL: 'https://api.test', adapter });
   client.configure(hooks);
+
+  /** The next refresh stores and resolves this token. */
+  const refreshTo = (token: string) =>
+    hooks.refreshAccessToken.mockImplementationOnce(async () => {
+      session.token = token;
+      return token;
+    });
+
+  /** Holds the next refresh open; resolve it with the new token, or reject it. */
+  const holdRefresh = () => {
+    const refresh = deferred<string>();
+    hooks.refreshAccessToken.mockImplementationOnce(async () => {
+      const token = await refresh.promise;
+      session.token = token;
+      return token;
+    });
+    return refresh;
+  };
 
   /** The Authorization header the nth request (0-based) went out with. */
   const sentAuthorization = (call: number) =>
     adapter.mock.calls[call]?.[0].headers.get('Authorization');
 
-  return { adapter, hooks, client, sentAuthorization };
+  return {
+    adapter,
+    hooks,
+    session,
+    client,
+    refreshTo,
+    holdRefresh,
+    sentAuthorization,
+  };
+}
+
+/**
+ * A server that accepts only `validToken`. A request to `heldUrl` that is not
+ * a retry waits for `gate`, so its 401 arrives late.
+ */
+function server(
+  validToken: string | null,
+  { heldUrl, gate }: { heldUrl?: string; gate?: Promise<void> } = {},
+): Answer {
+  return async (config) => {
+    if (config.url === heldUrl && !config.retried) {
+      await gate;
+    }
+    const accepted =
+      validToken !== null &&
+      config.headers.get('Authorization') === `Bearer ${validToken}`;
+    return accepted
+      ? respond(200, { id: 'a' })(config)
+      : respond(401, unauthorized(`Refused ${config.url}`))(config);
+  };
 }
 
 describe('createHttpClient', () => {
@@ -116,6 +175,36 @@ describe('createHttpClient', () => {
       ['patch', '/things/a', '{"name":"z"}'],
       ['delete', '/things/a', undefined],
     ]);
+  });
+
+  it('passes the request options a call may set', async () => {
+    const { adapter, client } = setup();
+    adapter.mockImplementationOnce(respond(200, { id: 'a' }));
+    const controller = new AbortController();
+
+    await client.get('/things', idSchema, {
+      signal: controller.signal,
+      withCredentials: true,
+      params: { page: 2 },
+    });
+
+    expect(adapter.mock.calls[0]?.[0]).toMatchObject({
+      signal: controller.signal,
+      withCredentials: true,
+      params: { page: 2 },
+    });
+  });
+
+  it('ignores axios options a call may not set', async () => {
+    const { adapter, client, sentAuthorization } = setup('old');
+    adapter.mockImplementationOnce(respond(200, { id: 'a' }));
+    const options = { retried: true, baseURL: 'https://evil.test' };
+
+    // @ts-expect-error `retried` and `baseURL` belong to the client.
+    await client.get('/things', idSchema, options);
+
+    expect(adapter.mock.calls[0]?.[0].baseURL).toBe('https://api.test');
+    expect(sentAuthorization(0)).toBe('Bearer old');
   });
 
   it('rejects with INVALID_RESPONSE when the body fails the schema', async () => {
@@ -181,11 +270,12 @@ describe('createHttpClient', () => {
   });
 
   it('refreshes on a 401 and retries once with the new token', async () => {
-    const { adapter, hooks, client, sentAuthorization } = setup('old');
+    const { adapter, hooks, client, refreshTo, sentAuthorization } =
+      setup('old');
     adapter
       .mockImplementationOnce(respond(401, unauthorized()))
       .mockImplementationOnce(respond(200, { id: 'a' }));
-    hooks.refreshAccessToken.mockResolvedValueOnce('new');
+    refreshTo('new');
 
     await expect(client.get('/things/a', idSchema)).resolves.toEqual({
       id: 'a',
@@ -199,11 +289,11 @@ describe('createHttpClient', () => {
   });
 
   it('retries a post with the same body', async () => {
-    const { adapter, hooks, client } = setup('old');
+    const { adapter, client, refreshTo } = setup('old');
     adapter
       .mockImplementationOnce(respond(401, unauthorized()))
       .mockImplementationOnce(respond(200, { id: 'a' }));
-    hooks.refreshAccessToken.mockResolvedValueOnce('new');
+    refreshTo('new');
 
     await client.post('/things', { name: 'x' }, idSchema);
 
@@ -215,13 +305,15 @@ describe('createHttpClient', () => {
   });
 
   it('retries with the token the refresh resolved, not a re-read one', async () => {
-    const { adapter, hooks, client, sentAuthorization } = setup('old');
+    const { adapter, hooks, session, client, sentAuthorization } = setup('old');
     adapter
       .mockImplementationOnce(respond(401, unauthorized()))
       .mockImplementationOnce(respond(200, { id: 'a' }));
-    hooks.refreshAccessToken.mockResolvedValueOnce('new');
-    // Whatever the store says after the refresh, the retry sends 'new'.
-    hooks.getAccessToken.mockReturnValueOnce('old').mockReturnValue('stale');
+    // After the refresh the store says 'stale'; the retry still sends 'new'.
+    hooks.refreshAccessToken.mockImplementationOnce(async () => {
+      session.token = 'stale';
+      return 'new';
+    });
 
     await client.get('/things/a', idSchema);
 
@@ -229,14 +321,14 @@ describe('createHttpClient', () => {
   });
 
   it('refreshes once for concurrent 401s', async () => {
-    const { adapter, hooks, client, sentAuthorization } = setup('old');
+    const { adapter, hooks, client, holdRefresh, sentAuthorization } =
+      setup('old');
     adapter
       .mockImplementationOnce(respond(401, unauthorized()))
       .mockImplementationOnce(respond(401, unauthorized()))
       .mockImplementationOnce(respond(200, { id: 'a' }))
       .mockImplementationOnce(respond(200, { id: 'a' }));
-    const refresh = deferred<string>();
-    hooks.refreshAccessToken.mockReturnValueOnce(refresh.promise);
+    const refresh = holdRefresh();
 
     const first = client.get('/things/a', idSchema);
     const second = client.get('/things/a', idSchema);
@@ -251,23 +343,15 @@ describe('createHttpClient', () => {
   });
 
   it('ends the session once when the refresh fails', async () => {
-    const { adapter, hooks, client } = setup('old');
+    const { adapter, hooks, client, holdRefresh } = setup('old');
     // Each request gets its own 401, so each rejection can be told apart.
-    adapter.mockImplementation((config) =>
-      respond(401, unauthorized(`Refused ${config.url}`))(config),
-    );
-    const refresh = deferred<string>();
-    hooks.refreshAccessToken.mockReturnValueOnce(refresh.promise);
+    adapter.mockImplementation(server(null));
+    const refresh = holdRefresh();
 
     const first = client.get('/a', idSchema);
     const second = client.get('/b', idSchema);
     await settle();
-    refresh.reject({
-      status: 401,
-      code: 'INVALID_REFRESH_TOKEN',
-      message: 'Invalid refresh token',
-      isNetworkError: false,
-    } satisfies ApiError);
+    refresh.reject(invalidRefreshToken);
 
     await expect(first).rejects.toEqual({
       status: 401,
@@ -286,16 +370,61 @@ describe('createHttpClient', () => {
     expect(hooks.onSessionExpired).toHaveBeenCalledTimes(1);
   });
 
-  it('starts a new refresh after the previous one settled', async () => {
+  it('retries a late 401 with the token refreshed meanwhile', async () => {
+    const { adapter, hooks, client, refreshTo } = setup('old');
+    const gate = deferred<void>();
+    adapter.mockImplementation(
+      server('new', { heldUrl: '/b', gate: gate.promise }),
+    );
+    refreshTo('new');
+
+    // Both go out with 'old'; /a's 401 refreshes, /b's 401 comes after.
+    const first = client.get('/a', idSchema);
+    const second = client.get('/b', idSchema);
+    await expect(first).resolves.toEqual({ id: 'a' });
+    gate.resolve();
+
+    await expect(second).resolves.toEqual({ id: 'a' });
+    const sentToB = adapter.mock.calls
+      .filter(([config]) => config.url === '/b')
+      .map(([config]) => config.headers.get('Authorization'));
+    expect(sentToB).toEqual(['Bearer old', 'Bearer new']);
+    expect(hooks.refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(hooks.onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('does not refresh a late 401 after the session ended', async () => {
     const { adapter, hooks, client } = setup('old');
+    const gate = deferred<void>();
+    adapter.mockImplementation(
+      server(null, { heldUrl: '/b', gate: gate.promise }),
+    );
+    hooks.refreshAccessToken.mockRejectedValue(invalidRefreshToken);
+
+    const first = client.get('/a', idSchema);
+    const second = client.get('/b', idSchema);
+    await expect(first).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    gate.resolve();
+
+    await expect(second).rejects.toMatchObject({
+      status: 401,
+      code: 'UNAUTHORIZED',
+      message: 'Refused /b',
+    });
+    expect(adapter).toHaveBeenCalledTimes(2);
+    expect(hooks.refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(hooks.onSessionExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts a new refresh after the previous one settled', async () => {
+    const { adapter, hooks, client, refreshTo } = setup('old');
     adapter
       .mockImplementationOnce(respond(401, unauthorized()))
       .mockImplementationOnce(respond(200, { id: 'a' }))
       .mockImplementationOnce(respond(401, unauthorized()))
       .mockImplementationOnce(respond(200, { id: 'a' }));
-    hooks.refreshAccessToken
-      .mockResolvedValueOnce('new')
-      .mockResolvedValueOnce('newer');
+    refreshTo('new');
+    refreshTo('newer');
 
     await client.get('/things/a', idSchema);
     await client.get('/things/a', idSchema);
@@ -304,11 +433,11 @@ describe('createHttpClient', () => {
   });
 
   it('does not refresh again when the retried request gets a 401', async () => {
-    const { adapter, hooks, client } = setup('old');
+    const { adapter, hooks, client, refreshTo } = setup('old');
     adapter
       .mockImplementationOnce(respond(401, unauthorized()))
       .mockImplementationOnce(respond(401, unauthorized('Still refused')));
-    hooks.refreshAccessToken.mockResolvedValueOnce('new');
+    refreshTo('new');
 
     await expect(client.get('/things/a', idSchema)).rejects.toMatchObject({
       status: 401,
@@ -316,6 +445,26 @@ describe('createHttpClient', () => {
       message: 'Still refused',
     });
     expect(adapter).toHaveBeenCalledTimes(2);
+    expect(hooks.refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(hooks.onSessionExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it('ends the session once when every retry is refused', async () => {
+    const { adapter, hooks, client, holdRefresh } = setup('old');
+    adapter.mockImplementation(server(null));
+    const refresh = holdRefresh();
+
+    const requests = ['/a', '/b', '/c'].map((url) => client.get(url, idSchema));
+    await settle();
+    refresh.resolve('new');
+
+    const results = await Promise.allSettled(requests);
+    expect(results.map((result) => result.status)).toEqual([
+      'rejected',
+      'rejected',
+      'rejected',
+    ]);
+    expect(adapter).toHaveBeenCalledTimes(6);
     expect(hooks.refreshAccessToken).toHaveBeenCalledTimes(1);
     expect(hooks.onSessionExpired).toHaveBeenCalledTimes(1);
   });
@@ -361,6 +510,27 @@ describe('createHttpClient', () => {
     });
     expect(adapter).not.toHaveBeenCalled();
     expect(hooks.refreshAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('does not retry a request cancelled while the refresh ran', async () => {
+    const { adapter, hooks, client, holdRefresh } = setup('old');
+    adapter.mockImplementationOnce(respond(401, unauthorized()));
+    const refresh = holdRefresh();
+    const controller = new AbortController();
+
+    const request = client.get('/things/a', idSchema, {
+      signal: controller.signal,
+    });
+    await settle();
+    controller.abort();
+    refresh.resolve('new');
+
+    await expect(request).rejects.toMatchObject({
+      code: 'REQUEST_CANCELLED',
+      isNetworkError: false,
+    });
+    expect(adapter).toHaveBeenCalledTimes(1);
+    expect(hooks.onSessionExpired).not.toHaveBeenCalled();
   });
 
   it('passes a 204 through noContentSchema', async () => {
