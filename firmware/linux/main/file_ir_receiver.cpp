@@ -87,6 +87,7 @@ void FileIrReceiver::deliver() {
 
 void FileIrReceiver::play(const std::vector<std::vector<uint16_t>> &parts,
                           const std::vector<int64_t> &gaps_us) {
+  xSemaphoreTake(playing_, portMAX_DELAY);
   // Parts are timed on a schedule (start, then each part's length and gap),
   // which their reported ends follow exactly; the waits in real time around
   // it are only as precise as the 10 ms tick, which Device tolerates.
@@ -112,4 +113,5 @@ void FileIrReceiver::play(const std::vector<std::vector<uint16_t>> &parts,
     core::IrPart part{parts[i], at, false};
     queue_.post([device, part] { device->on_ir_part(part); });
   }
+  xSemaphoreGive(playing_);
 }

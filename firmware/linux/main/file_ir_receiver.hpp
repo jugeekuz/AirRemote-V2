@@ -5,6 +5,8 @@
 #include <vector>
 
 #include "core/device.hpp"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "runtime/event_queue.hpp"
 
 // The Linux build's IR receiver, for the e2e tests. While listening, it polls
@@ -39,5 +41,8 @@ class FileIrReceiver : public core::IrReceiver {
   core::Device *device_ = nullptr;
   std::atomic<bool> listening_{false};
   std::atomic<int64_t> last_activity_us_{0};
+  // One play() at a time (the file and the transmitter's echo), as one
+  // receiver only ever hears one thing at once.
+  SemaphoreHandle_t playing_ = xSemaphoreCreateMutex();
   bool polling_ = false;
 };

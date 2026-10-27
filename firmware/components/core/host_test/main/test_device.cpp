@@ -793,3 +793,38 @@ TEST_CASE("during the self-test, readIr and sendIr are BUSY", "[device][selftest
   rig->device->on_line("status");
   TEST_ASSERT_TRUE(rig->console.printed("IR         self-test"));
 }
+
+
+// --- Edge cases of sending ---
+
+TEST_CASE("a sendIr with bad timings is answered INVALID_COMMAND, nothing sent", "[device][send]") {
+  auto rig = Rig::connected();
+  rig->device->on_link_message(
+      R"({"type":"sendIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timingsUs":[70000]})");
+  TEST_ASSERT_EQUAL(0, (int)rig->sender.sends.size());
+  TEST_ASSERT_EQUAL_STRING(
+      core::encode_error("INVALID_COMMAND", kCommandId, "the IR timings are not valid").c_str(),
+      rig->link.sent.back().c_str());
+}
+
+TEST_CASE("a code with nothing to send is SEND_FAILED, as on the board", "[device][send]") {
+  auto rig = Rig::connected();
+  rig->device->on_link_message(
+      R"({"type":"sendIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timingsUs":[0]})");
+  TEST_ASSERT_EQUAL(0, (int)rig->sender.sends.size());
+  TEST_ASSERT_EQUAL_STRING(
+      core::encode_error("SEND_FAILED", kCommandId, "the IR code has nothing to send").c_str(),
+      rig->link.sent.back().c_str());
+  rig->device->on_link_message(kSendIr);  // and IR is free again
+  TEST_ASSERT_EQUAL(1, (int)rig->sender.sends.size());
+}
+
+TEST_CASE("a self-test send failing after its read ended still says so", "[device][selftest]") {
+  Rig rig;
+  rig.device->on_line("ir selftest");
+  // Something else was heard and the read finished before the send reported.
+  rig.device->on_ir_part(core::IrPart{core::ir_self_test_code(), rig.timers.now_us(), false});
+  rig.timers.advance(80);
+  rig.device->on_ir_sent(false);
+  TEST_ASSERT_TRUE(rig.console.printed("IR self-test: FAILED — could not send"));
+}

@@ -78,7 +78,7 @@ std::optional<ServerMessage> decode_server_message(std::string_view text) {
       message.type = type == "readIr" ? ServerMessage::Type::ReadIr
                                       : ServerMessage::Type::SendIr;
       if (message.type == ServerMessage::Type::SendIr) {
-        // The backend validates them; anything else is not a command to answer.
+        // The backend validates them; anything else is answered INVALID_COMMAND.
         const cJSON *timings = cJSON_GetObjectItemCaseSensitive(json.get(), "timingsUs");
         bool valid = cJSON_IsArray(timings) && cJSON_GetArraySize(timings) > 0;
         const cJSON *timing = nullptr;
@@ -89,7 +89,8 @@ std::optional<ServerMessage> decode_server_message(std::string_view text) {
           if (valid) message.timings.push_back(static_cast<uint16_t>(timing->valuedouble));
         }
         if (!valid) {
-          message.type = ServerMessage::Type::Unknown;
+          // Still a command to answer: its id is known.
+          message.timings_valid = false;
           message.timings.clear();
         }
       }

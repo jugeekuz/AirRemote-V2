@@ -228,13 +228,20 @@ void Device::on_link_message(std::string_view text) {
       }
       return;
     case ServerMessage::Type::SendIr:
-      if (ir_busy()) {
+      if (!message->timings_valid) {
+        ports_.link.send(encode_error("INVALID_COMMAND", message->command_id,
+                                      "the IR timings are not valid"));
+      } else if (ir_busy()) {
         ports_.link.send(encode_error("BUSY", message->command_id, "already using IR"));
+      } else if (auto symbols = to_ir_symbols(message->timings); symbols.empty()) {
+        // e.g. only 0 entries: the board's transmitter would refuse it too.
+        ports_.link.send(encode_error("SEND_FAILED", message->command_id,
+                                      "the IR code has nothing to send"));
       } else {
         send_ = Send{message->command_id, true};
         ports_.console.print("sending an IR code: " + std::to_string(message->timings.size()) +
                              " timings");
-        ports_.ir_sender.send(to_ir_symbols(message->timings));
+        ports_.ir_sender.send(std::move(symbols));
       }
       return;
     case ServerMessage::Type::Error:
@@ -364,10 +371,11 @@ void Device::on_ir_sent(bool ok) {
   const Send send = *send_;
   send_.reset();
   if (send.command_id.empty()) {
-    // The self-test: its read decides, unless nothing was sent at all.
-    if (!ok && read_ && read_->who == Read::For::SelfTest) {
+    // The self-test: its read decides, unless nothing was sent at all, which
+    // is said even if the read already ended on something else it heard.
+    if (!ok) {
       ports_.console.print("IR self-test: FAILED — could not send");
-      end_read();
+      if (read_ && read_->who == Read::For::SelfTest) end_read();
     }
     return;
   }

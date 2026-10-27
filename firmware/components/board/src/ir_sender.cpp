@@ -38,7 +38,7 @@ void RmtIrSender::send(std::vector<core::IrSymbol> symbols) {
   if (xQueueSend(jobs_, &job, 0) != pdTRUE) {
     delete job;
     core::Device *device = device_;
-    queue_.post([device] { device->on_ir_sent(false); });
+    if (device) queue_.post([device] { device->on_ir_sent(false); });
   }
 }
 

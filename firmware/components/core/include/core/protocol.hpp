@@ -27,6 +27,7 @@ struct ServerMessage {
   std::string command_id;     // ReadIr, SendIr
   uint32_t timeout_ms = 0;    // ReadIr
   std::vector<uint16_t> timings;  // SendIr
+  bool timings_valid = true;      // SendIr: false when they break the protocol
   std::string code, message;  // Error
 };
 
