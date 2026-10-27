@@ -115,3 +115,32 @@ TEST_CASE("an overflowed part makes the code too long", "[ir]") {
   capture.add(part_at(timings(895), 0, true));
   TEST_ASSERT_TRUE(capture.finish().kind == Kind::TooLong);
 }
+
+TEST_CASE("a glitch inside a space is merged into it", "[ir]") {
+  using V = std::vector<uint16_t>;
+  TEST_ASSERT_TRUE(core::remove_ir_glitches(V{9000, 4500, 575, 533, 1, 22, 573, 559, 570}) ==
+                   (V{9000, 4500, 575, 556, 573, 559, 570}));
+  TEST_ASSERT_TRUE(core::remove_ir_glitches(V{9000, 4500, 600, 431, 1, 101, 597, 1590, 1, 75, 593}) ==
+                   (V{9000, 4500, 600, 533, 597, 1666, 593}));
+}
+
+TEST_CASE("glitches before the first mark and after the last are dropped", "[ir]") {
+  using V = std::vector<uint16_t>;
+  TEST_ASSERT_TRUE(core::remove_ir_glitches(V{1, 127, 9041, 4510, 567}) == (V{9041, 4510, 567}));
+  TEST_ASSERT_TRUE(core::remove_ir_glitches(V{1, 52, 1, 25, 1, 23, 9047, 4477, 601}) ==
+                   (V{9047, 4477, 601}));
+  TEST_ASSERT_TRUE(core::remove_ir_glitches(V{9000, 4500, 560, 30, 2}) == (V{9000, 4500, 560}));
+  TEST_ASSERT_TRUE(core::remove_ir_glitches(V{1, 2, 3}).empty());
+}
+
+TEST_CASE("a clean code is left alone", "[ir]") {
+  const std::vector<uint16_t> clean = {9000, 4500, 560, 560, 560, 1690, 560};
+  TEST_ASSERT_TRUE(core::remove_ir_glitches(clean) == clean);
+}
+
+TEST_CASE("parts are cleaned as they are added", "[ir]") {
+  IrCapture capture;
+  capture.add(part_at({1, 127, 9000, 4500, 560, 431, 1, 101, 560, 560, 560}, 0));
+  auto result = capture.finish();
+  TEST_ASSERT_TRUE(result.timings == (std::vector<uint16_t>{9000, 4500, 560, 533, 560, 560, 560}));
+}

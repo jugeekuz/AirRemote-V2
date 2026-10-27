@@ -15,6 +15,12 @@ struct IrPart {
   bool overflowed = false;
 };
 
+// Removes pulses too short to be IR (the TSOP needs ~10 carrier cycles, about
+// 250 µs, to respond): each, shortest first, is merged with its neighbours, so a
+// blip inside a space becomes part of that space; at either end it is dropped
+// with its neighbour. Stray light or a nearby emitter causes them.
+std::vector<uint16_t> remove_ir_glitches(std::vector<uint16_t> timings);
+
 // Joins parts into one code. Remotes (air conditioners especially) send a
 // code in parts with short silences between them; the silence is kept as the
 // space between the parts, so a replay reproduces it. A code ends after
@@ -24,6 +30,7 @@ class IrCapture {
   static constexpr int64_t kEndSilenceUs = 50000;
   static constexpr size_t kMinTimings = 6;     // shorter: noise or a lone repeat frame
   static constexpr size_t kMaxTimings = 2048;  // the protocol's limit
+  static constexpr uint16_t kGlitchUs = 100;
 
   struct Result {
     enum class Kind { Code, TooShort, TooLong };
@@ -34,7 +41,7 @@ class IrCapture {
   };
 
   // False when `part` starts kEndSilenceUs or more after the code so far: it
-  // belongs to the next code, and nothing is added.
+  // belongs to the next code, and nothing is added. Glitches are removed first.
   bool add(const IrPart &part);
   bool empty() const { return parts_ == 0; }
   int64_t ended_at_us() const { return ended_at_us_; }

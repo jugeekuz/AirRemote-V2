@@ -18,3 +18,8 @@ CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
 
 # Device runs on the main task, which also builds JSON and TLS configs.
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# The IR receiver's ISR re-arms the next capture itself (parts can be ~5 ms
+# apart), which needs rmt_receive in IRAM.
+CONFIG_RMT_RECV_FUNC_IN_IRAM=y
+CONFIG_RMT_RX_ISR_HANDLER_IN_IRAM=y

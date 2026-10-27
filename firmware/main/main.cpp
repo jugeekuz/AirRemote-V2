@@ -2,6 +2,7 @@
 #include <string>
 
 #include "board/identity.hpp"
+#include "board/ir_receiver.hpp"
 #include "board/settings.hpp"
 #include "board/wifi.hpp"
 #include "connection/pairing_api.hpp"
@@ -24,13 +25,6 @@
 extern const char server_ca_start[] asm("_binary_device_ca_crt_start");
 
 namespace {
-
-// Until the receiver is wired in, a read never sees a code.
-class NoIrReceiver : public core::IrReceiver {
- public:
-  void start() override {}
-  void stop() override {}
-};
 
 // Settings only: unlike identity, nvs may be wiped when its layout is stale.
 void init_settings_storage() {
@@ -84,7 +78,8 @@ extern "C" void app_main(void) {
   static connection::WebSocketLink link(urls ? urls->websocket : "", tls, queue);
   static connection::HttpPairingApi pairing(urls ? urls->pairing : "", tls, queue);
   static runtime::FreeRtosTimers timers(queue);
-  static NoIrReceiver ir;
+  // The TSOP38238's output, as on V1's board.
+  static board::RmtIrReceiver ir(GPIO_NUM_2, queue);
   static core::Device device(
       core::DeviceInfo{esp_app_get_description()->version, mac_address(), identity.has_value(),
                        urls.has_value()},
@@ -93,6 +88,8 @@ extern "C" void app_main(void) {
   link.attach(device);
   pairing.attach(device);
   timers.attach(device);
+  ir.attach(device);
+  ir.init();
   wifi.start();
 
   // Keeps this image after an OTA update. Move it to after the device has

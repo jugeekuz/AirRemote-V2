@@ -1,8 +1,9 @@
 # AirRemote firmware
 
 The V2 firmware for the AirRemote board: ESP-IDF in C++. It joins Wi-Fi,
-connects to the backend's device listener over mTLS, gets enrolled, and says
-`hello`. IR is not there yet: it answers IR commands with `INVALID_COMMAND`.
+connects to the backend's device listener over mTLS, gets enrolled, says
+`hello`, and reads IR codes for learning buttons. Sending IR is not there yet:
+it answers `sendIr` with `INVALID_COMMAND`.
 Everything a person does with it goes through the serial console. The designs
 are in `docs/superpowers/specs/2026-10-27-firmware-*-design.md`.
 
@@ -32,8 +33,28 @@ From the repository root, with Docker running and the board on USB:
 | ------------------------ | -------------------------------------------------- |
 | `wifi <ssid> [password]` | saves the network and joins it (empty password: open network) |
 | `pair`                   | asks the backend for one pairing code and prints it |
-| `status`                 | firmware, MAC, identity, Wi-Fi, backend, pending code |
+| `status`                 | firmware, MAC, identity, Wi-Fi, backend, pending code, IR |
+| `ir`                     | listens 10 s for one IR code and prints its parts, gaps and timings |
 | `help`                   | lists these                                        |
+
+## Reading IR
+
+The TSOP38238 receiver is on **GPIO 2**, read by the RMT at 1 µs (the IR LEDs
+are on GPIO 13, for sending later). How a code is captured:
+
+- The RMT ends a capture after 30 ms of silence. `core` joins captures less
+  than **50 ms** apart into one code (air-conditioner remotes send codes in
+  parts), keeping the silence between them as a space, so a replay matches.
+- Pulses under 3 µs are filtered by the RMT, and anything under **100 µs**
+  (never real IR) by `core`.
+- Under **6** timings is noise and is ignored; over **2048**, the protocol's
+  limit, is `CAPTURE_TOO_LONG`. No code within `readIr`'s timeout is
+  `READ_TIMEOUT`.
+- **Press buttons briefly.** A held button adds repeat frames to the code
+  (NEC: one repeat; Sony: its three frames; a long hold can be too long).
+
+`ir` shows exactly what was captured, e.g.
+`IR code: 3 parts, gaps 34 ms, 35 ms; 583 timings`, then the timings.
 
 The board never asks for a pairing code by itself. Not enrolled, it retries
 the connection every 30 s; after `pair`, every 5 s until the code expires.

@@ -5,7 +5,28 @@
 
 namespace core {
 
-bool IrCapture::add(const IrPart &part) {
+std::vector<uint16_t> remove_ir_glitches(std::vector<uint16_t> t) {
+  for (;;) {
+    if (t.empty()) return t;
+    const auto shortest = std::min_element(t.begin(), t.end());
+    if (*shortest >= IrCapture::kGlitchUs) return t;
+    const size_t i = static_cast<size_t>(shortest - t.begin());
+    if (i == 0) {
+      t.erase(t.begin(), t.begin() + std::min<size_t>(2, t.size()));
+    } else if (i == t.size() - 1) {
+      t.erase(t.end() - std::min<size_t>(2, t.size()), t.end());
+    } else {
+      const uint32_t merged = uint32_t{t[i - 1]} + t[i] + t[i + 1];
+      t[i - 1] = static_cast<uint16_t>(std::min<uint32_t>(merged, 65535));
+      t.erase(t.begin() + i, t.begin() + i + 2);
+    }
+  }
+}
+
+bool IrCapture::add(const IrPart &raw) {
+  // The part keeps its end time: the silence after it is unchanged.
+  const IrPart part{remove_ir_glitches(raw.timings), raw.ended_at_us, raw.overflowed};
+  if (part.timings.empty()) return true;
   const int64_t duration =
       std::accumulate(part.timings.begin(), part.timings.end(), int64_t{0});
   if (parts_ > 0) {
