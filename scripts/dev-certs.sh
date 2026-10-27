@@ -132,7 +132,8 @@ fi
 
 # An IPv4 or IPv6 address is an IP entry; anything else a DNS name.
 san='DNS:localhost,IP:127.0.0.1'
-for host in "${hosts[@]}"; do
+# ${hosts[@]+…}: an empty array is "unbound" under set -u on bash 3.2 (macOS).
+for host in ${hosts[@]+"${hosts[@]}"}; do
   if [[ "$host" =~ ^[0-9]+(\.[0-9]+){3}$ || "$host" == *:* ]]; then
     san+=",IP:$host"
   else

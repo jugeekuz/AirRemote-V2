@@ -22,27 +22,34 @@ struct ParsedPart {
 bool parse(std::istream &input, std::vector<ParsedPart> &parts) {
   std::string line;
   int64_t gap = kDefaultGapUs;
+  bool pending_gap = false;
   while (std::getline(input, line)) {
     if (line.empty()) continue;
     if (line.rfind("gap ", 0) == 0) {
-      const long ms = std::strtol(line.c_str() + 4, nullptr, 10);
-      if (ms < 30) return false;  // shorter gaps are one part on the board
+      char *end = nullptr;
+      const long ms = std::strtol(line.c_str() + 4, &end, 10);
+      if (*end != '\0' || ms < 30) return false;  // shorter gaps are one part on the board
+      if (pending_gap) return false;              // two gaps in a row
       gap = ms * 1000;
+      pending_gap = true;
       continue;
     }
     ParsedPart part{{}, gap};
     std::stringstream values(line);
     std::string value;
     while (std::getline(values, value, ',')) {
-      const long timing = std::strtol(value.c_str(), nullptr, 10);
-      if (timing <= 0 || timing > 65535) return false;
+      char *end = nullptr;
+      const long timing = std::strtol(value.c_str(), &end, 10);
+      if (value.empty() || *end != '\0' || timing <= 0 || timing > 65535) return false;
       part.timings.push_back(static_cast<uint16_t>(timing));
     }
     if (part.timings.empty()) return false;
     parts.push_back(std::move(part));
     gap = kDefaultGapUs;
+    pending_gap = false;
   }
-  return !parts.empty();
+  // A gap must sit between two parts.
+  return !parts.empty() && !pending_gap;
 }
 
 }  // namespace

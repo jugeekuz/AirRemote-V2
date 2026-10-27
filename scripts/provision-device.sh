@@ -55,6 +55,7 @@ idf="${PROVISION_IDF_SH:-$firmware/scripts/idf.sh}"
 port="${ESPPORT:-/dev/ttyUSB0}"
 
 command -v openssl >/dev/null || fail 'openssl is not installed'
+command -v python3 >/dev/null || fail 'python3 is not installed'
 [[ -f "$ca_dir/device-ca.crt" && -f "$ca_dir/device-ca.key" ]] ||
   fail "no CA in $ca_dir; run scripts/dev-certs.sh first"
 ca_dir="$(cd "$ca_dir" && pwd)"
@@ -97,7 +98,8 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
-trap 'exit 130' INT TERM
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # in_idf WHAT COMMAND... — runs in the ESP-IDF container; output in $tmp/out.
 in_idf() {

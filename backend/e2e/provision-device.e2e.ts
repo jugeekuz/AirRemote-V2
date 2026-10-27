@@ -256,14 +256,26 @@ describe('scripts/provision-device.sh', () => {
       await provision();
       const first = (await parseIdentity()).find((e) => e.key === 'cert')!.data;
 
-      expect(await provision(['--force'])).toMatchObject({ code: 0 });
+      const result = await provision(['--force']);
+      expect(result).toMatchObject({ code: 0 });
 
       const second = (await parseIdentity()).find(
         (e) => e.key === 'cert',
       )!.data;
       expect(second).not.toBe(first);
-      expect((await pem(`${RECORD}.crt`)).text).toBe(second);
+      const record = await pem(`${RECORD}.crt`);
+      expect(record.text).toBe(second);
       expect(await exists(join(caDir, `${RECORD}.key`))).toBe(false);
+      expect(await provisionFolders()).toEqual([]);
+      const fingerprint = await openssl([
+        'x509',
+        '-noout',
+        '-fingerprint',
+        '-sha256',
+        '-in',
+        record.path,
+      ]);
+      expect(result.stdout).toContain(fingerprint.split('=')[1]!);
     },
     TIMEOUT_MS,
   );

@@ -6,7 +6,7 @@ usage() {
   cat <<'EOF_USAGE'
 Usage:
   scripts/idf.sh <idf.py arguments>   e.g. build, flash monitor, -C <dir> build
-  scripts/idf.sh exec <command>       any command, e.g. exec esptool.py chip_id
+  scripts/idf.sh exec <command>       any command, e.g. exec esptool chip-id
 
 Runs in firmware/ inside the ESP-IDF image. Set ESPPORT for a port other
 than /dev/ttyUSB0; it is passed to the container only when it exists.
@@ -26,9 +26,10 @@ esac
 firmware_dir="$(cd "$(dirname "$0")/.." && pwd)"
 port="${ESPPORT:-/dev/ttyUSB0}"
 
-# :Z relabels the mount for SELinux. Running as the host user keeps build/
+# :z relabels the mount for SELinux, shared, so a monitor and a build can run
+# side by side. Running as the host user keeps build/
 # and sdkconfig owned by you; HOME must then be somewhere writable.
-args=(--rm -v "$firmware_dir:/project:Z" -w /project
+args=(--rm -v "$firmware_dir:/project:z" -w /project
   -u "$(id -u):$(id -g)" -e HOME=/tmp)
 
 # stdin always reaches the container (tests pipe console lines in); a TTY only
@@ -45,13 +46,17 @@ if [[ -f "$ca" ]]; then
   args+=(-v "$(cd "$(dirname "$ca")" && pwd)/device-ca.crt:/certs/device-ca.crt:ro,z")
 fi
 
-# Extra docker run options, e.g. "--network host --name x -e KEY=value".
+# Extra docker run options, e.g. "--network host --name x --env-file f",
+# split on spaces (so no value may contain one; use --env-file for values).
 if [[ -n "${IDF_DOCKER_ARGS:-}" ]]; then
   read -r -a extra <<<"$IDF_DOCKER_ARGS"
   args+=("${extra[@]}")
 fi
 
 # The port's group, not membership of dialout on the host, gives access.
+if [[ -n "${ESPPORT:-}" && ! -e "$port" && "$port" != /nonexistent* ]]; then
+  echo "idf.sh: no $port (ESPPORT); running without a board" >&2
+fi
 if [[ -e "$port" ]]; then
   args+=(--device "$port" --group-add "$(stat -c %g "$port")"
     -e ESPPORT="$port" -e ESPTOOL_PORT="$port")

@@ -63,27 +63,42 @@ export async function startFirmware({
   const inContainer = `/project/build/e2e-${id}`;
   await mkdir(folder, { recursive: true });
 
-  const certs = inject('deviceCerts');
-  const vars: Record<string, string> = {
-    AIRREMOTE_BACKEND_URL: backendUrl,
-    AIRREMOTE_CA_FILE: `${inContainer}/ca.pem`,
-    AIRREMOTE_MAC: 'AA:BB:CC:DD:EE:01',
-    AIRREMOTE_IR_FILE: `${inContainer}/ir.txt`,
-    AIRREMOTE_IR_SENT_FILE: `${inContainer}/ir-sent.txt`,
-    ...env,
-  };
-  await writeFile(join(folder, 'ca.pem'), certs.ca);
-  if (client) {
-    await writeFile(join(folder, 'cert.pem'), certs.clients[client].cert);
-    await writeFile(join(folder, 'key.pem'), certs.clients[client].key);
-    vars.AIRREMOTE_CERT_FILE = `${inContainer}/cert.pem`;
-    vars.AIRREMOTE_KEY_FILE = `${inContainer}/key.pem`;
+  let dockerArgs: string;
+  try {
+    const certs = inject('deviceCerts');
+    const vars: Record<string, string> = {
+      AIRREMOTE_BACKEND_URL: backendUrl,
+      AIRREMOTE_CA_FILE: `${inContainer}/ca.pem`,
+      AIRREMOTE_MAC: 'AA:BB:CC:DD:EE:01',
+      AIRREMOTE_IR_FILE: `${inContainer}/ir.txt`,
+      AIRREMOTE_IR_SENT_FILE: `${inContainer}/ir-sent.txt`,
+      ...env,
+    };
+    await writeFile(join(folder, 'ca.pem'), certs.ca);
+    if (client) {
+      await writeFile(join(folder, 'cert.pem'), certs.clients[client].cert);
+      await writeFile(join(folder, 'key.pem'), certs.clients[client].key);
+      vars.AIRREMOTE_CERT_FILE = `${inContainer}/cert.pem`;
+      vars.AIRREMOTE_KEY_FILE = `${inContainer}/key.pem`;
+    }
+    // An env file, as IDF_DOCKER_ARGS is split on spaces and a value may hold one.
+    const envFile = join(folder, 'env');
+    await writeFile(
+      envFile,
+      Object.entries(vars)
+        .map(([key, value]) => `${key}=${value}\n`)
+        .join(''),
+    );
+    dockerArgs = [
+      '--network host',
+      `--name ${name}`,
+      `--env-file ${envFile}`,
+    ].join(' ');
+  } catch (error) {
+    // Nothing was started; don't leave the identity's key behind.
+    await rm(folder, { recursive: true, force: true });
+    throw error;
   }
-  const dockerArgs = [
-    '--network host',
-    `--name ${name}`,
-    ...Object.entries(vars).map(([key, value]) => `-e ${key}=${value}`),
-  ].join(' ');
 
   const child = spawn(idf, ['exec', 'linux/build/airremote_linux.elf'], {
     env: {
