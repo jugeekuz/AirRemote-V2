@@ -11,6 +11,11 @@ export default tseslint.config(
       'packages/db/migrations/**',
       'firmware/**/build/**',
       '**/managed_components/**',
+      'frontend/.expo/**',
+      'frontend/android/**',
+      'frontend/ios/**',
+      'frontend/web-build/**',
+      'frontend/coverage/**',
     ],
   },
   js.configs.recommended,
@@ -68,5 +73,18 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    // Expo's Metro, Babel and Jest configs are CommonJS.
+    files: ['frontend/*.config.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        require: 'readonly',
+        module: 'writable',
+        __dirname: 'readonly',
+      },
+    },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
 );

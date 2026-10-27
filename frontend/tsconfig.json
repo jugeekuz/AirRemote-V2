@@ -1,0 +1,31 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "types": ["jest"],
+    "paths": {
+      "@adapters/*": ["./src/adapters/*"],
+      "@api/*": ["./src/api/*"],
+      "@app-types": ["./src/types"],
+      "@app-types/*": ["./src/types/*"],
+      "@assets/*": ["./src/assets/*"],
+      "@components/*": ["./src/components/*"],
+      "@config/*": ["./src/config/*"],
+      "@contexts/*": ["./src/contexts/*"],
+      "@helpers/*": ["./src/helpers/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@i18n/*": ["./src/i18n/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@navigation/*": ["./src/navigation/*"],
+      "@queries/*": ["./src/queries/*"],
+      "@screens/*": ["./src/screens/*"],
+      "@stores/*": ["./src/stores/*"],
+      "@ui": ["./src/ui"],
+      "@ui/*": ["./src/ui/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@mocks/*": ["./mocks/*"]
+    }
+  },
+  "exclude": ["node_modules", "android", "ios", ".expo", "web-build"]
+}

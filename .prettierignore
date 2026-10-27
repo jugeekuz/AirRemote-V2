@@ -1,4 +1,8 @@
 legacy/
+frontend/android
+frontend/ios
+frontend/.expo
+frontend/web-build
 dist/
 pnpm-lock.yaml
 packages/db/migrations/
