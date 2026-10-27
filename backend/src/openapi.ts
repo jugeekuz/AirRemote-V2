@@ -17,6 +17,7 @@ const env: Env = {
   JWT_REFRESH_SECRET: 'openapi-refresh-secret-0123456789abcdef',
   PAIRING_CODE_SECRET: 'openapi-pairing-secret-0123456789abcdef',
   DEVICE_PORT: 0,
+  CORS_ORIGINS: [],
 };
 
 const app = await buildApp({

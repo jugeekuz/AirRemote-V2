@@ -23,7 +23,32 @@ describe('loadEnv', () => {
       HOST: '0.0.0.0',
       PORT: 3000,
       DEVICE_PORT: 8443,
+      CORS_ORIGINS: [],
     });
+  });
+
+  it('splits CORS_ORIGINS on commas and trims them', () => {
+    expect(
+      loadEnv({
+        ...valid,
+        CORS_ORIGINS: 'http://localhost:8081, https://app.example.com',
+      }).CORS_ORIGINS,
+    ).toEqual(['http://localhost:8081', 'https://app.example.com']);
+  });
+
+  it('treats an empty CORS_ORIGINS as none', () => {
+    expect(loadEnv({ ...valid, CORS_ORIGINS: '' }).CORS_ORIGINS).toEqual([]);
+  });
+
+  it('rejects a CORS origin that is not an origin', () => {
+    for (const origin of ['localhost:8081', 'http://localhost:8081/path']) {
+      expect(() => loadEnv({ ...valid, CORS_ORIGINS: origin })).toThrow(
+        ConfigError,
+      );
+      expect(() => loadEnv({ ...valid, CORS_ORIGINS: origin })).toThrow(
+        /CORS_ORIGINS/,
+      );
+    }
   });
 
   it('coerces PORT from a string', () => {
