@@ -9,7 +9,8 @@ namespace {
 
 std::string seconds(uint32_t ms) { return std::to_string((ms + 999) / 1000) + " s"; }
 
-int64_t minutes_left(int64_t ms) { return (ms + 59999) / 60000; }
+// To the nearest minute: the server's Date header has whole seconds only.
+int64_t minutes_left(int64_t ms) { return (ms + 30000) / 60000; }
 
 }  // namespace
 

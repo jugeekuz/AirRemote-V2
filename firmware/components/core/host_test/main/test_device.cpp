@@ -346,3 +346,11 @@ TEST_CASE("changing Wi-Fi while connected closes the link and rejoins", "[device
   rig->device->on_link_closed();
   TEST_ASSERT_FALSE(rig->timers.pending(TimerId::LinkRetry));
 }
+
+TEST_CASE("a code's minutes are rounded to the nearest, as Date has whole seconds",
+          "[device]") {
+  auto rig = Rig::not_enrolled();
+  rig->device->on_line("pair");
+  rig->device->on_pairing_code("7K4MQ9TX", 900999);
+  TEST_ASSERT_TRUE(rig->console.printed("pairing code: 7K4M-Q9TX (expires in 15 min)"));
+}

@@ -1,10 +1,12 @@
 import { request as httpsRequest } from 'node:https';
 import {
   createDb,
+  deviceCommands,
   devices,
   users,
   type Database,
   type Device,
+  type DeviceCommand,
   type DbHandle,
 } from '@airremote/db';
 import type { FastifyInstance } from 'fastify';
@@ -271,6 +273,12 @@ export function useDeviceServer({
       if (!handle) throw new Error('useDeviceServer: database not ready yet');
       const rows = await handle.db.select().from(devices);
       return rows.find((row) => row.id === deviceId) ?? null;
+    },
+    /** A device command's row, e.g. to check the error the device reported. */
+    async findDeviceCommand(commandId: string): Promise<DeviceCommand | null> {
+      if (!handle) throw new Error('useDeviceServer: database not ready yet');
+      const rows = await handle.db.select().from(deviceCommands);
+      return rows.find((row) => row.id === commandId) ?? null;
     },
     /** POSTs to the device listener with a client certificate. */
     post(path: string, cert: TestClientName | null) {
