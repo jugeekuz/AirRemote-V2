@@ -15,25 +15,36 @@ The table with the reasons is [State ownership][state]. In AirRemote terms:
 - devices, remotes, buttons, a device command → the query cache, never a
   store or a context (`frontend-api`);
 - access token, auth status, language → global store (`src/stores/`);
-- the selected device id, a list filter shared by a module's screens →
-  module store (`modules/<m>/stores/`);
+- a list filter or selection shared by one module's screens → module store
+  (`modules/<m>/stores/`);
+- a selection two modules share (the device picked in the devices module and
+  read by the remotes module) → global store (`src/stores/`), since modules
+  never import each other;
 - one multi-step flow per mounted subtree (pairing a device) → scoped store
   in `contexts/`;
 - a dialog's visibility, text before debounce → `useState`;
-- a form → react-hook-form; a `remoteId` for a screen → route params.
+- a form → react-hook-form; the id a screen is about (`remoteId`) → route
+  params.
 
 ## Steps for a store
 
 - [ ] `pnpm --filter @airremote/frontend create-new store <name> [--module <m>] [--persisted]`
       (`--persisted` adds the `STORE_PERSIST_KEY` entry).
 - [ ] Replace the placeholder state; keep `INITIAL_<NAME>_STATE` and `reset()`.
-- [ ] Holds data of the signed-in user? A **global** store is reset in
-      `authStore.signOut()` (`src/stores/auth/auth.store.ts`). A **module**
-      store can't be: global stores must not import `@modules`, whatever the
-      generator's hint says. Make it global, or reset it in the cleanup of an
-      effect in the module's entry hook (the signed-in screens unmount on
-      sign-out).
+- [ ] Holds data of the signed-in user? Follow the generator's hint: a
+      global store is reset in `authStore.signOut()`; a module store in the
+      cleanup of an effect in the module's entry hook, since the signed-in
+      screens unmount on sign-out (shared layers never import `@modules`) →
+      [Stores][stores].
 - [ ] Test the facade (`frontend-testing`).
+
+## Steps for a hook
+
+- [ ] `pnpm --filter @airremote/frontend create-new hook <name> [--module <m>]`
+      creates `hooks/use-<name>/` with the hook, its test and `index.ts`; a
+      module hook is also added to the module's `hooks/index.ts`.
+- [ ] Replace the placeholder logic (the generated hook is a toggle).
+- [ ] Test it with `renderHook` and a real query client (`frontend-testing`).
 
 ## Rules
 
@@ -66,13 +77,16 @@ success, calls `authStore.signIn(accessToken)`. The mutation knows nothing
 about the store; the hook is where they meet. `src/hooks/use-logout/` shows
 cleanup that must happen even on failure (`finally`).
 
-A module hook reading a store and a query:
+A module hook reading a global store (shared with the devices module) and a
+query:
 
 ```ts
-// src/modules/remotes/hooks/use-device-remotes/use-device-remotes.ts
+// src/modules/remotes/hooks/use-selected-device-remotes/use-selected-device-remotes.ts
+import { selectedDeviceStore } from '@stores/selected-device';
+
 const EMPTY_REMOTES: RemoteResponse[] = [];
 
-export function useDeviceRemotes() {
+export function useSelectedDeviceRemotes() {
   const deviceId = selectedDeviceStore.useDeviceId();
   const selectOfDevice = useCallback(
     (remotes: RemoteResponse[]) => getRemotesOfDevice(remotes, deviceId),

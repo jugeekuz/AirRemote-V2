@@ -14,10 +14,15 @@ the differences are kept in a few known places.
       (`isWebPlatform`, `isIOSPlatform`, `isAndroidPlatform`,
       `isNativeMobilePlatform`). Never `Platform.OS` scattered around →
       [Platform differences][platform], [Pitfalls][pitfalls].
-- [ ] A whole implementation: platform files side by side, `x.ts` (or
-      `x.native.ts`) plus `x.web.ts` / `x.ios.ts` / `x.android.ts`, with
-      **identical exports and types**. Metro picks the file; consumers import
-      the folder alias (`@adapters/x`), never a platform file.
+- [ ] A whole implementation: platform files side by side. Always keep a
+      base `x.ts` (usually the native implementation), then add `x.web.ts`,
+      `x.ios.ts` or `x.android.ts` next to it, with **identical exports and
+      types**. TypeScript resolves only the base file (`tsconfig.json` has no
+      `moduleSuffixes`), so `x.native.ts` + `x.web.ts` without an `x.ts`
+      fails `pnpm typecheck`; nothing checks that the variants match, so type
+      both with one type from `src/types/`. Metro picks the file at bundle
+      time; consumers import the folder alias (`@adapters/x`), never a
+      platform file.
 - [ ] Component variants follow the same rule (`<name>.web.tsx` next to
       `<name>.tsx`), only when web truly needs a different implementation.
 - [ ] Test the shared contract once; test a platform file's own behaviour in

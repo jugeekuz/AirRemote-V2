@@ -13,17 +13,17 @@ options, mutation hooks). Both are global: any module may use them.
 
 - [ ] Find the endpoint and its schemas in `packages/contracts/src/<domain>/`
       and `openapi.json`. Not there → stop; the backend comes first.
-- [ ] New domain: `pnpm --filter @airremote/frontend create-new domain <domain>`
-      with the plural name (`devices`, `device-commands`). Then fix what it
-      gets wrong:
-  - the URL is a naive plural of the name (`/deviceses`): use the real path;
-  - its schemas and types are placeholders: import the contract's
+- [ ] New domain: `pnpm --filter @airremote/frontend create-new domain <domain>`,
+      named like the resource, which is also its path (`devices` →
+      `/devices`, `device-commands` → `/device-commands`). It writes
+      `xApi` with `list`, `get(id)` and `create`, `xKeys`, `xQueries.list()` /
+      `.detail(id)` and `useCreateXMutation`, each with a test. Then:
+  - replace its placeholder schemas and types with the contract's
     (`deviceListResponseSchema`, `DeviceResponse`, ...) and drop the type
     re-exports from `api/<domain>/index.ts`;
-  - it writes `list`, `get(id)` and `create`: keep only what the API has
-    (no V2 domain has a get-by-id yet) and fix the generated tests to match;
-  - it exports `xListQueryOptions()`/`xDetailQueryOptions(id)`; ARCHITECTURE
-    names the set `xQueries`, so group them as `xQueries.list()`.
+  - keep only the calls the API has, with its real paths (the only get-by-id
+    is `GET /device-commands/{id}`; remotes are created under
+    `/devices/{deviceId}/remotes`), and fix the generated tests to match.
 - [ ] Existing domain: add the API method and its test, the key to `xKeys`,
       then a `queryOptions` in `xQueries` or a `useXMutation` hook, with tests.
 - [ ] Prettier from `frontend/` (the paths it prints are relative to it).

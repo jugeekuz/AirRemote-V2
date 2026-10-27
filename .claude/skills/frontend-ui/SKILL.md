@@ -57,12 +57,10 @@ Tailwind classes with the theme's tokens.
 
 ## `@ui` and the kit
 
-`src/ui/index.ts` exports `UiProvider`, `toast`, `Button`, `Card`,
-`Description`, `Dialog`, `FieldError`, `Input`, `Label`, `Spinner`,
-`Surface`, `Text` (the kit's `Typography`: `Text.Heading`, `Text.Paragraph`),
-`TextField`, `Toast` and `useToast`. The kit has more in
-`src/ui/heroui/components/` (`list-group`, `chip`, `skeleton`, `select`,
-`switch`, `bottom-sheet`, ...). To use one, add
+`src/ui/index.ts` is the list of what app code can use (`Text` there is
+the kit's `Typography`: `Text.Heading`, `Text.Paragraph`). The kit has more
+in `src/ui/heroui/components/` (`list-group`, `chip`, `skeleton`, `select`,
+`switch`, `bottom-sheet`, ...). To use one, add a line such as
 `export { Chip } from './heroui/components/chip';` to `src/ui/index.ts`.
 
 - `UiProvider` sits inside `SafeAreaProvider` (`src/app/app.tsx`); tests get

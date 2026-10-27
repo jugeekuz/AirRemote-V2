@@ -1,6 +1,6 @@
 ---
 name: frontend-feature
-description: Use when adding a screen, flow or feature to the AirRemote app in frontend/ (a new module under src/modules/, a new route, a new user-facing capability), or when porting a V1 page from legacy/frontend (Login, Sign up, Devices, Remotes, Buttons, Dashboard, Automations) to the V2 app.
+description: Use when adding a screen, flow or feature to the AirRemote app in frontend/ (a new module under src/modules/, a new route, a new user-facing capability), or when porting a V1 page from legacy/frontend (Login, SignUp, Devices, Remotes, RemoteButtons, Dashboard, Automations) to the V2 app.
 ---
 
 # A frontend feature, end to end
@@ -20,7 +20,9 @@ The V2 API when this skill was written (trust `openapi.json` over this list):
 | Call                                  | Body schema                 | Response schema                     |
 | ------------------------------------- | --------------------------- | ----------------------------------- |
 | `POST /users/register`                | `registerUserRequestSchema` | `userResponseSchema` (201)          |
+| `GET /health`                         |                             | `healthResponseSchema`              |
 | `POST /auth/login`, `/refresh`        | `loginRequestSchema` / none | `accessTokenResponseSchema`         |
+| `POST /auth/logout`                   |                             | none (`noContentSchema`)            |
 | `GET /devices`                        |                             | `deviceListResponseSchema`          |
 | `POST /devices` (enroll)              | `enrollDeviceRequestSchema` | `deviceResponseSchema` (201)        |
 | `GET /remotes` (all, with `deviceId`) |                             | `remoteListResponseSchema`          |
@@ -30,13 +32,16 @@ The V2 API when this skill was written (trust `openapi.json` over this list):
 | `POST /buttons/{buttonId}/press`      |                             | `deviceCommandResponseSchema` (202) |
 | `GET /device-commands/{id}`           |                             | `deviceCommandResponseSchema`       |
 
-There is no get-by-id, rename, delete or reorder for devices, remotes or
-buttons, no device online status, no automations and no OAuth. Learning and
+`openapi.json` lists the devices routes as `/devices/` (a prefixed `/`
+route); the API serves them at `/devices`, which the app calls. The only
+get-by-id is `GET /device-commands/{id}`: there is none, and no rename,
+delete or reorder, for devices, remotes or buttons, no device online status, no automations and no OAuth. Learning and
 pressing return a device command that the app polls (see `frontend-api`).
 
 ## 2. Porting a V1 page
 
-- Read `legacy/frontend/src/pages/<Page>.jsx` and the components it uses for
+- Read `legacy/frontend/src/pages/<Page>.jsx` (`Login`, `SignUp`, `Devices`,
+  `Remotes`, `RemoteButtons`, ...) and the components it uses for
   **behaviour only**: what it shows, which actions it offers, its loading,
   empty and error states, its texts. `legacy/` is read-only: never import,
   copy or imitate its code, structure or dependencies (root `CLAUDE.md`).
@@ -56,24 +61,26 @@ pressing return a device command that the app polls (see `frontend-api`).
 ## 3. Build it
 
 - [ ] **Domain** for each backend domain not yet in `src/api/`:
-      `pnpm --filter @airremote/frontend create-new domain <domain>` (plural:
-      `devices`, `remotes`, `buttons`, `device-commands`), then replace its
-      placeholders → `frontend-api`.
+      `pnpm --filter @airremote/frontend create-new domain <domain>`, named
+      like the resource (`devices`, `remotes`, `buttons`, `device-commands`),
+      then replace its placeholders → `frontend-api`.
 - [ ] **Module:** `pnpm --filter @airremote/frontend create-new module <m>`.
       Do every "Add by hand:" line it prints (the `resources.ts` import, the
       param list in `src/types/navigation.types.ts` and its export from
       `src/types/index.ts`, the root registration). Restart the editor's
       ESLint server so the new module's import rules apply.
-- [ ] **Module state**, only if several screens share client state (a selected
-      id, a filter) → `frontend-state`.
+- [ ] **Module state**, only if several screens of the module share client
+      state (a filter, a selection); a selection two modules share is a
+      global store in `src/stores/` → `frontend-state`.
 - [ ] **Helpers** for every decision (what to show, what's allowed) →
       `frontend-logic`.
 - [ ] **Hooks** that compose queries and stores → `frontend-state`.
 - [ ] **Components → screens → navigator** → `frontend-ui`. More screens:
       `create-new screen <name> --module <m>`, plus its "Add by hand:" lines.
 - [ ] **Param list:** every route in its stack's type in
-      `src/types/navigation.types.ts`; ids travel as params
-      (`RemoteButtons: { remoteId: string }`), never through a store.
+      `src/types/navigation.types.ts`. The id a screen is about is a route
+      param (`RemoteButtons: { remoteId: string }`); a selection several
+      screens share may be a store → [State ownership][state].
 - [ ] **Root registration:** a signed-in module goes in the `isLoggedIn`
       branch of `src/navigation/root-navigator.tsx`, next to `Main` (wrap the
       branch in a `<Stack.Group>` once it has several screens); its URL goes
@@ -100,9 +107,9 @@ api/remotes/remotes.api.ts             remotesApi.list(), .create(deviceId, body
 queries/remotes/remotes.queries.ts     remotesKeys, remotesQueries.list()
 queries/remotes/remotes.mutations.ts   useCreateRemoteMutation → invalidates remotesKeys.lists()
 modules/remotes/helpers/remotes/       getRemotesOfDevice(remotes, deviceId) for `select`
-modules/remotes/hooks/use-device-remotes/   query + select, empty constant
+modules/remotes/hooks/use-device-remotes/   useDeviceRemotes(deviceId): query + select, empty constant
 modules/remotes/components/remote-tile/     one remote; rename/delete/reorder disabled
-modules/remotes/screens/remotes-screen/     list, empty state, "Add remote" dialog
+modules/remotes/screens/remotes-screen/     deviceId from its route params; list, empty state, "Add remote" dialog
 modules/remotes/navigation/remotes-navigator.tsx
 modules/remotes/i18n/locales/en/remotes.json
 ```

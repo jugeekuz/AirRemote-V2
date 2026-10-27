@@ -77,11 +77,12 @@ Tests passing is not "done" for UI. With the backend up:
 
 ## Native checks
 
-The agent that built the app had no Android SDK and no Mac. Anything that
-only shows on a device (the refresh cookie surviving a restart, offline at
-launch, a native library) needs the manual checklist in `frontend/README.md`
-("Manual checks on a device"); say in your report that it was not run, or
-add the steps your change needs to that list.
+If you have no Android SDK (with an emulator or phone) and no Mac, you
+can't run native builds. Anything that only shows on a device (the refresh
+cookie surviving a restart, offline at launch, a native library) then needs
+the manual checklist in `frontend/README.md` ("Manual checks on a device"):
+say in your report that it was not run, and add the steps your change needs
+to that list.
 
 ## Common failures
 
@@ -96,9 +97,12 @@ See "Common failures" in `frontend/README.md`. The usual ones:
 - ESLint misses a new module's rules in the editor: restart its ESLint
   server; `pnpm lint` always reads the current modules.
 - "Using src/app as the root directory for Expo Router": harmless.
-- Learning answers `DEVICE_OFFLINE` (409): the device isn't connected (start
-  or re-enroll the mock device). It stays `pending` until it expires (about
-  20 s): the mock device is waiting for `/press`.
+- Learning a button is refused with `DEVICE_OFFLINE` (409): the device isn't
+  connected; start or re-enroll the mock device.
+- Learning ends `failed` with `IR_READ_TIMEOUT`: nobody typed `/press` in the
+  mock device within its 15 s read, so it answered `READ_TIMEOUT` itself.
+- A command ends `expired` with `DEVICE_NOT_RESPONDING` (after about 20 s):
+  the device disconnected or never answered at all.
 
 ## Verify
 

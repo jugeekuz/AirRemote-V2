@@ -31,9 +31,10 @@ are constants. Components, hooks and queries call them.
   thing with the same input. Don't mix questions and commands in one object.
 - Names say what comes back: `getX` a value, `isX`/`hasX`/`canX` a boolean,
   `formatX` a display string → [Naming][naming].
-- Take contract types (`RemoteResponse`, `DeviceCommandResponse`) and
-  enums (`REMOTE_TYPES`, `DEVICE_COMMAND_STATUSES`) from
-  `@airremote/contracts`; never redeclare them.
+- Take contract types (`RemoteResponse`, `DeviceCommandResponse`) and value
+  lists from `@airremote/contracts`; never redeclare them. Its "enums" are
+  `as const` arrays (`REMOTE_TYPES`, `DEVICE_COMMAND_STATUSES`) with a union
+  type (`RemoteType`, `DeviceCommandStatus`), not frozen objects.
 - One-way dependencies between helpers; when one helper folder imports
   another, say so in a header comment:
 
@@ -65,7 +66,10 @@ are constants. Components, hooks and queries call them.
 
 - Single values are UPPER_SNAKE with their unit in the name:
   `REQUEST_TIMEOUT_MS` (`src/api/api.constants.ts`), `DEFAULT_DEBOUNCE_MS`.
-- No magic numbers or strings in code: name them.
+- No magic numbers or strings in code: name them. Comparing with a member of
+  a contract union (`command.status === 'pending'`) is not a magic string:
+  the type checks the literal, and a renamed status fails to compile. Don't
+  wrap the contract's arrays in an object of your own.
 - Location: next to the code that uses them (`<name>.constants.ts`, which
   belongs to its folder's layer), a helper's in
   `helpers/<domain>/<domain>.constants.ts`, module-wide ones in
