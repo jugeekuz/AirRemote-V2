@@ -1,0 +1,12 @@
+# Fixed once boards exist: changing this table means reflashing every board
+# over USB. identity (key and certificate) is kept apart from nvs, so a
+# factory reset and app flashes never touch it. nvs_keys is reserved for
+# NVS encryption once flash encryption is turned on.
+# Name,   Type, SubType,  Offset,   Size
+nvs,      data, nvs,      0x11000,  0x6000
+otadata,  data, ota,      0x17000,  0x2000
+identity, data, nvs,      0x19000,  0x3000
+nvs_keys, data, nvs_keys, 0x1C000,  0x1000
+app0,     app,  ota_0,    0x20000,  0x400000
+app1,     app,  ota_1,    0x420000, 0x400000
+coredump, data, coredump, 0x820000, 0x20000

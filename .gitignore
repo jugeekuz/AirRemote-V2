@@ -12,6 +12,11 @@ node_modules/
 dist/
 build/
 
+# Firmware (ESP-IDF)
+firmware/**/sdkconfig
+firmware/**/sdkconfig.old
+managed_components/
+
 # Environment
 .env
 .env.*

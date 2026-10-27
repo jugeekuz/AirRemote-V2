@@ -1,0 +1,17 @@
+# FireBeetle ESP32 (DFR0478), 16 MB flash.
+CONFIG_IDF_TARGET="esp32"
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# The table sits at 0x10000, not 0x8000, leaving room for a larger bootloader
+# once secure boot and flash encryption are on.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_OFFSET=0x10000
+
+# A bootloader setting, so it is on from the first flash: an OTA image that
+# never marks itself valid is rolled back on the next boot.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# Crash dumps to the coredump partition, to read after a reboot.
+CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
+CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
