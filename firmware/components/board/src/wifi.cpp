@@ -20,10 +20,8 @@ void EspWifi::start() {
 }
 
 void EspWifi::connect(const core::WifiCredentials &credentials) {
-  if (associated_) {
-    switching_ = true;
-    esp_wifi_disconnect();
-  }
+  // Leaving the old network reports ASSOC_LEAVE, which on_event ignores.
+  esp_wifi_disconnect();
   wifi_config_t config = {};
   strncpy(reinterpret_cast<char *>(config.sta.ssid), credentials.ssid.c_str(),
           sizeof(config.sta.ssid));
@@ -39,18 +37,14 @@ void EspWifi::connect(const core::WifiCredentials &credentials) {
 }
 
 // On the default event loop's task: hand everything to Device's task.
-void EspWifi::on_event(void *self, esp_event_base_t base, int32_t id, void *) {
+void EspWifi::on_event(void *self, esp_event_base_t base, int32_t id, void *data) {
   auto *wifi = static_cast<EspWifi *>(self);
   core::Device *device = wifi->device_;
   if (!device) return;
-  if (base == WIFI_EVENT && id == WIFI_EVENT_STA_CONNECTED) {
-    wifi->associated_ = true;
-  } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
-    wifi->associated_ = false;
-    if (wifi->switching_) {
-      wifi->switching_ = false;
-      return;
-    }
+  if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
+    // Our own esp_wifi_disconnect() in connect(): not news, a join follows.
+    const auto *event = static_cast<wifi_event_sta_disconnected_t *>(data);
+    if (event && event->reason == WIFI_REASON_ASSOC_LEAVE) return;
     wifi->queue_.post([device] { device->on_wifi_down(); });
   } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
     wifi->queue_.post([device] { device->on_wifi_up(); });

@@ -354,3 +354,12 @@ TEST_CASE("a code's minutes are rounded to the nearest, as Date has whole second
   rig->device->on_pairing_code("7K4MQ9TX", 900999);
   TEST_ASSERT_TRUE(rig->console.printed("pairing code: 7K4M-Q9TX (expires in 15 min)"));
 }
+
+TEST_CASE("Wi-Fi up again while connected keeps the link", "[device]") {
+  auto rig = Rig::connected();
+  rig->device->on_wifi_up();  // e.g. a DHCP renewal
+  TEST_ASSERT_EQUAL(1, rig->link.opens);
+  TEST_ASSERT_EQUAL(0, rig->link.closes);
+  rig->device->on_line("status");
+  TEST_ASSERT_TRUE(rig->console.printed("backend    connected"));
+}

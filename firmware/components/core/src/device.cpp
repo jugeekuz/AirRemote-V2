@@ -78,9 +78,12 @@ void Device::join_wifi() {
 }
 
 void Device::on_wifi_up() {
+  const bool was_up = wifi_up_;
   wifi_up_ = true;
   wifi_attempt_ = 0;
   ports_.timers.cancel(TimerId::WifiRetry);
+  // Up again while up (e.g. a DHCP renewal): the link is fine as it is.
+  if (was_up && (backend_ == Backend::Connected || backend_ == Backend::Connecting)) return;
   ports_.console.print("Wi-Fi connected");
   open_link();
 }

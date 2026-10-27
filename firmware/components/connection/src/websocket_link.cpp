@@ -41,6 +41,9 @@ void WebSocketLink::open() {
   config.disable_auto_reconnect = true;
   config.network_timeout_ms = 10000;
   config.buffer_size = 4096;
+  // The mTLS handshake runs on the client's task; 4 KB (the default) is not
+  // enough for it on the board.
+  config.task_stack = 8192;
 
   client_ = esp_websocket_client_init(&config);
   if (!client_) {
@@ -104,7 +107,10 @@ void WebSocketLink::handle(int32_t id, esp_websocket_event_data_t *data) {
       return;
 
     case WEBSOCKET_EVENT_DISCONNECTED:
-    case WEBSOCKET_EVENT_CLOSED: {
+    case WEBSOCKET_EVENT_CLOSED:
+    // The client's task ending: a last chance to report, as some failures end
+    // it without a DISCONNECTED.
+    case WEBSOCKET_EVENT_FINISH: {
       if (reported_) return;
       reported_ = true;
       if (opened_) {

@@ -22,9 +22,6 @@ class EspWifi : public core::Wifi {
 
   runtime::EventQueue &queue_;
   core::Device *device_ = nullptr;
-  bool associated_ = false;
-  // Set while connect() drops the old network: that disconnect is not news.
-  bool switching_ = false;
 };
 
 }  // namespace board
