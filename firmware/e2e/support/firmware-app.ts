@@ -1,6 +1,6 @@
 import { execFile, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { promisify } from 'node:util';
@@ -27,6 +27,8 @@ export type FirmwareApp = {
    * apart between part i and i + 1 (default 30 ms), once it is listening.
    */
   pressIr(parts: number[][], gapsMs?: number[]): Promise<void>;
+  /** Every code the stand-in transmitter sent, in order. */
+  sentIr(): Promise<number[][]>;
   stop(): Promise<void>;
 };
 
@@ -67,6 +69,7 @@ export async function startFirmware({
     AIRREMOTE_CA_FILE: `${inContainer}/ca.pem`,
     AIRREMOTE_MAC: 'AA:BB:CC:DD:EE:01',
     AIRREMOTE_IR_FILE: `${inContainer}/ir.txt`,
+    AIRREMOTE_IR_SENT_FILE: `${inContainer}/ir-sent.txt`,
     ...env,
   };
   await writeFile(join(folder, 'ca.pem'), certs.ca);
@@ -131,6 +134,15 @@ export async function startFirmware({
       // Written whole, then renamed, so the app never reads half a file.
       await writeFile(join(folder, 'ir.tmp'), `${lines.join('\n')}\n`);
       await rename(join(folder, 'ir.tmp'), join(folder, 'ir.txt'));
+    },
+    async sentIr() {
+      const text = await readFile(join(folder, 'ir-sent.txt'), 'utf8').catch(
+        () => '',
+      );
+      return text
+        .split('\n')
+        .filter((line) => line !== '')
+        .map((line) => line.split(',').map(Number));
     },
     async stop() {
       child.kill();

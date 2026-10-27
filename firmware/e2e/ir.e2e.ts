@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { createApiClient } from '../../backend/e2e/support/api-client';
+import { createApiClient, waitFor } from '../../backend/e2e/support/api-client';
 import { useDeviceServer } from '../../backend/e2e/support/device-server';
 import { startFirmware, stopAllFirmware } from './support/firmware-app';
 
@@ -97,5 +97,35 @@ describe('reading IR', () => {
 
     await app.waitForLine(`IR code: 1 part; ${NEC.length} timings`);
     await app.waitForLine(`timings: ${NEC.join(',')}`);
+  });
+
+  it('pressing a learned button sends exactly its code', async () => {
+    const { app, token, remoteId } = await readyToLearn();
+    const learning = await api.learn(remoteId, token);
+    await app.pressIr([NEC]);
+    const learned = await api.pollUntilSettled(learning.body.id, token);
+    expect(learned.status).toBe('succeeded');
+
+    const pressing = await api.press(learned.button!.id, token);
+    expect(pressing.status).toBe(202);
+
+    const sent = await api.pollUntilSettled(pressing.body.id, token);
+    expect(sent.status).toBe('succeeded');
+    await waitFor(async () => (await app.sentIr()).length === 1, 2_000);
+    expect(await app.sentIr()).toEqual([NEC]);
+  });
+
+  it('ir selftest hears its own test code', async () => {
+    const app = await startFirmware({
+      backendUrl: backendUrl(),
+      client: 'allowed',
+    });
+
+    app.type('ir selftest');
+
+    await app.waitForLine(
+      'IR self-test: OK (sent 67 timings, heard 67)',
+      20_000,
+    );
   });
 });

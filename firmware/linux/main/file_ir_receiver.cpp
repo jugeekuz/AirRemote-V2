@@ -76,6 +76,17 @@ void FileIrReceiver::deliver() {
     return;
   }
 
+  std::vector<std::vector<uint16_t>> timings;
+  std::vector<int64_t> gaps;
+  for (auto &part : parts) {
+    timings.push_back(std::move(part.timings));
+    gaps.push_back(part.gap_before_us);
+  }
+  play(timings, gaps);
+}
+
+void FileIrReceiver::play(const std::vector<std::vector<uint16_t>> &parts,
+                          const std::vector<int64_t> &gaps_us) {
   // Parts are timed on a schedule (start, then each part's length and gap),
   // which their reported ends follow exactly; the waits in real time around
   // it are only as precise as the 10 ms tick, which Device tolerates.
@@ -86,9 +97,8 @@ void FileIrReceiver::deliver() {
   };
   int64_t at = esp_timer_get_time();
   for (size_t i = 0; i < parts.size(); i++) {
-    if (i > 0) at += parts[i].gap_before_us;
-    const int64_t duration =
-        std::accumulate(parts[i].timings.begin(), parts[i].timings.end(), int64_t{0});
+    if (i > 0) at += gaps_us[i];
+    const int64_t duration = std::accumulate(parts[i].begin(), parts[i].end(), int64_t{0});
     wait_until(at);
     // Edges all through the part.
     while (esp_timer_get_time() < at + duration) {
@@ -98,7 +108,8 @@ void FileIrReceiver::deliver() {
     at += duration;
     last_activity_us_ = at;
     wait_until(at + core::IrCapture::kReportDelayUs);
-    core::IrPart part{parts[i].timings, at, false};
+    if (!listening_) continue;
+    core::IrPart part{parts[i], at, false};
     queue_.post([device, part] { device->on_ir_part(part); });
   }
 }

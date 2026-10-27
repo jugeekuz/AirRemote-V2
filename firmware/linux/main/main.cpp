@@ -5,6 +5,7 @@
 //   AIRREMOTE_MAC                    what status shows
 //   AIRREMOTE_NOT_ENROLLED_RETRY_MS  shortens the retry after a 403, for tests
 //   AIRREMOTE_IR_FILE                where the stand-in IR receiver looks for codes
+//   AIRREMOTE_IR_SENT_FILE           where the stand-in IR transmitter records codes
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -21,6 +22,7 @@
 #include "core/text.hpp"
 #include "esp_event.h"
 #include "file_ir_receiver.hpp"
+#include "file_ir_sender.hpp"
 #include "psa/crypto.h"
 #include "runtime/console.hpp"
 #include "runtime/event_queue.hpp"
@@ -35,21 +37,6 @@ extern "C" int64_t esp_timer_get_time(void) {
 }
 
 namespace {
-
-// Until the transmitter is wired in, every send fails.
-class NoIrSender : public core::IrSender {
- public:
-  explicit NoIrSender(runtime::EventQueue &queue) : queue_(queue) {}
-  void attach(core::Device &device) { device_ = &device; }
-  void send(std::vector<core::IrSymbol>) override {
-    core::Device *device = device_;
-    queue_.post([device] { device->on_ir_sent(false); });
-  }
-
- private:
-  runtime::EventQueue &queue_;
-  core::Device *device_ = nullptr;
-};
 
 std::string env(const char *name) {
   const char *value = getenv(name);
@@ -118,7 +105,7 @@ extern "C" void app_main(void) {
   static connection::HttpPairingApi pairing(urls ? urls->pairing : "", tls, queue);
   static runtime::FreeRtosTimers timers(queue);
   static FileIrReceiver ir(env("AIRREMOTE_IR_FILE"), queue);
-  static NoIrSender ir_sender(queue);
+  static FileIrSender ir_sender(env("AIRREMOTE_IR_SENT_FILE"), ir, queue);
 
   static core::Device device(
       core::DeviceInfo{AIRREMOTE_FIRMWARE_VERSION, env("AIRREMOTE_MAC"),

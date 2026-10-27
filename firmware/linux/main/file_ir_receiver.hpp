@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <string>
+#include <vector>
 
 #include "core/device.hpp"
 #include "runtime/event_queue.hpp"
@@ -18,6 +19,12 @@ class FileIrReceiver : public core::IrReceiver {
   FileIrReceiver(std::string path, runtime::EventQueue &queue)
       : path_(std::move(path)), queue_(queue) {}
   void attach(core::Device &device) { device_ = &device; }
+
+  // Plays parts in real time as the board's receiver delivers them, if
+  // listening: `gaps_us[i]` is the silence before part i. Blocks while it
+  // plays. The file and the stand-in transmitter's echo both use it.
+  void play(const std::vector<std::vector<uint16_t>> &parts, const std::vector<int64_t> &gaps_us);
+  bool listening() const { return listening_; }
 
   void start() override;
   void stop() override { listening_ = false; }

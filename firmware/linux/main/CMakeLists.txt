@@ -1,4 +1,4 @@
-idf_component_register(SRCS "main.cpp" "file_ir_receiver.cpp"
+idf_component_register(SRCS "main.cpp" "file_ir_receiver.cpp" "file_ir_sender.cpp"
                        REQUIRES core runtime connection mbedtls esp_event esp_timer freertos)
 
 # ESP-IDF reads version.txt only from the project's own folder.
