@@ -19,12 +19,12 @@ export type DevicesRepository = {
   listForUser(userId: string): Promise<Device[]>;
   /** Stores the device's pairing code, replacing any previous one. */
   savePairingCode(code: NewPairingCode): Promise<void>;
+  /** A device deleted in the meantime is a no-op. */
+  setFirmwareVersion(deviceId: string, firmwareVersion: string): Promise<void>;
   /**
    * Consumes a live pairing code and creates the device, in one transaction:
    * when the device cannot be created, the code is left unused.
    */
-  /** A device deleted in the meantime is a no-op. */
-  setFirmwareVersion(deviceId: string, firmwareVersion: string): Promise<void>;
   enroll(input: {
     macAddress: string;
     codeHash: string;
