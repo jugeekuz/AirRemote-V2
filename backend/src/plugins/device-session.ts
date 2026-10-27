@@ -65,7 +65,23 @@ export function attachDeviceSession(
   connections.register(device.id, socket);
   log.info({ macAddress: device.macAddress }, 'Device connected');
 
+  // A connection's messages are handled one at a time, in order (two hellos
+  // must be stored in the order they came): the next waits for the last.
+  const waiting: DeviceMessage[] = [];
+  let handling = false;
+
   function dispatch(message: DeviceMessage) {
+    waiting.push(message);
+    if (!handling) handleNext();
+  }
+
+  function handleNext() {
+    const message = waiting.shift();
+    if (!message) {
+      handling = false;
+      return;
+    }
+    handling = true;
     const handler = handlers[message.type] as (
       message: DeviceMessage,
       ctx: DeviceMessageContext,
@@ -75,11 +91,14 @@ export function attachDeviceSession(
         { err: error, type: message.type },
         'Device message handler failed',
       );
+    let handled: Promise<void>;
     try {
-      handler(message, ctx).catch(onError);
+      handled = handler(message, ctx).catch(onError);
     } catch (error) {
       onError(error);
+      handled = Promise.resolve();
     }
+    void handled.then(handleNext);
   }
 
   socket.on('message', (data: RawData, isBinary: boolean) => {

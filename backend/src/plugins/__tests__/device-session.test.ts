@@ -76,6 +76,39 @@ describe('device session', () => {
     expect(socket.send).not.toHaveBeenCalled();
   });
 
+  it("handles a connection's messages one at a time, in order", async () => {
+    // e.g. two hellos: the second must not be stored before the first.
+    let finishFirst!: () => void;
+    const order: string[] = [];
+    handlers.error
+      .mockImplementationOnce(async (message: { message: string }) => {
+        order.push(`start ${message.message}`);
+        await new Promise<void>((resolve) => (finishFirst = resolve));
+        order.push(`end ${message.message}`);
+      })
+      .mockImplementationOnce(async (message: { message: string }) => {
+        order.push(`start ${message.message}`);
+      });
+    attach();
+
+    socket.emit('message', text({ ...deviceError, message: 'one' }), false);
+    socket.emit('message', text({ ...deviceError, message: 'two' }), false);
+    expect(order).toEqual(['start one']);
+
+    finishFirst();
+    await vi.waitFor(() =>
+      expect(order).toEqual(['start one', 'end one', 'start two']),
+    );
+  });
+
+  it('goes on to the next message after a handler fails', async () => {
+    handlers.error.mockRejectedValueOnce(new Error('handler failed'));
+    attach();
+    socket.emit('message', text(deviceError), false);
+    socket.emit('message', text(deviceError), false);
+    await vi.waitFor(() => expect(handlers.error).toHaveBeenCalledTimes(2));
+  });
+
   it('replies UNSUPPORTED_FRAME to a binary frame', () => {
     attach();
     socket.emit('message', text(deviceError), true);

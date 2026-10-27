@@ -58,7 +58,10 @@ export const firmwareVersionSchema = z
 
 /** Every message a device may send to the server. Unknown keys are rejected. */
 export const deviceMessageSchema = z.discriminatedUnion('type', [
-  /** Sent once after connecting: what the device is running. Not a command; no reply. */
+  /**
+   * Sent after connecting: what the device is running. A later hello replaces
+   * the stored version. Not a command; no reply.
+   */
   z.strictObject({
     type: z.literal('hello'),
     firmwareVersion: firmwareVersionSchema,
