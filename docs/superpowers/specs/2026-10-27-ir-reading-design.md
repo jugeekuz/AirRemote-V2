@@ -262,3 +262,21 @@ captured, so real remotes can be checked rather than guessed at.
 - **A full buffer:** a capture of 447 or more symbols is treated as
   overflowed. The board check verifies how the v6 driver reports a full
   buffer on the classic ESP32. One RMT part holds at most about 895 timings.
+
+## Corrected after the final review
+
+**When a code ends.** Step 4 above is wrong for the chip. A part is reported
+only 30 ms after it ends, so a silence timer at "the last part's end + 50 ms"
+always fires before the next part can be reported, and multi-part codes would
+be cut to their first part.
+
+Instead, the receiver also reports **activity**: on the board, a GPIO edge
+interrupt on the RX pin records when it last saw an edge. A code ends once
+50 ms have passed with no activity, plus the 30 ms report delay. Activity
+after the code so far means a part is still on the air, so `Device` keeps
+waiting.
+
+A read can run at most 2 s past its deadline, even under steady IR. The
+capture stops growing past 2048 timings. This was verified on the board: a
+three-part loopback code with 35 ms gaps came back as one code with both
+gaps, and a 600-pulse burst gave "too long".
