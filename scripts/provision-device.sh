@@ -116,9 +116,13 @@ mac="$(grep -oE 'MAC:[[:space:]]+([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}' "$tmp/out" 
 
 in_idf 'reading the identity partition' \
   esptool read-flash "$offset" "$size" "$rel/before.bin"
-in_idf 'parsing the identity partition' bash -c \
+# ESP-IDF's parser can crash on another firmware's leftovers. An identity this
+# script wrote always parses, so a region it can't read holds none.
+if ! "$idf" exec bash -c \
   "python \"\$IDF_PATH/components/nvs_flash/nvs_partition_tool/nvs_tool.py\" \
-    -f json -d minimal $rel/before.bin > $rel/before.json"
+    -f json -d minimal $rel/before.bin > $rel/before.json" >"$tmp/out" 2>&1; then
+  echo '[]' >"$tmp/before.json"
+fi
 # Blank flash or another firmware's leftovers parse to no identity entries.
 has_identity="$(python3 - "$tmp/before.json" "$tmp/existing.crt" <<'EOF'
 import json, sys

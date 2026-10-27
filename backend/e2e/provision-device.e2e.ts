@@ -1,5 +1,4 @@
 import { execFile } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
 import {
   chmod,
   mkdir,
@@ -45,6 +44,21 @@ afterEach(async () => {
   await rm(caDir, { recursive: true, force: true });
   await rm(boardDir, { recursive: true, force: true });
 });
+
+/** Repeatable "random" bytes (xorshift32), standing in for another firmware's data. */
+function leftovers(seed: number) {
+  let x = seed >>> 0 || 1;
+  const bytes = Buffer.alloc(IDENTITY_SIZE);
+  for (let i = 0; i < bytes.length; i++) {
+    x ^= x << 13;
+    x >>>= 0;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    x >>>= 0;
+    bytes[i] = x & 255;
+  }
+  return bytes;
+}
 
 type Result = { code: number; stdout: string; stderr: string };
 
@@ -186,10 +200,14 @@ describe('scripts/provision-device.sh', () => {
     TIMEOUT_MS,
   );
 
-  it(
-    'provisions a board with leftovers from older firmware without --force',
-    async () => {
-      await writeFile(flash, randomBytes(IDENTITY_SIZE));
+  it.each([
+    // Seeds for leftovers ESP-IDF's NVS parser reads (1) and crashes on (3).
+    ['that the NVS parser reads', 1],
+    ['that crash the NVS parser', 3],
+  ])(
+    'provisions a board with leftovers from older firmware %s, without --force',
+    async (_, seed) => {
+      await writeFile(flash, leftovers(seed));
 
       expect(await provision()).toMatchObject({ code: 0 });
 
