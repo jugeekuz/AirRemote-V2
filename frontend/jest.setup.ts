@@ -48,27 +48,22 @@ jest.mock('@react-native-community/netinfo', () =>
 );
 // `t('key')` returns 'key'; `t('key', { a: 1, b: 'x' })` returns
 // 'key | a: 1 | b: x'. `ns` selects a namespace, so it is left out.
-// Virtual: the package is installed with the i18n layer.
-jest.mock(
-  'react-i18next',
-  () => ({
-    useTranslation: () => ({
-      t: (key: string, options?: Record<string, unknown>) => {
-        const params = Object.entries(options ?? {}).filter(
-          ([name]) => name !== 'ns',
-        );
-        return [
-          key,
-          ...params.map(([name, value]) => `${name}: ${String(value)}`),
-        ].join(' | ');
-      },
-      i18n: { language: 'en', changeLanguage: jest.fn() },
-    }),
-    Trans: ({ i18nKey }: { i18nKey?: string }) => i18nKey ?? null,
-    initReactI18next: { type: '3rdParty', init: jest.fn() },
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, unknown>) => {
+      const params = Object.entries(options ?? {}).filter(
+        ([name]) => name !== 'ns',
+      );
+      return [
+        key,
+        ...params.map(([name, value]) => `${name}: ${String(value)}`),
+      ].join(' | ');
+    },
+    i18n: { language: 'en', changeLanguage: jest.fn() },
   }),
-  { virtual: true },
-);
+  Trans: ({ i18nKey }: { i18nKey?: string }) => i18nKey ?? null,
+  initReactI18next: { type: '3rdParty', init: jest.fn() },
+}));
 
 // Jest has no compiled CSS (Metro's Uniwind transformer makes it), so give
 // the one theme variable the kit reads from JavaScript its stylesheet value.

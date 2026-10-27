@@ -1,0 +1,66 @@
+import '@i18n/config';
+
+import { AppState } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
+import { focusManager, onlineManager } from '@tanstack/react-query';
+
+import { isWebPlatform } from '@utils/platform';
+import { authApi } from '@api/auth';
+import { configureHttpClient } from '@api/http-client';
+import { AUTH_STATUS, authStore } from '@stores/auth';
+
+import { queryClient } from './query-client';
+
+/** Browsers report focus and connectivity to TanStack Query themselves; React Native doesn't. */
+function connectQueryRuntimeToReactNative(): void {
+  if (isWebPlatform) {
+    return;
+  }
+
+  onlineManager.setEventListener((setOnline) =>
+    NetInfo.addEventListener((state) => {
+      setOnline(state.isConnected === true);
+    }),
+  );
+
+  focusManager.setEventListener((setFocused) => {
+    const subscription = AppState.addEventListener('change', (status) => {
+      setFocused(status === 'active');
+    });
+    return () => {
+      subscription.remove();
+    };
+  });
+}
+
+/**
+ * Gets a new access token for a signed-in session and stores it. If the user
+ * signed out while the refresh was in flight, the token is dropped (it must
+ * not revive the session) and this rejects.
+ */
+async function refreshAccessToken(): Promise<string> {
+  const { accessToken } = await authApi.refresh();
+  if (authStore.getStatus() !== AUTH_STATUS.AUTHENTICATED) {
+    throw new Error('Signed out while the access token was being refreshed.');
+  }
+  authStore.setAccessToken(accessToken);
+  return accessToken;
+}
+
+function endSession(): void {
+  authStore.signOut();
+  queryClient.clear();
+}
+
+/**
+ * Runs once, before the first render. Restoring the session is not part of
+ * it: the root navigator's `useSessionHydration` does that.
+ */
+export function bootstrap(): void {
+  configureHttpClient({
+    getAccessToken: authStore.getAccessToken,
+    refreshAccessToken,
+    onSessionExpired: endSession,
+  });
+  connectQueryRuntimeToReactNative();
+}

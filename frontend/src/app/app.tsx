@@ -1,21 +1,24 @@
 import '@ui/global.css';
 
-import { View } from 'react-native';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { Text, UiProvider } from '@ui';
+import RootNavigationContainer from '@navigation/root-navigation-container';
+import { UiProvider } from '@ui';
 
-// Temporary: replaced by the real app shell.
+import { queryClient } from './query-client';
+
+// UiProvider includes the gesture root, so none is needed here.
 export default function App() {
   return (
     <SafeAreaProvider>
-      <UiProvider>
-        <View className="flex-1 items-center justify-center bg-background">
-          <Text>AirRemote</Text>
-        </View>
-        <StatusBar style="auto" />
-      </UiProvider>
+      <QueryClientProvider client={queryClient}>
+        <UiProvider>
+          <RootNavigationContainer />
+          <StatusBar style="auto" />
+        </UiProvider>
+      </QueryClientProvider>
     </SafeAreaProvider>
   );
 }

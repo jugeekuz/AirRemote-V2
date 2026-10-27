@@ -16,7 +16,8 @@ const config: HeroUINativeConfig = {
 
 /**
  * Everything the kit needs around the app (gesture root, theme, portals,
- * toasts), plus the bridge behind the imperative `toast`.
+ * toasts), plus the bridge behind the imperative `toast`. It must sit inside
+ * a `SafeAreaProvider`.
  */
 export default function UiProvider({ children }: UiProviderProps) {
   return (
