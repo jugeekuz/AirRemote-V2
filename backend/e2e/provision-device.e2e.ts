@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
+  chmod,
   mkdir,
   mkdtemp,
   readdir,
@@ -268,14 +269,18 @@ describe('scripts/provision-device.sh', () => {
     async () => {
       await provision();
       const before = await readFile(join(caDir, `${RECORD}.crt`));
+      // Only the read after this run's write may be corrupted.
+      await rm(`${flash}.written`);
 
       const result = await provision(['--force'], {
         FAKE_CORRUPT_READBACK: '1',
       });
 
       expect(result.code).toBe(1);
+      expect(result.stderr).toContain('could not be confirmed');
       expect(await readFile(join(caDir, `${RECORD}.crt`))).toEqual(before);
       expect(await exists(join(caDir, `${RECORD}.key`))).toBe(false);
+      expect(await provisionFolders()).toEqual([]);
     },
     TIMEOUT_MS,
   );
@@ -304,4 +309,20 @@ describe('scripts/provision-device.sh', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('no board on /nonexistent/ttyUSB9');
   });
+
+  it(
+    'still deletes the key when restoring the record fails',
+    async () => {
+      await provision();
+      // A record that can't be rewritten: issuing fails, then so does the restore.
+      await chmod(join(caDir, `${RECORD}.crt`), 0o444);
+
+      const result = await provision(['--force']);
+
+      expect(result.code).toBe(1);
+      expect(await exists(join(caDir, `${RECORD}.key`))).toBe(false);
+      expect(await provisionFolders()).toEqual([]);
+    },
+    TIMEOUT_MS,
+  );
 });

@@ -77,16 +77,24 @@ succeeded=false
 record='' # the certificate record, once this run has issued one
 key=''
 
+# The key goes first, and nothing here may stop the rest: set -e would end the
+# trap at the first failing command.
 cleanup() {
+  set +e
   [[ -n "$key" ]] && rm -f "$key"
+  local previous=''
+  if [[ -f "$tmp/previous.crt" ]]; then
+    previous="$(cat "$tmp/previous.crt")"
+  fi
+  rm -rf "$tmp"
   if [[ "$succeeded" != true && -n "$record" ]]; then
-    if [[ -f "$tmp/previous.crt" ]]; then
-      cp "$tmp/previous.crt" "$record"
+    if [[ -n "$previous" ]]; then
+      printf '%s\n' "$previous" >"$record" ||
+        echo "provision-device: could not restore $record" >&2
     else
       rm -f "$record"
     fi
   fi
-  rm -rf "$tmp"
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
