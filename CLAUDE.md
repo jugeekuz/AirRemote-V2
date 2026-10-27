@@ -118,3 +118,32 @@ Every folder that holds source files has a `__tests__/` folder (an empty
 `.gitkeep` until it has tests). One Postgres container is started per run
 and migrated once; each test file gets a clone of it, so files run in
 parallel without sharing data.
+
+## Firmware conventions
+
+`firmware/` is an ESP-IDF project in C++ for the FireBeetle ESP32. Every
+command runs through `firmware/scripts/idf.sh`, which runs ESP-IDF in a
+pinned Docker image; nothing ESP-IDF-related is installed on the host. See
+`firmware/README.md` for commands.
+
+- `components/core` is platform-free logic: no ESP-IDF, FreeRTOS or hardware
+  header. Its `REQUIRES` lists nothing hardware-related, and since ESP-IDF
+  exposes its common components to every component anyway,
+  `scripts/test.sh` rejects those includes too. Core declares the interfaces
+  hardware sits behind; driver components implement them; `main` wires them
+  together.
+- C++ without exceptions or RTTI (ESP-IDF's defaults). Hardware interfaces
+  are small abstract classes; test fakes are subclasses of them.
+- Tests: each component with tests has a `host_test/` app next to it, built
+  for the `linux` target with Unity; `scripts/test.sh` runs them all.
+  Integration against the real backend, Wokwi simulation and a manual
+  hardware checklist come later.
+- `partitions.csv`, `CONFIG_PARTITION_TABLE_OFFSET` and the bootloader
+  settings are fixed once boards exist: changing them means reflashing every
+  board over USB.
+- A device's key and certificate live in their own `identity` partition,
+  apart from `nvs`, so a factory reset and app flashes keep them. Only the
+  provision script writes it.
+- Never burn eFuses on development boards: no secure boot or flash
+  encryption until boards go to other people.
+- The firmware version is `firmware/version.txt`, bumped by hand.
