@@ -78,3 +78,12 @@ TEST_CASE("decodes readIr's timeoutMs", "[protocol]") {
       R"({"type":"readIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timeoutMs":15000})");
   TEST_ASSERT_EQUAL_UINT32(15000, read->timeout_ms);
 }
+
+TEST_CASE("readIr's timeoutMs is clamped to the contract's 1-60 s", "[protocol]") {
+  auto big = core::decode_server_message(
+      R"({"type":"readIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timeoutMs":1e15})");
+  TEST_ASSERT_EQUAL_UINT32(60000, big->timeout_ms);
+  auto small = core::decode_server_message(
+      R"({"type":"readIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timeoutMs":0.5})");
+  TEST_ASSERT_EQUAL_UINT32(1000, small->timeout_ms);
+}

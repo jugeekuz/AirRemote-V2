@@ -20,7 +20,9 @@ int64_t FreeRtosTimers::now_us() { return esp_timer_get_time(); }
 void FreeRtosTimers::schedule(core::TimerId id, uint32_t ms) {
   const size_t i = static_cast<size_t>(id);
   generation_[i]++;
-  const TickType_t ticks = pdMS_TO_TICKS(ms) > 0 ? pdMS_TO_TICKS(ms) : 1;
+  // Rounded up, plus one: the tick is 10 ms, and a timer must never fire
+  // early (IR silence waits are short).
+  const TickType_t ticks = (ms + portTICK_PERIOD_MS - 1) / portTICK_PERIOD_MS + 1;
   xTimerChangePeriod(timers_[i], ticks, portMAX_DELAY);  // also starts it
 }
 

@@ -144,3 +144,33 @@ TEST_CASE("parts are cleaned as they are added", "[ir]") {
   auto result = capture.finish();
   TEST_ASSERT_TRUE(result.timings == (std::vector<uint16_t>{9000, 4500, 560, 533, 560, 560, 560}));
 }
+
+TEST_CASE("a capture stops growing past the limit and is too long", "[ir]") {
+  IrCapture capture;
+  int64_t start = 0;
+  for (int i = 0; i < 10; i++) {
+    const auto part = timings(895);
+    capture.add(part_at(part, start));
+    start += length_us(part) + 30000;
+  }
+  TEST_ASSERT_TRUE(capture.size() <= IrCapture::kMaxTimings + 1);
+  TEST_ASSERT_TRUE(capture.finish().kind == Kind::TooLong);
+}
+
+TEST_CASE("a glitch dropped from a part's end moves its end earlier", "[ir]") {
+  IrCapture capture;
+  const std::vector<uint16_t> clean = {9000, 4500, 560};
+  // The part really ended 30 002 µs before its last (glitch) mark.
+  const std::vector<uint16_t> glitchy = {9000, 4500, 560, 30000, 2};
+  capture.add(part_at(glitchy, 0));
+  TEST_ASSERT_EQUAL_INT64(length_us(clean), capture.ended_at_us());
+  capture.add(part_at(clean, length_us(clean) + 40000));
+  TEST_ASSERT_EQUAL_INT64(40, capture.finish().gaps_ms[0]);
+}
+
+TEST_CASE("remove_ir_glitches reports what it dropped from the end", "[ir]") {
+  int64_t dropped = 0;
+  auto t = core::remove_ir_glitches({9000, 4500, 560, 30000, 2}, &dropped);
+  TEST_ASSERT_EQUAL_INT64(30002, dropped);
+  TEST_ASSERT_EQUAL(3, (int)t.size());
+}

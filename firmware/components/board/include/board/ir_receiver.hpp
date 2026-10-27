@@ -27,6 +27,7 @@ class RmtIrReceiver : public core::IrReceiver {
 
   void start() override;
   void stop() override;
+  int64_t last_activity_us() override;
 
  private:
   struct Done {
@@ -37,6 +38,7 @@ class RmtIrReceiver : public core::IrReceiver {
   static bool on_done(rmt_channel_handle_t channel, const rmt_rx_done_event_data_t *data,
                       void *self);
   static void convert(void *self);
+  static void on_edge(void *self);
 
   gpio_num_t pin_;
   runtime::EventQueue &queue_;
@@ -47,6 +49,9 @@ class RmtIrReceiver : public core::IrReceiver {
   rmt_symbol_word_t buffers_[2][kSymbols] = {};
   int next_buffer_ = 0;
   std::atomic<bool> listening_{false};
+  // Written by the edge ISR; 64-bit, so under a spinlock rather than atomic.
+  portMUX_TYPE activity_lock_ = portMUX_INITIALIZER_UNLOCKED;
+  int64_t last_activity_us_ = 0;
 };
 
 }  // namespace board

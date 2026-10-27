@@ -71,6 +71,8 @@ class Device {
     std::string command_id;  // For::Backend
     IrCapture capture;
     bool deadline_passed = false;
+    int64_t started_at_us = 0;  // parts that ended earlier are stale
+    int64_t give_up_at_us = 0;  // set when the deadline passes
   };
 
   enum class Backend { Offline, Connecting, Connected, NotEnrolled };
@@ -86,6 +88,7 @@ class Device {
   std::string backend_state() const;
   void start_read(Read::For who, std::string command_id, uint32_t timeout_ms);
   void finish_code();
+  void wait_for_silence();
   void end_read();
   void read_timed_out();
 

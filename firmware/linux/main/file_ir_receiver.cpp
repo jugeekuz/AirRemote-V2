@@ -76,19 +76,29 @@ void FileIrReceiver::deliver() {
     return;
   }
 
-  // Lay the parts out backwards from now: the last ends now, and each earlier
-  // part ends where the next one's gap begins.
-  std::vector<int64_t> ended_at(parts.size());
-  int64_t end = esp_timer_get_time();
-  for (size_t i = parts.size(); i-- > 0;) {
-    ended_at[i] = end;
+  // Parts are timed on a schedule (start, then each part's length and gap),
+  // which their reported ends follow exactly; the waits in real time around
+  // it are only as precise as the 10 ms tick, which Device tolerates.
+  core::Device *device = device_;
+  auto wait_until = [](int64_t at_us) {
+    const int64_t left = at_us - esp_timer_get_time();
+    if (left > 0) vTaskDelay(pdMS_TO_TICKS((left + 999) / 1000) + 1);
+  };
+  int64_t at = esp_timer_get_time();
+  for (size_t i = 0; i < parts.size(); i++) {
+    if (i > 0) at += parts[i].gap_before_us;
     const int64_t duration =
         std::accumulate(parts[i].timings.begin(), parts[i].timings.end(), int64_t{0});
-    end -= duration + parts[i].gap_before_us;
-  }
-  core::Device *device = device_;
-  for (size_t i = 0; i < parts.size(); i++) {
-    core::IrPart part{parts[i].timings, ended_at[i], false};
+    wait_until(at);
+    // Edges all through the part.
+    while (esp_timer_get_time() < at + duration) {
+      last_activity_us_ = esp_timer_get_time();
+      vTaskDelay(1);
+    }
+    at += duration;
+    last_activity_us_ = at;
+    wait_until(at + core::IrCapture::kReportDelayUs);
+    core::IrPart part{parts[i].timings, at, false};
     queue_.post([device, part] { device->on_ir_part(part); });
   }
 }

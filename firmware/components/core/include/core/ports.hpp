@@ -51,6 +51,10 @@ struct IrReceiver {
   virtual ~IrReceiver() = default;
   virtual void start() = 0;
   virtual void stop() = 0;
+  // When the receiver last saw any IR (µs, the Timers::now_us clock), part or
+  // not: a part is reported only after it ends, so this tells Device that one
+  // is still on the air.
+  virtual int64_t last_activity_us() = 0;
 };
 
 enum class TimerId { WifiRetry, LinkRetry, PairingExpiry, IrSilence, IrDeadline };

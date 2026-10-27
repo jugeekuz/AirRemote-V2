@@ -71,8 +71,10 @@ std::optional<ServerMessage> decode_server_message(std::string_view text) {
       message.type = type == "readIr" ? ServerMessage::Type::ReadIr
                                       : ServerMessage::Type::SendIr;
       const cJSON *timeout = cJSON_GetObjectItemCaseSensitive(json.get(), "timeoutMs");
-      if (cJSON_IsNumber(timeout) && timeout->valuedouble > 0) {
-        message.timeout_ms = static_cast<uint32_t>(timeout->valuedouble);
+      if (cJSON_IsNumber(timeout)) {
+        // The contract's range, 1-60 s; anything else is clamped into it.
+        const double ms = timeout->valuedouble;
+        message.timeout_ms = ms < 1000 ? 1000 : ms > 60000 ? 60000 : static_cast<uint32_t>(ms);
       }
     }
   } else if (type == "error") {

@@ -5,7 +5,8 @@
 
 namespace core {
 
-std::vector<uint16_t> remove_ir_glitches(std::vector<uint16_t> t) {
+std::vector<uint16_t> remove_ir_glitches(std::vector<uint16_t> t, int64_t *dropped_tail_us) {
+  if (dropped_tail_us) *dropped_tail_us = 0;
   for (;;) {
     if (t.empty()) return t;
     const auto shortest = std::min_element(t.begin(), t.end());
@@ -14,7 +15,11 @@ std::vector<uint16_t> remove_ir_glitches(std::vector<uint16_t> t) {
     if (i == 0) {
       t.erase(t.begin(), t.begin() + std::min<size_t>(2, t.size()));
     } else if (i == t.size() - 1) {
-      t.erase(t.end() - std::min<size_t>(2, t.size()), t.end());
+      const size_t n = std::min<size_t>(2, t.size());
+      if (dropped_tail_us) {
+        *dropped_tail_us += std::accumulate(t.end() - n, t.end(), int64_t{0});
+      }
+      t.erase(t.end() - n, t.end());
     } else {
       const uint32_t merged = uint32_t{t[i - 1]} + t[i] + t[i + 1];
       t[i - 1] = static_cast<uint16_t>(std::min<uint32_t>(merged, 65535));
@@ -24,8 +29,10 @@ std::vector<uint16_t> remove_ir_glitches(std::vector<uint16_t> t) {
 }
 
 bool IrCapture::add(const IrPart &raw) {
-  // The part keeps its end time: the silence after it is unchanged.
-  const IrPart part{remove_ir_glitches(raw.timings), raw.ended_at_us, raw.overflowed};
+  // What is dropped from the end moves the part's real end earlier.
+  int64_t dropped_tail = 0;
+  const auto cleaned = remove_ir_glitches(raw.timings, &dropped_tail);
+  const IrPart part{cleaned, raw.ended_at_us - dropped_tail, raw.overflowed};
   if (part.timings.empty()) return true;
   const int64_t duration =
       std::accumulate(part.timings.begin(), part.timings.end(), int64_t{0});
@@ -37,7 +44,13 @@ bool IrCapture::add(const IrPart &raw) {
     timings_.push_back(static_cast<uint16_t>(std::min<int64_t>(gap, 65535)));
     gaps_ms_.push_back((gap + 500) / 1000);
   }
-  timings_.insert(timings_.end(), part.timings.begin(), part.timings.end());
+  // Past the limit the code is too long anyway: stop growing (steady IR, such
+  // as some LED lighting, would otherwise grow it without end).
+  if (timings_.size() + part.timings.size() > kMaxTimings + 1) {
+    overflowed_ = true;
+  } else {
+    timings_.insert(timings_.end(), part.timings.begin(), part.timings.end());
+  }
   overflowed_ = overflowed_ || part.overflowed;
   ended_at_us_ = part.ended_at_us;
   parts_++;

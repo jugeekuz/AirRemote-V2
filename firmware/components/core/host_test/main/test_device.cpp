@@ -378,6 +378,29 @@ core::IrPart part_now(Rig &rig, const std::vector<uint16_t> &timings, bool overf
   return core::IrPart{timings, rig.timers.now_us(), overflowed};
 }
 
+// Plays parts the way the board's receiver delivers them (each part's length
+// must be whole milliseconds, for the fake clock): activity while each
+// part is on the air, and the part reported 30 ms after it ends (the RMT's
+// idle). `gaps_ms[i]` is the silence before part i (ignored for the first).
+// Timers run in between, as on the board.
+void play(Rig &rig, const std::vector<std::vector<uint16_t>> &parts,
+          const std::vector<int64_t> &gaps_ms = {}) {
+  for (size_t i = 0; i < parts.size(); i++) {
+    if (i > 0) rig.timers.advance(gaps_ms[i] - 30);  // the previous report came 30 ms in
+    int64_t duration_us = 0;
+    for (uint16_t t : parts[i]) duration_us += t;
+    // Edges all through the part, as the receiver's edge interrupt sees them.
+    for (int64_t ms = 0; ms < duration_us / 1000; ms++) {
+      rig.ir.last_activity = rig.timers.now_us();
+      rig.timers.advance(1);
+    }
+    rig.ir.last_activity = rig.timers.now_us();
+    const int64_t ended = rig.timers.now_us();
+    rig.timers.advance(30);
+    rig.device->on_ir_part(core::IrPart{parts[i], ended, false});
+  }
+}
+
 std::string read_ir(const char *id, uint32_t timeout_ms = 15000) {
   return std::string(R"({"type":"readIr","commandId":")") + id + R"(","timeoutMs":)" +
          std::to_string(timeout_ms) + "}";
@@ -393,12 +416,12 @@ TEST_CASE("readIr starts the receiver with the command's timeout", "[device][ir]
   TEST_ASSERT_EQUAL_UINT32(15000, rig->timers.delays(TimerId::IrDeadline).back());
 }
 
-TEST_CASE("a code answers readIr once with its timings, after 50 ms of silence", "[device][ir]") {
+TEST_CASE("a code answers readIr once, 50 ms of silence plus the 30 ms report delay after it", "[device][ir]") {
   auto rig = Rig::connected();
   rig->device->on_link_message(kReadIr);
   const auto code = code_of(67);
   rig->device->on_ir_part(part_now(*rig, code));
-  rig->timers.advance(49);
+  rig->timers.advance(79);
   TEST_ASSERT_EQUAL(1, (int)rig->link.sent.size());  // just the hello
   rig->timers.advance(1);
   TEST_ASSERT_EQUAL(2, (int)rig->link.sent.size());
@@ -427,7 +450,7 @@ TEST_CASE("noise before a code is skipped", "[device][ir]") {
   rig->timers.advance(100);
   TEST_ASSERT_TRUE(rig->ir.listening);
   rig->device->on_ir_part(part_now(*rig, code_of(67)));
-  rig->timers.advance(50);
+  rig->timers.advance(80);
   TEST_ASSERT_EQUAL_STRING(core::encode_read_ir_result(kCommandId, code_of(67)).c_str(),
                            rig->link.sent.back().c_str());
 }
@@ -436,7 +459,7 @@ TEST_CASE("a code that is too long answers CAPTURE_TOO_LONG", "[device][ir]") {
   auto rig = Rig::connected();
   rig->device->on_link_message(kReadIr);
   rig->device->on_ir_part(part_now(*rig, code_of(895), true));
-  rig->timers.advance(50);
+  rig->timers.advance(80);
   TEST_ASSERT_EQUAL_STRING(core::encode_error("CAPTURE_TOO_LONG", kCommandId,
                                               "the IR code is longer than 2048 timings")
                                .c_str(),
@@ -451,7 +474,7 @@ TEST_CASE("a second readIr while reading answers BUSY and leaves the first", "[d
       core::encode_error("BUSY", kOtherId, "already reading an IR code").c_str(),
       rig->link.sent.back().c_str());
   rig->device->on_ir_part(part_now(*rig, code_of(67)));
-  rig->timers.advance(50);
+  rig->timers.advance(80);
   TEST_ASSERT_EQUAL_STRING(core::encode_read_ir_result(kCommandId, code_of(67)).c_str(),
                            rig->link.sent.back().c_str());
 }
@@ -483,7 +506,7 @@ TEST_CASE("a part while not reading is ignored", "[device][ir]") {
 TEST_CASE("a code and the deadline at the same instant give one reply", "[device][ir]") {
   auto rig = Rig::connected();
   rig->device->on_link_message(read_ir(kCommandId, 1000));
-  rig->timers.advance(950);
+  rig->timers.advance(920);
   rig->device->on_ir_part(part_now(*rig, code_of(67)));  // silence ends at 1000
   rig->timers.advance(1000);
   TEST_ASSERT_EQUAL(2, (int)rig->link.sent.size());
@@ -498,7 +521,7 @@ TEST_CASE("a deadline with a code half captured waits for the silence", "[device
   rig->device->on_ir_part(part_now(*rig, code_of(67)));
   rig->timers.advance(10);  // the deadline passes mid-code
   TEST_ASSERT_EQUAL(1, (int)rig->link.sent.size());
-  rig->timers.advance(40);
+  rig->timers.advance(70);
   TEST_ASSERT_EQUAL_STRING(core::encode_read_ir_result(kCommandId, code_of(67)).c_str(),
                            rig->link.sent.back().c_str());
 }
@@ -520,36 +543,99 @@ TEST_CASE("sendIr still answers INVALID_COMMAND", "[device][ir]") {
   TEST_ASSERT_TRUE(rig->link.sent.back().find("INVALID_COMMAND") != std::string::npos);
 }
 
-TEST_CASE("ir prints what it captured", "[device][ir]") {
+TEST_CASE("ir prints what it captured, parts joined on the receiver's real timing",
+          "[device][ir]") {
   Rig rig(false, false, false);  // works without an identity, a backend or Wi-Fi
   rig.device->start();
   rig.device->on_line("ir");
   TEST_ASSERT_TRUE(rig.console.printed("listening for an IR code (10 s) …"));
   TEST_ASSERT_TRUE(rig.ir.listening);
-  const std::vector<uint16_t> part = {9000, 4500, 560, 560, 560, 1690, 560};
-  rig.device->on_ir_part(core::IrPart{part, 0, false});
-  // The part lasts 17 430 µs; the next starts 35 ms after it ends.
-  rig.timers.now = 53;
-  rig.device->on_ir_part(core::IrPart{part, 35000 + 17430, false});
-  rig.timers.advance(50);
+  // 17 ms of part, then 35 ms of silence, then the same again.
+  const std::vector<uint16_t> part = {9000, 4500, 560, 560, 560, 1260, 560};
+  play(rig, {part, part}, {0, 35});
+  rig.timers.advance(80);
   TEST_ASSERT_TRUE(rig.console.printed("IR code: 2 parts, gaps 35 ms; 15 timings"));
   TEST_ASSERT_TRUE(rig.console.printed(
-      "timings: 9000,4500,560,560,560,1690,560,35000,9000,4500,560,560,560,1690,560"));
+      "timings: 9000,4500,560,560,560,1260,560,35000,9000,4500,560,560,560,1260,560"));
   TEST_ASSERT_FALSE(rig.ir.listening);
+}
+
+TEST_CASE("an air-conditioner code in 3 parts is learned whole", "[device][ir]") {
+  auto rig = Rig::connected();
+  rig->device->on_link_message(kReadIr);
+  // 1000 µs timings: play() runs on a millisecond clock.
+  const std::vector<uint16_t> a(39, 1000), b(135, 1000), c(271, 1000);
+  play(*rig, {a, b, c}, {0, 35, 40});
+  rig->timers.advance(80);
+  std::vector<uint16_t> expected = a;
+  expected.push_back(35000);
+  expected.insert(expected.end(), b.begin(), b.end());
+  expected.push_back(40000);
+  expected.insert(expected.end(), c.begin(), c.end());
+  TEST_ASSERT_EQUAL(2, (int)rig->link.sent.size());
+  TEST_ASSERT_EQUAL_STRING(core::encode_read_ir_result(kCommandId, expected).c_str(),
+                           rig->link.sent[1].c_str());
+}
+
+TEST_CASE("a part 60 ms later is not part of the code", "[device][ir]") {
+  auto rig = Rig::connected();
+  rig->device->on_link_message(kReadIr);
+  play(*rig, {code_of(67), code_of(67)}, {0, 60});
+  rig->timers.advance(200);
+  TEST_ASSERT_EQUAL(2, (int)rig->link.sent.size());
+  TEST_ASSERT_EQUAL_STRING(core::encode_read_ir_result(kCommandId, code_of(67)).c_str(),
+                           rig->link.sent[1].c_str());
+}
+
+TEST_CASE("activity that never becomes a part does not hold the read open", "[device][ir]") {
+  auto rig = Rig::connected();
+  rig->device->on_link_message(kReadIr);
+  play(*rig, {code_of(67)});
+  rig->timers.advance(10);
+  rig->ir.last_activity = rig->timers.now_us();  // a glitch the RMT filtered
+  rig->timers.advance(79);
+  TEST_ASSERT_EQUAL(1, (int)rig->link.sent.size());
+  rig->timers.advance(1);
+  TEST_ASSERT_EQUAL(2, (int)rig->link.sent.size());
+}
+
+TEST_CASE("steady IR past the deadline still ends the read, 2 s later", "[device][ir]") {
+  auto rig = Rig::connected();
+  rig->device->on_link_message(read_ir(kCommandId, 1000));
+  rig->timers.advance(900);
+  rig->device->on_ir_part(part_now(*rig, code_of(67)));
+  for (int i = 0; i < 400 && rig->link.sent.size() == 1; i++) {
+    rig->ir.last_activity = rig->timers.now_us();  // e.g. flickering LED lighting
+    rig->timers.advance(10);
+  }
+  TEST_ASSERT_EQUAL(2, (int)rig->link.sent.size());
+  TEST_ASSERT_TRUE(rig->timers.now <= 1000 + 2000 + 10);
+  TEST_ASSERT_FALSE(rig->ir.listening);
+}
+
+TEST_CASE("a part captured before the read started is ignored", "[device][ir]") {
+  auto rig = Rig::connected();
+  rig->timers.advance(1000);
+  const core::IrPart stale{code_of(67), rig->timers.now_us() - 100000, false};
+  rig->device->on_link_message(kReadIr);
+  rig->device->on_ir_part(stale);
+  rig->timers.advance(200);
+  TEST_ASSERT_EQUAL(1, (int)rig->link.sent.size());
+  TEST_ASSERT_TRUE(rig->ir.listening);
 }
 
 TEST_CASE("ir with one part, and with no code", "[device][ir]") {
   Rig rig;
   rig.device->on_line("ir");
   rig.device->on_ir_part(core::IrPart{code_of(67), rig.timers.now_us(), false});
-  rig.timers.advance(50);
+  rig.timers.advance(80);
   TEST_ASSERT_TRUE(rig.console.printed("IR code: 1 part; 67 timings"));
   rig.device->on_line("ir");
   rig.timers.advance(10000);
   TEST_ASSERT_TRUE(rig.console.printed("IR: no code in 10 s"));
   rig.device->on_line("ir");
   rig.device->on_ir_part(core::IrPart{code_of(895), rig.timers.now_us(), true});
-  rig.timers.advance(50);
+  rig.timers.advance(80);
   TEST_ASSERT_TRUE(rig.console.printed("IR: code too long (over 2048 timings)"));
 }
 

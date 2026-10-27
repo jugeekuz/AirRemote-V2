@@ -54,6 +54,8 @@ struct FakeLink : core::Link {
 struct FakeIr : core::IrReceiver {
   int starts = 0, stops = 0;
   bool listening = false;
+  int64_t last_activity = 0;  // µs
+  int64_t last_activity_us() override { return last_activity; }
   void start() override {
     starts++;
     listening = true;

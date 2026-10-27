@@ -1,5 +1,7 @@
 #include "core/device.hpp"
 
+#include <algorithm>
+
 #include "core/protocol.hpp"
 #include "core/text.hpp"
 
@@ -248,7 +250,7 @@ void Device::on_pairing_failed(std::string_view reason) {
 }
 
 void Device::start_read(Read::For who, std::string command_id, uint32_t timeout_ms) {
-  read_ = Read{who, std::move(command_id), IrCapture{}, false};
+  read_ = Read{who, std::move(command_id), IrCapture{}, false, ports_.timers.now_us(), 0};
   ports_.timers.schedule(TimerId::IrDeadline, timeout_ms);
   ports_.ir.start();
 }
@@ -262,15 +264,31 @@ void Device::end_read() {
 
 void Device::on_ir_part(IrPart part) {
   if (!read_) return;
+  // Ended before this read began: queued from an earlier one.
+  if (part.ended_at_us < read_->started_at_us) return;
   if (!read_->capture.add(part)) {
     // It starts the next code: finish this one first.
     finish_code();
     if (!read_) return;
     read_->capture.add(part);
   }
-  const int64_t silence_ends = read_->capture.ended_at_us() + IrCapture::kEndSilenceUs;
-  const int64_t wait_ms = (silence_ends - ports_.timers.now_us() + 999) / 1000;
-  ports_.timers.schedule(TimerId::IrSilence, static_cast<uint32_t>(wait_ms > 0 ? wait_ms : 1));
+  wait_for_silence();
+}
+
+// A code is over once nothing has been on the air for kEndSilenceUs, and the
+// receiver has had kReportDelayUs to report what it last saw. Activity after
+// the code so far is a part still on its way: keep waiting.
+void Device::wait_for_silence() {
+  if (read_->capture.empty()) return;
+  const int64_t now = ports_.timers.now_us();
+  const int64_t last = std::max(read_->capture.ended_at_us(), ports_.ir.last_activity_us());
+  int64_t due = last + IrCapture::kEndSilenceUs + IrCapture::kReportDelayUs;
+  if (read_->give_up_at_us) due = std::min(due, read_->give_up_at_us);
+  if (now >= due) {
+    finish_code();
+    return;
+  }
+  ports_.timers.schedule(TimerId::IrSilence, static_cast<uint32_t>((due - now + 999) / 1000));
 }
 
 // The code so far is complete: answer with it, or keep listening if it was
@@ -318,13 +336,16 @@ void Device::read_timed_out() {
 void Device::on_timer(TimerId id) {
   switch (id) {
     case TimerId::IrSilence:
-      if (read_) finish_code();
+      if (read_) wait_for_silence();
       return;
     case TimerId::IrDeadline:
       if (!read_) return;
-      // A code half captured gets its silence: it answers, not the timeout.
+      // A code half captured gets its silence (within kOverrunUs): it
+      // answers, not the timeout.
       if (!read_->capture.empty()) {
         read_->deadline_passed = true;
+        read_->give_up_at_us = ports_.timers.now_us() + IrCapture::kOverrunUs;
+        wait_for_silence();
         return;
       }
       read_timed_out();
