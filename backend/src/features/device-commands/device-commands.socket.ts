@@ -6,7 +6,7 @@ export function createDeviceCommandsSocketHandlers({
   service,
 }: {
   service: DeviceCommandsService;
-}): DeviceMessageHandlers {
+}): Pick<DeviceMessageHandlers, 'readIrResult' | 'sendIrResult' | 'error'> {
   return {
     async readIrResult({ commandId, timingsUs }, { device, log }) {
       const outcome = await service.settleReadResult(

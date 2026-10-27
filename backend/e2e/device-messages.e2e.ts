@@ -39,7 +39,7 @@ describe('device messages', () => {
   it('answers a message that fails the schema with INVALID_MESSAGE', async () => {
     const socket = await devices.connect('allowed');
     const reply = nextMessage(socket);
-    socket.send(JSON.stringify({ type: 'hello' }));
+    socket.send(JSON.stringify({ type: 'notAMessage' }));
     expect(await reply).toMatchObject({
       type: 'error',
       code: 'INVALID_MESSAGE',

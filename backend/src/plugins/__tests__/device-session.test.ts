@@ -102,7 +102,7 @@ describe('device session', () => {
 
   it('replies INVALID_MESSAGE to a message that fails the schema', () => {
     attach();
-    socket.emit('message', text({ type: 'hello' }), false);
+    socket.emit('message', text({ type: 'notAMessage' }), false);
     expect(socket.replies()).toEqual([
       expect.objectContaining({ type: 'error', code: 'INVALID_MESSAGE' }),
     ]);

@@ -12,6 +12,7 @@ import {
   type DevicesService,
 } from './features/devices/devices.service';
 import { devicesDeviceRoutes } from './features/devices/devices.device-routes';
+import { createDevicesSocketHandlers } from './features/devices/devices.socket';
 import { deviceGatewayPlugin } from './plugins/device-gateway';
 import { errorHandlerPlugin } from './plugins/error-handler';
 import { zodPlugin } from './plugins/zod';
@@ -84,7 +85,10 @@ export async function buildDeviceServer({
   await server.register(errorHandlerPlugin);
   await server.register(deviceGatewayPlugin, {
     authorize: (commonName) => devices.authorizeConnection(commonName),
-    handlers: createDeviceCommandsSocketHandlers({ service: deviceCommands }),
+    handlers: {
+      ...createDevicesSocketHandlers({ service: devices }),
+      ...createDeviceCommandsSocketHandlers({ service: deviceCommands }),
+    },
     connections,
     heartbeatIntervalMs,
   });

@@ -185,3 +185,32 @@ describe('sendIr messages', () => {
     expect(JSON.stringify(largest).length).toBeLessThan(16 * 1024);
   });
 });
+
+describe('hello messages', () => {
+  const hello = (firmwareVersion: unknown) => ({
+    type: 'hello',
+    firmwareVersion,
+  });
+
+  it('accepts a version like 1.2.3, with an optional suffix', () => {
+    for (const version of ['0.1.0', '10.20.30', '1.0.0-beta.1']) {
+      expect(deviceMessageSchema.parse(hello(version))).toEqual(hello(version));
+    }
+  });
+
+  it('rejects other version shapes and versions over 31 characters', () => {
+    const tooLong = `1.0.0-${'a'.repeat(26)}`;
+    expect(tooLong).toHaveLength(32);
+    for (const version of ['1.0', 'v1.0.0', '1.0.0+build', tooLong, 1]) {
+      rejects(deviceMessageSchema, hello(version));
+    }
+    expect(
+      deviceMessageSchema.safeParse(hello(`1.0.0-${'a'.repeat(25)}`)).success,
+    ).toBe(true);
+  });
+
+  it('rejects a missing version and unknown keys', () => {
+    rejects(deviceMessageSchema, { type: 'hello' });
+    rejects(deviceMessageSchema, { ...hello('0.1.0'), commandId });
+  });
+});

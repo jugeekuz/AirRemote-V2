@@ -44,8 +44,25 @@ export const irTimingsSchema = z
   .min(1)
   .max(2048);
 
+/**
+ * The firmware a device runs: `MAJOR.MINOR.PATCH` with an optional
+ * `-suffix`, at most 31 characters (ESP-IDF's app version field is 32 bytes).
+ */
+export const firmwareVersionSchema = z
+  .string()
+  .max(31)
+  .regex(
+    /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/,
+    'must look like 1.2.3 or 1.2.3-beta.1',
+  );
+
 /** Every message a device may send to the server. Unknown keys are rejected. */
 export const deviceMessageSchema = z.discriminatedUnion('type', [
+  /** Sent once after connecting: what the device is running. Not a command; no reply. */
+  z.strictObject({
+    type: z.literal('hello'),
+    firmwareVersion: firmwareVersionSchema,
+  }),
   /** The code a device read, answering `readIr`. */
   z.strictObject({
     type: z.literal('readIrResult'),
