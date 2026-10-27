@@ -10,7 +10,7 @@
     "dev": "node scripts/dev.ts",
     "device-sim": "pnpm --silent --filter @airremote/device-sim start --",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck && tsc -p scripts && tsc -p firmware/e2e && tsc -p frontend/eslint",
+    "typecheck": "pnpm -r typecheck && tsc -p scripts && tsc -p firmware/e2e && tsc -p frontend/eslint && tsc -p frontend/scripts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run && pnpm test:frontend",

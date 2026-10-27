@@ -100,7 +100,11 @@ export default tseslint.config(
   },
   {
     // Node scripts and config files next to the app.
-    files: ['frontend/*.{js,mjs}', 'frontend/eslint/**/*.mjs'],
+    files: [
+      'frontend/*.{js,mjs}',
+      'frontend/eslint/**/*.mjs',
+      'frontend/scripts/**/*.mjs',
+    ],
     languageOptions: { globals: globals.node },
   },
   {

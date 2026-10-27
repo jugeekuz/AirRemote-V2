@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "prebuild": "expo prebuild",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "create-new": "node scripts/create-new.mjs"
   },
   "dependencies": {
     "@airremote/contracts": "workspace:*",
