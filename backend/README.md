@@ -26,9 +26,12 @@ the API (`api`) on http://localhost:3000. Check it with
 ```bash
 cp .env.example .env        # once
 pnpm install
-docker compose up -d db     # Postgres only
-pnpm dev                    # applies pending migrations, then restarts on file changes
+pnpm dev
 ```
+
+`pnpm dev` (`scripts/dev.ts`) starts Postgres with Docker Compose, applies
+pending migrations, then runs the API and restarts it on file changes.
+Ctrl+C stops the API, then Postgres.
 
 ## Device listener
 
@@ -114,7 +117,7 @@ that set `$TOKEN`, `$DEVICE_ID`, `$REMOTE` and `$BUTTON` and make these requests
 
 | Script                  | What it does                                                  |
 | ----------------------- | ------------------------------------------------------------- |
-| `pnpm dev`              | Applies pending migrations, then runs the API with watch mode |
+| `pnpm dev`              | Starts Postgres, migrates, runs the API in watch mode         |
 | `pnpm build`            | Builds the API and the migrate script to `dist/`              |
 | `pnpm typecheck`        | Type-checks every package                                     |
 | `pnpm lint`             | Runs ESLint                                                   |

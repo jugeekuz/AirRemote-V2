@@ -7,10 +7,10 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "pnpm db:migrate && pnpm --filter @airremote/backend dev",
+    "dev": "node scripts/dev.ts",
     "device-sim": "pnpm --silent --filter @airremote/device-sim start --",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm -r typecheck && tsc -p scripts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
