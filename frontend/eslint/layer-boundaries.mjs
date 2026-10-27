@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /** @typedef {import('eslint').Linter.Config} Config */
-/** @typedef {{ group: string[], message: string }} Pattern */
+/** @typedef {{ group: string[], message: string } | { regex: string, message: string }} Pattern */
 
 const SRC = 'frontend/src';
 const MODULES_DIR = path.join(import.meta.dirname, '..', 'src', 'modules');
@@ -116,7 +116,7 @@ const LAYERS = Object.keys(FORBIDDEN_IMPORTS);
 /**
  * Packages only some folders may import. `allowedIn` is relative to
  * `frontend/src`: a folder (ending in `/`) or a single file.
- * @type {(Pattern & { allowedIn: string[], coveredByForbidden?: string })[]}
+ * @type {{ group: string[], message: string, allowedIn: string[], coveredByForbidden?: string }[]}
  */
 const PACKAGE_RULES = [
   {
@@ -159,7 +159,8 @@ const TEST_SUPPORT_FILES = [
 
 /** @type {Pattern} */
 export const NO_PARENT_RELATIVE_IMPORTS = {
-  group: ['../*'],
+  // Any `..` segment: `..`, `../`, `../x`, `./../x`.
+  regex: '(^|/)\\.\\.(/|$)',
   message: `Import through a path alias (e.g. @hooks/...) instead of a parent-relative path. ${SEE_DOCS}`,
 };
 
@@ -167,6 +168,24 @@ export const NO_PARENT_RELATIVE_IMPORTS = {
 const NO_MODULE_IMPORTS_FROM_SHARED_LAYERS = {
   group: ['@modules', '@modules/**'],
   message: `Shared layers must not depend on feature modules. Move the code into a shared layer instead. ${SEE_DOCS}`,
+};
+
+/** @type {Pattern} */
+const NO_MODULE_IMPORTS_BUT_TRANSLATIONS = {
+  regex: '^@modules(?!/[^/]+/i18n/)(/|$)',
+  message: `src/i18n may import only a module's i18n folder (@modules/<name>/i18n/...). ${SEE_DOCS}`,
+};
+
+/**
+ * Shared folders outside the layer table, and the module rule each gets.
+ * src/navigation and src/app (the composition root) may import modules.
+ * @type {Record<string, Pattern[]>}
+ */
+const NON_LAYER_FOLDERS = {
+  'app/': [],
+  'ui/': [NO_MODULE_IMPORTS_FROM_SHARED_LAYERS],
+  'types/': [NO_MODULE_IMPORTS_FROM_SHARED_LAYERS],
+  'i18n/': [NO_MODULE_IMPORTS_BUT_TRANSLATIONS],
 };
 
 /** Read at lint time, so new modules are picked up without editing this file. */
@@ -236,6 +255,18 @@ function getPackagePatterns(location, layer) {
 }
 
 /**
+ * The module rule for a location outside the layer table.
+ * @param {string} location
+ * @returns {Pattern[]}
+ */
+function getNonLayerModulePatterns(location) {
+  const folder = Object.keys(NON_LAYER_FOLDERS).find((key) =>
+    location.startsWith(key),
+  );
+  return folder ? (NON_LAYER_FOLDERS[folder] ?? []) : [];
+}
+
+/**
  * @param {string} location relative to `frontend/src`: '' (all of it), a folder ending in `/`, or a file
  * @param {Pattern[]} patterns
  * @returns {Config}
@@ -262,12 +293,19 @@ function createConfig(location, patterns) {
 export function layerBoundaryConfigs() {
   const base = createConfig('', getPackagePatterns('', undefined));
 
-  // Folders and files a package rule exempts that aren't layers (src/ui, ...).
-  const exemptLocations = [
-    ...new Set(PACKAGE_RULES.flatMap((rule) => rule.allowedIn)),
-  ].filter((location) => !LAYERS.includes(location.replace(/\/$/, '')));
-  const exemptConfigs = exemptLocations.map((location) =>
-    createConfig(location, getPackagePatterns(location, undefined)),
+  // Shared folders that aren't layers, then the single files a package rule
+  // exempts (types/axios.d.ts), so a file's config comes after its folder's.
+  const exemptLocations = PACKAGE_RULES.flatMap(
+    (rule) => rule.allowedIn,
+  ).filter((location) => !LAYERS.includes(location.replace(/\/$/, '')));
+  const nonLayerLocations = [
+    ...new Set([...Object.keys(NON_LAYER_FOLDERS), ...exemptLocations]),
+  ].sort((a, b) => Number(!a.endsWith('/')) - Number(!b.endsWith('/')));
+  const nonLayerConfigs = nonLayerLocations.map((location) =>
+    createConfig(location, [
+      ...getNonLayerModulePatterns(location),
+      ...getPackagePatterns(location, undefined),
+    ]),
   );
 
   const globalLayerConfigs = LAYERS.map((layer) =>
@@ -326,7 +364,7 @@ export function layerBoundaryConfigs() {
 
   return [
     base,
-    ...exemptConfigs,
+    ...nonLayerConfigs,
     ...globalLayerConfigs,
     ...moduleConfigs,
     testSupport,

@@ -230,16 +230,83 @@ describe('layer boundaries', () => {
     ]);
   });
 
-  it('ends every boundary message with a pointer to the architecture doc', async () => {
-    const errors = await boundaryErrors(
-      'helpers/auth/auth.helpers.ts',
-      importing('@api/http-client'),
-    );
+  it('forbids importing the parent folder itself', async () => {
+    for (const source of ['..', '../']) {
+      expect(
+        await boundaryErrors(
+          'utils/platform/platform.utils.ts',
+          importing(source),
+        ),
+      ).toEqual([expect.stringContaining('instead of a parent-relative path')]);
+    }
+  });
 
-    expect(errors).toEqual([
-      expect.stringMatching(
-        /See frontend\/ARCHITECTURE\.md, 'Layers and import rules'\.$/,
+  it('stops src/ui and src/types from importing modules', async () => {
+    expect(
+      await boundaryErrors('ui/x/x.tsx', importing('@modules/auth/screens/x')),
+    ).toEqual([
+      expect.stringContaining(
+        'Shared layers must not depend on feature modules',
       ),
     ]);
+    expect(
+      await boundaryErrors('types/x.types.ts', importing('@modules/auth/x')),
+    ).toEqual([
+      expect.stringContaining(
+        'Shared layers must not depend on feature modules',
+      ),
+    ]);
+  });
+
+  it("lets src/i18n import only the modules' translations", async () => {
+    expect(
+      await boundaryErrors(
+        'i18n/resources.ts',
+        importing('@modules/auth/i18n/locales/en/auth.json'),
+      ),
+    ).toEqual([]);
+    expect(
+      await boundaryErrors(
+        'i18n/resources.ts',
+        importing('@modules/auth/screens/x'),
+      ),
+    ).toEqual([expect.stringContaining("only a module's i18n folder")]);
+  });
+
+  it('applies the cross-module rule outside layer folders too', async () => {
+    const errors = await boundaryErrors(
+      'modules/auth/index.ts',
+      importing('@modules/home/screens/home-screen'),
+    );
+
+    expect(errors).toEqual([expect.stringContaining('Module "auth"')]);
+  });
+
+  it('stops src/app from importing the styling packages', async () => {
+    expect(await boundaryErrors('app/app.tsx', importing('uniwind'))).toEqual([
+      expect.stringContaining('Only src/ui imports'),
+    ]);
+  });
+
+  it('ends every boundary message with a pointer to the architecture doc', async () => {
+    const cases: [file: string, source: string][] = [
+      ['helpers/auth/auth.helpers.ts', '@api/http-client'],
+      ['hooks/use-x/use-x.ts', 'axios'],
+      [
+        'modules/auth/screens/login-screen/login-screen.tsx',
+        '@modules/home/components/x',
+      ],
+      ['hooks/use-x/use-x.ts', '@modules/auth/hooks/use-login'],
+      ['utils/platform/platform.utils.ts', '../logger'],
+      ['i18n/resources.ts', '@modules/auth/screens/x'],
+    ];
+
+    for (const [file, source] of cases) {
+      expect(await boundaryErrors(file, importing(source))).toEqual([
+        expect.stringMatching(
+          /See frontend\/ARCHITECTURE\.md, 'Layers and import rules'\.$/,
+        ),
+      ]);
+    }
   });
 });
