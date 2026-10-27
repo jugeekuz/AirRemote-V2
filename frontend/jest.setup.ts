@@ -57,7 +57,10 @@ jest.mock(
         const params = Object.entries(options ?? {}).filter(
           ([name]) => name !== 'ns',
         );
-        return [key, ...params.map(([name, value]) => `${name}: ${String(value)}`)].join(' | ');
+        return [
+          key,
+          ...params.map(([name, value]) => `${name}: ${String(value)}`),
+        ].join(' | ');
       },
       i18n: { language: 'en', changeLanguage: jest.fn() },
     }),
