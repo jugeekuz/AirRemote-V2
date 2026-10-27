@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 
 import { useToast } from '@ui/heroui/components/toast';
+
 import { registerToastSink } from './toast';
 
 /** Connects the imperative `toast` to HeroUI's toast while it is mounted. */

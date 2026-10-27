@@ -1,5 +1,5 @@
-import { act, render, screen } from '@testing-library/react-native';
 import { View } from 'react-native';
+import { act, render, screen } from '@testing-library/react-native';
 
 import { UiProvider } from '@ui/ui-provider';
 

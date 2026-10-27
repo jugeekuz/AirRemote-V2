@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  // Root tooling (ESLint, Vitest), checked by the root `typecheck`, not the app's.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true
+  },
+  "include": ["*.ts", "*.mjs"]
+}

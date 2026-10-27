@@ -1,6 +1,11 @@
 import js from '@eslint/js';
+import tanstackQuery from '@tanstack/eslint-plugin-query';
 import prettier from 'eslint-config-prettier';
+import reactHooks from 'eslint-plugin-react-hooks';
+import globals from 'globals';
 import tseslint from 'typescript-eslint';
+
+import { layerBoundaryConfigs } from './frontend/eslint/layer-boundaries.mjs';
 
 export default tseslint.config(
   {
@@ -76,17 +81,34 @@ export default tseslint.config(
       ],
     },
   },
+  // Frontend. eslint-plugin-react is left out: it does not support ESLint 10
+  // (its peer range stops at ^9.7).
+  {
+    files: ['frontend/**/*.{ts,tsx}'],
+    ...reactHooks.configs.flat.recommended,
+  },
+  ...tanstackQuery.configs['flat/recommended'].map((config) => ({
+    ...config,
+    files: ['frontend/**/*.{ts,tsx}'],
+  })),
+  {
+    files: ['frontend/**/*.{ts,tsx}'],
+    rules: {
+      curly: ['error', 'all'],
+      '@typescript-eslint/no-non-null-assertion': 'error',
+    },
+  },
+  {
+    // Node scripts and config files next to the app.
+    files: ['frontend/*.{js,mjs}', 'frontend/eslint/**/*.mjs'],
+    languageOptions: { globals: globals.node },
+  },
   {
     // Expo's Metro, Babel and Jest configs (and Jest's resolver) are CommonJS.
-    files: ['frontend/*.config.js', 'frontend/jest.resolver.js'],
-    languageOptions: {
-      sourceType: 'commonjs',
-      globals: {
-        require: 'readonly',
-        module: 'writable',
-        __dirname: 'readonly',
-      },
-    },
+    files: ['frontend/*.js'],
+    languageOptions: { sourceType: 'commonjs' },
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
+  // Last: each of these carries its files' complete import restrictions.
+  ...layerBoundaryConfigs(),
 );

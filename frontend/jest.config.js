@@ -25,6 +25,8 @@ module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   resolver: '<rootDir>/jest.resolver.js',
+  // eslint/ holds root tooling, tested by the root Vitest unit project.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/eslint/'],
   moduleNameMapper: {
     // First, so `@ui/global.css` matches it before the `@ui/*` alias.
     '\\.css$': '<rootDir>/mocks/file.mock.ts',

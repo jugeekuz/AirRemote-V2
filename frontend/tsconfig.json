@@ -28,5 +28,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "src/ui/uniwind-types.d.ts"],
-  "exclude": ["node_modules", "android", "ios", ".expo", "web-build"]
+  "exclude": ["node_modules", "android", "ios", ".expo", "web-build", "eslint"]
 }

@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler/jestSetup';
+
 import { Uniwind } from 'uniwind';
 
 // Matchers from @testing-library/react-native (toBeOnTheScreen, ...) are
