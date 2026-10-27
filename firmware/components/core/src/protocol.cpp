@@ -49,6 +49,13 @@ std::string encode_error(std::string_view code, std::string_view command_id,
   return print(json);
 }
 
+std::string encode_send_ir_result(std::string_view command_id) {
+  Json json(cJSON_CreateObject());
+  add_string(json, "type", "sendIrResult");
+  add_string(json, "commandId", command_id);
+  return print(json);
+}
+
 std::string encode_read_ir_result(std::string_view command_id,
                                   const std::vector<uint16_t> &timings) {
   Json json(cJSON_CreateObject());
@@ -70,6 +77,22 @@ std::optional<ServerMessage> decode_server_message(std::string_view text) {
     if (!message.command_id.empty()) {
       message.type = type == "readIr" ? ServerMessage::Type::ReadIr
                                       : ServerMessage::Type::SendIr;
+      if (message.type == ServerMessage::Type::SendIr) {
+        // The backend validates them; anything else is not a command to answer.
+        const cJSON *timings = cJSON_GetObjectItemCaseSensitive(json.get(), "timingsUs");
+        bool valid = cJSON_IsArray(timings) && cJSON_GetArraySize(timings) > 0;
+        const cJSON *timing = nullptr;
+        cJSON_ArrayForEach(timing, timings) {
+          if (!valid) break;
+          valid = cJSON_IsNumber(timing) && timing->valuedouble >= 0 &&
+                  timing->valuedouble <= 65535;
+          if (valid) message.timings.push_back(static_cast<uint16_t>(timing->valuedouble));
+        }
+        if (!valid) {
+          message.type = ServerMessage::Type::Unknown;
+          message.timings.clear();
+        }
+      }
       const cJSON *timeout = cJSON_GetObjectItemCaseSensitive(json.get(), "timeoutMs");
       if (cJSON_IsNumber(timeout)) {
         // The contract's range, 1-60 s; anything else is clamped into it.

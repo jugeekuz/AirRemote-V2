@@ -15,6 +15,8 @@ std::string encode_hello(std::string_view firmware_version);
 // An error answering the command `command_id`.
 std::string encode_error(std::string_view code, std::string_view command_id,
                          std::string_view message);
+// The device transmitted the code of sendIr `command_id`.
+std::string encode_send_ir_result(std::string_view command_id);
 // The code a device read, answering readIr `command_id`.
 std::string encode_read_ir_result(std::string_view command_id,
                                   const std::vector<uint16_t> &timings);
@@ -24,6 +26,7 @@ struct ServerMessage {
   Type type = Type::Unknown;
   std::string command_id;     // ReadIr, SendIr
   uint32_t timeout_ms = 0;    // ReadIr
+  std::vector<uint16_t> timings;  // SendIr
   std::string code, message;  // Error
 };
 

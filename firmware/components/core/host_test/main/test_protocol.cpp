@@ -87,3 +87,25 @@ TEST_CASE("readIr's timeoutMs is clamped to the contract's 1-60 s", "[protocol]"
       R"({"type":"readIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timeoutMs":0.5})");
   TEST_ASSERT_EQUAL_UINT32(1000, small->timeout_ms);
 }
+
+TEST_CASE("decodes sendIr's timings, and garbage timings as Unknown", "[protocol]") {
+  auto send = core::decode_server_message(
+      R"({"type":"sendIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timingsUs":[9000,4500,0,560]})");
+  TEST_ASSERT_TRUE(send->type == ServerMessage::Type::SendIr);
+  TEST_ASSERT_TRUE(send->timings == (std::vector<uint16_t>{9000, 4500, 0, 560}));
+  for (const char *bad :
+       {R"({"type":"sendIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timingsUs":[-1]})",
+        R"({"type":"sendIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timingsUs":[70000]})",
+        R"({"type":"sendIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timingsUs":"x"})",
+        R"({"type":"sendIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11","timingsUs":[]})",
+        R"({"type":"sendIr","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11"})"}) {
+    TEST_ASSERT_TRUE_MESSAGE(core::decode_server_message(bad)->type == ServerMessage::Type::Unknown,
+                             bad);
+  }
+}
+
+TEST_CASE("encode_send_ir_result gives the send result frame", "[protocol]") {
+  TEST_ASSERT_EQUAL_STRING(
+      R"({"type":"sendIrResult","commandId":"6f1c2a52-3c1e-4a8e-9a43-0d5f1f6f2b11"})",
+      core::encode_send_ir_result(kCommandId).c_str());
+}
