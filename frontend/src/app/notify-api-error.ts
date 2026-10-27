@@ -1,15 +1,23 @@
-import i18next from 'i18next';
+import i18next, { type ParseKeys } from 'i18next';
 
 import type { ApiError, ApiErrorCode } from '@app-types';
 import { isGenericErrorCode } from '@helpers/errors';
 import { toast } from '@ui';
 
-/** Typed against messages.json: a code without an `errors.<CODE>` entry fails to compile. */
-type ErrorMessageKey = `errors.${ApiErrorCode}`;
+/**
+ * A key of messages.json. Passing `defaultValue` to `t` makes it accept any
+ * string, so the key is checked here instead: a code without an
+ * `errors.<CODE>` entry fails to compile.
+ */
+type MessageKey = ParseKeys<'messages'>;
 
+/** The code's text; the generic text if a translation is missing at runtime. */
 function errorMessage(code: ApiErrorCode): string {
-  const key: ErrorMessageKey = `errors.${code}`;
-  return i18next.t(key, { ns: 'messages' });
+  const key: MessageKey = `errors.${code}`;
+  return i18next.t(key, {
+    ns: 'messages',
+    defaultValue: i18next.t('errors.generic', { ns: 'messages' }),
+  });
 }
 
 /**

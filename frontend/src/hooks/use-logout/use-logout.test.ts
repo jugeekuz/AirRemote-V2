@@ -1,3 +1,5 @@
+import { onlineManager } from '@tanstack/react-query';
+
 import type { ApiError } from '@app-types';
 import {
   act,
@@ -19,6 +21,10 @@ beforeEach(() => {
   jest.resetAllMocks();
   authStore.reset();
   authStore.signIn('token-1');
+});
+
+afterEach(() => {
+  onlineManager.setOnline(true);
 });
 
 async function renderLogout() {
@@ -64,6 +70,27 @@ describe('useLogout', () => {
     });
 
     expect(errorSpy).toHaveBeenCalledWith('[useLogout]', unreachable);
+    expect(authStore.getStatus()).toBe(AUTH_STATUS.ANONYMOUS);
+    expect(authStore.getAccessToken()).toBeNull();
+    expect(queryClient.getQueryData(['x'])).toBeUndefined();
+    errorSpy.mockRestore();
+  });
+
+  it('signs out locally while offline', async () => {
+    onlineManager.setOnline(false);
+    const unreachable: ApiError = {
+      code: 'NETWORK_ERROR',
+      message: 'Network Error',
+      isNetworkError: true,
+    };
+    api.logout.mockRejectedValueOnce(unreachable);
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { queryClient, result } = await renderLogout();
+
+    await act(async () => {
+      await expect(result.current.logout()).resolves.toBeUndefined();
+    });
+
     expect(authStore.getStatus()).toBe(AUTH_STATUS.ANONYMOUS);
     expect(authStore.getAccessToken()).toBeNull();
     expect(queryClient.getQueryData(['x'])).toBeUndefined();

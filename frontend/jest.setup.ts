@@ -66,7 +66,14 @@ jest.mock('react-i18next', () => ({
 }));
 
 // Jest has no compiled CSS (Metro's Uniwind transformer makes it), so give
-// the one theme variable the kit reads from JavaScript its stylesheet value.
+// the theme variables the kit reads from JavaScript their stylesheet values
+// (heroui/styles/theme.css and variables.css, with `var()`s resolved; both
+// themes use the same accent). Button reads `--color-accent-hover`.
+const ACCENT_HOVER =
+  'color-mix(in oklab, oklch(0.6204 0.195 253.83) 90%, oklch(0.9911 0 0) 10%)';
 for (const theme of ['light', 'dark'] as const) {
-  Uniwind.updateCSSVariables(theme, { '--theme': 'default' });
+  Uniwind.updateCSSVariables(theme, {
+    '--theme': 'default',
+    '--color-accent-hover': ACCENT_HOVER,
+  });
 }

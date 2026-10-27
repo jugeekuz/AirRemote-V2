@@ -1,3 +1,5 @@
+import { onlineManager } from '@tanstack/react-query';
+
 import type { AccessTokenResponse } from '@airremote/contracts';
 
 import type { ApiError } from '@app-types';
@@ -25,9 +27,19 @@ const token: AccessTokenResponse = {
   expiresIn: 600,
 };
 
+const unreachable: ApiError = {
+  code: 'NETWORK_ERROR',
+  message: 'Network Error',
+  isNetworkError: true,
+};
+
 describe('auth mutations', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+  });
+
+  afterEach(() => {
+    onlineManager.setOnline(true);
   });
 
   it('logs in with the credentials and exposes the token response', async () => {
@@ -127,5 +139,35 @@ describe('auth mutations', () => {
       { mutationKey: ['auth', 'refresh'], meta: { silent: true } },
       { mutationKey: ['auth', 'logout'], meta: { silent: true } },
     ]);
+  });
+
+  // Paused offline, the refresh at launch would never settle (the app would
+  // spin forever) and logout would never sign out.
+  it('fails fast while offline instead of pausing', async () => {
+    onlineManager.setOnline(false);
+    api.login.mockRejectedValueOnce(unreachable);
+    api.refresh.mockRejectedValueOnce(unreachable);
+    api.logout.mockRejectedValueOnce(unreachable);
+
+    const { result } = await renderHook(
+      () => ({
+        login: useLoginMutation(),
+        refresh: useRefreshSessionMutation(),
+        logout: useLogoutMutation(),
+      }),
+      { wrapper: createQueryWrapper() },
+    );
+
+    await act(async () => {
+      await expect(
+        result.current.login.mutateAsync({ email: 'a@b.co', password: 'x' }),
+      ).rejects.toBe(unreachable);
+      await expect(result.current.refresh.mutateAsync()).rejects.toBe(
+        unreachable,
+      );
+      await expect(result.current.logout.mutateAsync()).rejects.toBe(
+        unreachable,
+      );
+    });
   });
 });

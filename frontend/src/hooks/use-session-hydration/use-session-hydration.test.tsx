@@ -1,4 +1,5 @@
 import { StrictMode } from 'react';
+import { onlineManager } from '@tanstack/react-query';
 
 import type { AccessTokenResponse } from '@airremote/contracts';
 
@@ -40,6 +41,10 @@ beforeEach(() => {
   authStore.reset();
 });
 
+afterEach(() => {
+  onlineManager.setOnline(true);
+});
+
 describe('useSessionHydration', () => {
   it('signs in when the refresh succeeds', async () => {
     api.refresh.mockResolvedValueOnce(token);
@@ -69,6 +74,19 @@ describe('useSessionHydration', () => {
   });
 
   it('shows the failure state when the API is unreachable', async () => {
+    api.refresh.mockRejectedValueOnce(unreachable);
+
+    await renderHook(() => useSessionHydration(), {
+      wrapper: createQueryWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(authStore.getStatus()).toBe(AUTH_STATUS.HYDRATION_FAILED);
+    });
+  });
+
+  it('shows the failure state when the device is offline', async () => {
+    onlineManager.setOnline(false);
     api.refresh.mockRejectedValueOnce(unreachable);
 
     await renderHook(() => useSessionHydration(), {
