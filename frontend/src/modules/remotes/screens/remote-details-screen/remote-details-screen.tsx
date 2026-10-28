@@ -1,7 +1,7 @@
-import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
+import Screen from '@components/screen';
 import TopToolbar from '@components/top-toolbar';
 import { Text } from '@ui';
 
@@ -11,11 +11,11 @@ export default function RemoteDetailsScreen() {
   const navigation = useNavigation();
 
   return (
-    <View className="flex-1 bg-background">
+    <Screen>
       <TopToolbar onBack={() => navigation.goBack()} />
       <Text.Heading type="h3" className="ml-2">
         {t('remote-details.title')}
       </Text.Heading>
-    </View>
+    </Screen>
   );
 }

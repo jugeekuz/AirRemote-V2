@@ -8,6 +8,7 @@ import DeviceTile from '@modules/devices/components/device-tile';
 import { useDeviceList } from '@modules/devices/hooks';
 import EmptyTiles from '@components/empty-tiles';
 import NoticeBox from '@components/notice-box';
+import Screen from '@components/screen';
 import SectionHeader from '@components/section-header';
 import TileGrid from '@components/tile-grid';
 import TopToolbar from '@components/top-toolbar';
@@ -32,36 +33,35 @@ export default function DeviceList() {
   useFocusEffect(useCallback(() => stopEditMode, [stopEditMode]));
 
   return (
-    <ScrollView
-      className="flex-1 bg-background"
-      contentContainerClassName="px-2"
-    >
-      <TopToolbar />
-      <SectionHeader
-        title={t('device-list.heading')}
-        count={devices.length}
-        onAdd={openAddDevice}
-        onToggleEdit={toggleEditMode}
-      />
-      <NoticeBox>{t('device-list.notice')}</NoticeBox>
-      {devices.length > 0 && (
-        <TileGrid>
-          {devices.map((device) => (
-            <DeviceTile
-              key={device.id}
-              device={device}
-              isEditing={isEditing}
-              onDelete={deleteDevice}
-            />
-          ))}
-        </TileGrid>
-      )}
-      {isLoaded && devices.length === 0 && (
-        <EmptyTiles text={t('device-list.empty')} />
-      )}
-      {isLoadFailed && (
-        <EmptyTiles text={t('device-list.load-failed')} onRetry={retry} />
-      )}
-    </ScrollView>
+    <Screen>
+      <ScrollView className="flex-1" contentContainerClassName="px-2">
+        <TopToolbar />
+        <SectionHeader
+          title={t('device-list.heading')}
+          count={devices.length}
+          onAdd={openAddDevice}
+          onToggleEdit={toggleEditMode}
+        />
+        <NoticeBox>{t('device-list.notice')}</NoticeBox>
+        {devices.length > 0 && (
+          <TileGrid>
+            {devices.map((device) => (
+              <DeviceTile
+                key={device.id}
+                device={device}
+                isEditing={isEditing}
+                onDelete={deleteDevice}
+              />
+            ))}
+          </TileGrid>
+        )}
+        {isLoaded && devices.length === 0 && (
+          <EmptyTiles text={t('device-list.empty')} />
+        )}
+        {isLoadFailed && (
+          <EmptyTiles text={t('device-list.load-failed')} onRetry={retry} />
+        )}
+      </ScrollView>
+    </Screen>
   );
 }

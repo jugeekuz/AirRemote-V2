@@ -1,6 +1,6 @@
-import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import Screen from '@components/screen';
 import TopToolbar from '@components/top-toolbar';
 import { Text } from '@ui';
 
@@ -9,11 +9,11 @@ export default function RemoteListScreen() {
   const { t } = useTranslation('remotes');
 
   return (
-    <View className="flex-1 bg-background">
+    <Screen>
       <TopToolbar />
       <Text.Heading type="h3" className="ml-2">
         {t('remote-list.title')}
       </Text.Heading>
-    </View>
+    </Screen>
   );
 }
