@@ -72,8 +72,10 @@ export function mockViewMeasure() {
 /**
  * Opens the kit's `Select` named `name` (a combobox) and lets its options
  * take presses. The list takes presses once it has been laid out on the
- * screen, which Jest never does, so it is given a frame (the layout event
- * goes up from an option to the list). Needs `mockViewMeasure()`.
+ * screen, which Jest never does, so the list's content (the nearest view
+ * above an option that listens for its layout) is given a frame. A layout
+ * event does not bubble in React Native, so it goes to that view itself.
+ * Needs `mockViewMeasure()`.
  */
 export async function openSelect(name: string) {
   await act(async () => {
@@ -83,8 +85,16 @@ export async function openSelect(name: string) {
   if (!option) {
     throw new Error(`The select "${name}" has no options.`);
   }
+  let content = option.parent;
+  while (content && typeof content.props.onLayout !== 'function') {
+    content = content.parent;
+  }
+  if (!content) {
+    throw new Error(`The select "${name}" has no laid-out list.`);
+  }
+  const list = content;
   await act(async () => {
-    fireEvent(option, 'layout', {
+    fireEvent(list, 'layout', {
       nativeEvent: { layout: { x: 0, y: 64, width: 320, height: 80 } },
     });
   });

@@ -100,6 +100,15 @@ it('fails fast while offline instead of pausing', async () => {
       unreachable,
     );
   });
+  // Every observer has heard of its failure, none of them paused.
+  await waitFor(() => {
+    expect(result.current.learn.isError).toBe(true);
+    expect(result.current.press.isError).toBe(true);
+    expect(result.current.remove.isError).toBe(true);
+  });
+  expect(result.current.learn.isPaused).toBe(false);
+  expect(result.current.press.isPaused).toBe(false);
+  expect(result.current.remove.isPaused).toBe(false);
 });
 
 describe('useLearnButtonMutation', () => {
@@ -115,7 +124,11 @@ describe('useLearnButtonMutation', () => {
     });
 
     expect(api.learn).toHaveBeenCalledWith(remoteId, { name: 'Power' });
-    expect(result.current.data).toBe(learnCommand);
+    // The observer hears of the result on a zero-delay timer, which may
+    // fire after the act above has ended.
+    await waitFor(() => {
+      expect(result.current.data).toBe(learnCommand);
+    });
     expect(
       queryClient.getQueryData(deviceCommandKeys.detail(learnCommand.id)),
     ).toBe(learnCommand);

@@ -78,6 +78,13 @@ it('fails fast while offline instead of pausing', async () => {
       unreachable,
     );
   });
+  // Every observer has heard of its failure, none of them paused.
+  await waitFor(() => {
+    expect(result.current.enroll.isError).toBe(true);
+    expect(result.current.remove.isError).toBe(true);
+  });
+  expect(result.current.enroll.isPaused).toBe(false);
+  expect(result.current.remove.isPaused).toBe(false);
 });
 
 describe('useEnrollDeviceMutation', () => {
