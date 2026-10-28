@@ -7,7 +7,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ['airremote://'],
   config: {
     screens: {
-      Auth: { screens: { Login: 'login' } },
+      Auth: { screens: { Login: 'login', SignUp: 'sign-up' } },
       Main: { screens: { Home: '' } },
     },
   },

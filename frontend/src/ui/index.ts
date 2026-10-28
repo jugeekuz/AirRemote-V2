@@ -6,6 +6,8 @@ export { alert } from './alert';
 export type { ConfirmOptions } from './alert';
 export { Icon } from './icon';
 export { Image } from './image';
+export { LinearGradient } from './linear-gradient';
+export type { GradientDirection } from './linear-gradient';
 export { Modal } from './modal';
 export type { ModalButtonVariant, ModalPlacement } from './modal';
 

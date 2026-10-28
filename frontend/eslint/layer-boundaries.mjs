@@ -154,6 +154,11 @@ const PACKAGE_RULES = [
     allowedIn: ['ui/'],
     message: `Only src/ui imports expo-image. Use Image from @ui. ${SEE_DOCS}`,
   },
+  {
+    group: ['expo-linear-gradient', 'expo-linear-gradient/**'],
+    allowedIn: ['ui/'],
+    message: `Only src/ui imports expo-linear-gradient. Use LinearGradient from @ui. ${SEE_DOCS}`,
+  },
 ];
 
 const TEST_SUPPORT_FILES = [

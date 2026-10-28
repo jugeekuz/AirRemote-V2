@@ -189,6 +189,23 @@ describe('layer boundaries', () => {
     ).toEqual([]);
   });
 
+  it('lets only src/ui import expo-linear-gradient', async () => {
+    expect(
+      await boundaryErrors(
+        'modules/auth/components/submit-button/submit-button.tsx',
+        importing('expo-linear-gradient'),
+      ),
+    ).toEqual([
+      expect.stringContaining('Only src/ui imports expo-linear-gradient'),
+    ]);
+    expect(
+      await boundaryErrors(
+        'ui/linear-gradient/linear-gradient.tsx',
+        importing('expo-linear-gradient'),
+      ),
+    ).toEqual([]);
+  });
+
   it('lets only src/config read process.env', async () => {
     const code = 'export const x = process.env.X;\n';
 
