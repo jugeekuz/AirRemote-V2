@@ -110,8 +110,13 @@ Each comes with its test and `index.ts`. `--module <m>` puts a component,
 screen, hook, store or helper inside `src/modules/<m>/`. A domain is named like
 its backend resource (`domain devices` calls `/devices`) and starts with
 placeholder schemas and a list, get and create call: replace the schemas with
-the contract's and keep only the calls the backend has. After creating a module, restart your editor's
-ESLint server so the module's import rules apply.
+the contract's and keep only the calls the backend has. A module's first
+screen is `<name>-list-screen/`, route `<Name>List`, inside the stack that
+the root route `<Name>` mounts (`module devices` makes `DevicesList` inside
+`Devices`): a nested route named like its parent makes React Navigation warn
+and `navigate` ambiguous. Rename it if the module's first screen is not a
+list. After creating a module, restart your editor's ESLint server so the
+module's import rules apply.
 
 ## Manual checks on a device
 

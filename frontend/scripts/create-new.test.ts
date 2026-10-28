@@ -292,30 +292,47 @@ describe('create-new', () => {
     const { stdout } = runOk(['module', 'pairing-flow']);
 
     const base = 'src/modules/pairing-flow';
-    const screens = `${base}/screens/pairing-flow-screen`;
-    expect(exists(`${screens}/pairing-flow-screen.tsx`)).toBe(true);
-    expect(exists(`${screens}/pairing-flow-screen.test.tsx`)).toBe(true);
+    const screens = `${base}/screens/pairing-flow-list-screen`;
+    expect(exists(`${screens}/pairing-flow-list-screen.tsx`)).toBe(true);
+    expect(exists(`${screens}/pairing-flow-list-screen.test.tsx`)).toBe(true);
     expect(read(`${screens}/index.ts`)).toBe(
-      "export { default } from './pairing-flow-screen';\n",
+      "export { default } from './pairing-flow-list-screen';\n",
     );
     expect(
       JSON.parse(read(`${base}/i18n/locales/en/pairing-flow.json`)),
-    ).toEqual({ 'pairing-flow': { title: 'Pairing flow' } });
+    ).toEqual({ 'pairing-flow-list': { title: 'Pairing flow list' } });
 
     const navigator = read(`${base}/navigation/pairing-flow-navigator.tsx`);
     expect(navigator).toContain(
-      "import PairingFlowScreen from '@modules/pairing-flow/screens/pairing-flow-screen';",
+      "import PairingFlowListScreen from '@modules/pairing-flow/screens/pairing-flow-list-screen';",
     );
     expect(navigator).toContain('<Stack.Navigator');
-    expect(navigator).toContain('component={PairingFlowScreen}');
+    expect(navigator).toContain('name="PairingFlowList"');
+    expect(navigator).toContain('component={PairingFlowListScreen}');
+    expect(navigator).toContain("t('pairing-flow-list.title')");
     expect(navigator).toContain("useTranslation('pairing-flow')");
     expect(navigator).not.toContain(
       '<Stack.Navigator screenOptions={{ headerShown: false }} />',
     );
 
     expect(stdout).toContain(
-      'export type PairingFlowStackParamList = { PairingFlow: undefined };',
+      'export type PairingFlowStackParamList = { PairingFlowList: undefined };',
     );
+  });
+
+  it('names the starter route apart from the root route it is nested in', () => {
+    const { stdout } = runOk(['module', 'devices-hub']);
+
+    // React Navigation warns about a nested screen named like its parent.
+    expect(stdout).toContain(
+      'DevicesHub: NavigatorScreenParams<DevicesHubStackParamList>;',
+    );
+    expect(stdout).toContain('<Stack.Screen name="DevicesHub"');
+    expect(stdout).toContain('{ DevicesHubList: undefined }');
+    expect(stdout).not.toContain('{ DevicesHub: undefined }');
+    expect(
+      read('src/modules/devices-hub/navigation/devices-hub-navigator.tsx'),
+    ).not.toContain('name="DevicesHub"');
   });
 
   it('separates the lines to add by hand from the advice', () => {
@@ -334,7 +351,7 @@ describe('create-new', () => {
     const command = stdout
       .split('\n')
       .find((line) => line.includes('prettier --write'));
-    expect(command).toContain('pairing-screen.tsx');
+    expect(command).toContain('pairing-list-screen.tsx');
     expect(command).toContain('pairing.json');
     expect(command).not.toContain('.gitkeep');
   });

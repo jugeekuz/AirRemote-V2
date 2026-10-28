@@ -1,7 +1,7 @@
 // @ts-check
 import * as screen from './screen.mjs';
 import { screenNames } from './screen.mjs';
-import { GeneratorError } from './shared.mjs';
+import { GeneratorError, toNames } from './shared.mjs';
 
 /** The folders of a module that start empty. */
 const EMPTY_FOLDERS = [
@@ -15,8 +15,11 @@ const EMPTY_FOLDERS = [
 ];
 
 /**
- * The module comes with one screen, named after it: a navigator needs a
- * screen to render. More are added with `create-new screen`.
+ * The module comes with one screen, `<Name>List`: a navigator needs a screen
+ * to render. Its route is not the module's own name, which is the root route
+ * the navigator is mounted under; a nested screen with its parent's name makes
+ * React Navigation warn and `navigate` and linking ambiguous. More screens are
+ * added with `create-new screen`.
  * @param {import('./shared.mjs').Context} ctx
  * @returns {import('./shared.mjs').Plan}
  */
@@ -28,8 +31,13 @@ export function plan(ctx) {
   const base = `src/modules/${kebab}`;
   const importName = `en${pascal}`;
   const namespaceKey = /-/.test(kebab) ? `'${kebab}'` : kebab;
-  const starter = screenNames(kebab);
-  const starterPlan = screen.plan({ ...ctx, module: kebab });
+  const starterName = `${kebab}-list`;
+  const starter = screenNames(starterName);
+  const starterPlan = screen.plan({
+    ...ctx,
+    names: toNames(starterName, 'module name'),
+    module: kebab,
+  });
 
   return {
     files: [

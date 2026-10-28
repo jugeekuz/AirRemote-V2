@@ -33,10 +33,11 @@ The V2 API when this skill was written (trust `openapi.json` over this list):
 | `GET /device-commands/{id}`           |                             | `deviceCommandResponseSchema`       |
 
 `openapi.json` lists the devices routes as `/devices/` (a prefixed `/`
-route); the API serves them at `/devices`, which the app calls. The only
-get-by-id is `GET /device-commands/{id}`: there is none, and no rename,
-delete or reorder, for devices, remotes or buttons, no device online status, no automations and no OAuth. Learning and
-pressing return a device command that the app polls (see `frontend-api`).
+route); the API serves them at `/devices`, which the app calls. Devices,
+remotes and buttons have no get-by-id, rename, delete or reorder; the only
+get-by-id is `GET /device-commands/{id}`. There is no device online status,
+no automations and no OAuth. Learning and pressing return a device command
+that the app polls (see `frontend-api`).
 
 ## 2. Porting a V1 page
 
@@ -67,8 +68,11 @@ pressing return a device command that the app polls (see `frontend-api`).
 - [ ] **Module:** `pnpm --filter @airremote/frontend create-new module <m>`.
       Do every "Add by hand:" line it prints (the `resources.ts` import, the
       param list in `src/types/navigation.types.ts` and its export from
-      `src/types/index.ts`, the root registration). Restart the editor's
-      ESLint server so the new module's import rules apply.
+      `src/types/index.ts`, the root registration). Its first screen is
+      `<m>-list-screen/`, route `<M>List`, inside the root route `<M>`
+      (`module devices`: `DevicesList` inside `Devices`); never give a nested
+      route its parent's name. Restart the editor's ESLint server so the new
+      module's import rules apply.
 - [ ] **Module state**, only if several screens of the module share client
       state (a filter, a selection); a selection two modules share is a
       global store in `src/stores/` → `frontend-state`.
@@ -109,7 +113,7 @@ queries/remotes/remotes.mutations.ts   useCreateRemoteMutation → invalidates r
 modules/remotes/helpers/remotes/       getRemotesOfDevice(remotes, deviceId) for `select`
 modules/remotes/hooks/use-device-remotes/   useDeviceRemotes(deviceId): query + select, empty constant
 modules/remotes/components/remote-tile/     one remote; rename/delete/reorder disabled
-modules/remotes/screens/remotes-screen/     deviceId from its route params; list, empty state, "Add remote" dialog
+modules/remotes/screens/remotes-list-screen/   route RemotesList: { deviceId }; list, empty state, "Add remote" dialog
 modules/remotes/navigation/remotes-navigator.tsx
 modules/remotes/i18n/locales/en/remotes.json
 ```
