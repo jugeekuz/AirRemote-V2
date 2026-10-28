@@ -4,7 +4,7 @@
 </p>
 <h2 align="center">AirRemote V2 ⚡</h2>
 <p align="center">
-    <a href="/LICENSE"><img alt="GPL-V3.0 License" src="https://img.shields.io/badge/License-GPLv3-orange.svg"></a>
+    <a href="/LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
 </p><br>
 
 Turn your old remote-controlled devices into smart devices! AirRemote captures the infrared (IR) signals of any remote control and lets you replay them remotely, from a web interface or on a schedule.
@@ -25,4 +25,4 @@ The full commit history of all three repositories is preserved here.
 
 ## 📜 License
 
-AirRemote is licensed under the [GNU General Public License v3.0](LICENSE).
+AirRemote is licensed under the [MIT License](LICENSE).
