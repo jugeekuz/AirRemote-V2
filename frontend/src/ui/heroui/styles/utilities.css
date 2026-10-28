@@ -1,0 +1,13 @@
+@layer utilities {
+  .h-hairline {
+    height: hairlineWidth();
+  }
+  .w-hairline {
+    width: hairlineWidth();
+  }
+}
+
+@utility element-disabled {
+  opacity: var(--opacity-disabled);
+  pointer-events: none;
+}

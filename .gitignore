@@ -22,6 +22,16 @@ firmware/backend-url.txt
 .env
 .env.*
 !.env.example
+!frontend/.env.development
+!frontend/.env.production
+
+# Frontend (Expo)
+frontend/android/
+frontend/ios/
+frontend/.expo/
+frontend/web-build/
+frontend/coverage/
+frontend/expo-env.d.ts
 
 # Device listener certificates (see backend/README.md)
 certs/*

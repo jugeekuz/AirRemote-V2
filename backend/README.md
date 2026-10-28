@@ -120,6 +120,15 @@ With the mock device, type `/press` in it to send a code. The curl commands
 that set `$TOKEN`, `$DEVICE_ID`, `$REMOTE` and `$BUTTON` and make these requests are in
 `tools/device-sim/README.md`.
 
+## Browser clients (CORS)
+
+A web app on another origin can call the API with credentials (so the browser
+sends the httpOnly refresh cookie) only if its origin is in `CORS_ORIGINS`:
+comma-separated origins such as `http://localhost:8081,https://app.example.com`
+(scheme, host and optional port; no path or trailing slash). It is empty by
+default, which adds no CORS headers. The Expo web dev server runs at
+`http://localhost:8081`. Native apps do not use CORS.
+
 ## Scripts (from the repository root)
 
 | Script                  | What it does                                                  |

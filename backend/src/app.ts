@@ -12,6 +12,7 @@ import { healthRoutes } from './features/health/health.routes';
 import { remotesRoutes } from './features/remotes/remotes.routes';
 import { usersRoutes } from './features/users/users.routes';
 import { authenticatePlugin } from './plugins/authenticate';
+import { corsPlugin } from './plugins/cors';
 import { dbPlugin } from './plugins/db';
 import { errorHandlerPlugin } from './plugins/error-handler';
 import { openApiPlugin } from './plugins/openapi';
@@ -53,6 +54,9 @@ export async function buildApp({
   await app.register(zodPlugin);
   await app.register(errorHandlerPlugin);
   await app.register(cookie);
+  if (env.CORS_ORIGINS.length > 0) {
+    await app.register(corsPlugin, { origins: env.CORS_ORIGINS });
+  }
   await app.register(dbPlugin, {
     handle: db ?? createDb(env.DATABASE_URL),
     close: !db,

@@ -1,0 +1,29 @@
+{
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "VALIDATION_FAILED": "Some of the details aren't valid. Check them and try again.",
+    "BAD_REQUEST": "The request couldn't be processed. Please try again.",
+    "INVALID_CREDENTIALS": "Wrong email or password.",
+    "INVALID_REFRESH_TOKEN": "Your session has ended. Please sign in again.",
+    "NOT_FOUND": "We couldn't find what you were looking for.",
+    "EMAIL_TAKEN": "An account with this email already exists.",
+    "UNAUTHORIZED": "Please sign in to continue.",
+    "INVALID_PAIRING_CODE": "That pairing code isn't valid or has expired.",
+    "DEVICE_ALREADY_REGISTERED": "This device is already registered.",
+    "REMOTE_NAME_TAKEN": "You already have a remote with this name.",
+    "BUTTON_NAME_TAKEN": "This remote already has a button with this name.",
+    "DEVICE_OFFLINE": "The device is offline.",
+    "DEVICE_BUSY": "The device is busy. Try again in a moment.",
+    "IR_READ_TIMEOUT": "No signal was received. Point the remote at the device and try again.",
+    "IR_CODE_TOO_LONG": "That signal is too long to save.",
+    "IR_SEND_FAILED": "The device couldn't send the signal.",
+    "DEVICE_ERROR": "The device reported an error.",
+    "DEVICE_NOT_RESPONDING": "The device isn't responding.",
+    "INVALID_DEVICE_CERTIFICATE": "The device's certificate isn't valid.",
+    "INTERNAL_ERROR": "Something went wrong on our side. Please try again.",
+    "NETWORK_ERROR": "Couldn't reach AirRemote. Check your connection.",
+    "INVALID_RESPONSE": "Got an unexpected response. Please try again.",
+    "REQUEST_CANCELLED": "The request was cancelled.",
+    "UNKNOWN_ERROR": "Something went wrong. Please try again."
+  }
+}

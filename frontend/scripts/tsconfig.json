@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  // The generator: Node ESM scripts, checked by the root `typecheck`. Its test
+  // is part of the app's project (frontend/tsconfig.json).
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true
+  },
+  "include": ["*.mjs", "templates/*.mjs"]
+}

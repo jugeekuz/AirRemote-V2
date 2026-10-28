@@ -10,6 +10,36 @@ const deviceTlsVariables = [
   'DEVICE_TLS_CA_FILE',
 ] as const;
 
+const corsOrigins = z
+  .string()
+  .default('')
+  .transform((value) =>
+    value
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  )
+  .pipe(
+    z.array(
+      z.string().refine(isOrigin, {
+        error:
+          'must be comma-separated origins like http://localhost:8081 (http or https, no path or trailing slash)',
+      }),
+    ),
+  );
+
+function isOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === 'http:' || url.protocol === 'https:') &&
+      url.origin === value
+    );
+  } catch {
+    return false;
+  }
+}
+
 export const envSchema = z
   .object({
     NODE_ENV: z
@@ -31,6 +61,7 @@ export const envSchema = z
     DEVICE_TLS_CERT_FILE: z.string().min(1).optional(),
     DEVICE_TLS_KEY_FILE: z.string().min(1).optional(),
     DEVICE_TLS_CA_FILE: z.string().min(1).optional(),
+    CORS_ORIGINS: corsOrigins,
   })
   .refine((env) => env.JWT_ACCESS_SECRET !== env.JWT_REFRESH_SECRET, {
     path: ['JWT_REFRESH_SECRET'],
