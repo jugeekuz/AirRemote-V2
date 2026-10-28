@@ -56,5 +56,28 @@
   },
   "press-button": {
     "label": "Press {{name}}"
+  },
+  "learn-button": {
+    "title": "Add Button",
+    "name": {
+      "heading": "Select a name for the new button.",
+      "label": "Button Name",
+      "invalid": "Please enter a valid button name"
+    },
+    "instructions": {
+      "blink": "When the device starts blinking, point your remote to the IR receiver and press the button.",
+      "faster": "The device should blink faster if the read was successful.",
+      "ready": "Press next when you're ready."
+    },
+    "advice": {
+      "intro": "Remotes that have screens on them showing the state of the device (e.g., Air Conditioners) send the entire device's state on each button press.",
+      "heading": "It is advised that you:",
+      "set-state": "Set the desired state on the remote",
+      "power-off": "Press the power off button",
+      "save-power-on": "Save the power on button",
+      "outcome": "The entire state will be saved and on button press the device will power on in that exact state."
+    },
+    "listening": "Point your remote at the device and press the button.",
+    "progress": "Loading..."
   }
 }

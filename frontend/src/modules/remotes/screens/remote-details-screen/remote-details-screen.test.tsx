@@ -22,6 +22,7 @@ import {
   waitFor,
 } from '@utils/tests';
 import { buttonsApi } from '@api/buttons';
+import { deviceCommandsApi } from '@api/device-commands';
 import { devicesApi } from '@api/devices';
 import { remotesApi } from '@api/remotes';
 import { createQueryClient } from '@queries/query-client';
@@ -35,6 +36,7 @@ jest.mock('@api/devices');
 jest.mock('@api/remotes');
 
 const buttons = jest.mocked(buttonsApi);
+const commands = jest.mocked(deviceCommandsApi);
 const devices = jest.mocked(devicesApi);
 const remotes = jest.mocked(remotesApi);
 const desk: DeviceResponse = {
@@ -308,5 +310,53 @@ describe('RemoteDetailsScreen', () => {
     await press('press-button.label | name: Power');
 
     expect(buttons.press).toHaveBeenCalledWith(power.id);
+  });
+
+  it('learns a button through the Add Button dialog, which closes and lists it', async () => {
+    const learnt: ButtonResponse = {
+      id: '5e4d3c2b-1a0f-4e9d-8c7b-6a5f4e3d2c1b',
+      remoteId: ac.id,
+      name: 'Turbo',
+    };
+    buttons.learn.mockResolvedValue({
+      id: '0f9e8d7c-6b5a-4f3e-9d2c-1b0a9f8e7d6c',
+      kind: 'learn_button',
+      status: 'pending',
+      createdAt: '2026-10-28T10:00:00.000Z',
+      expiresAt: '2026-10-28T10:00:20.000Z',
+    });
+    commands.get.mockResolvedValue({
+      id: '0f9e8d7c-6b5a-4f3e-9d2c-1b0a9f8e7d6c',
+      kind: 'learn_button',
+      status: 'succeeded',
+      createdAt: '2026-10-28T10:00:00.000Z',
+      expiresAt: '2026-10-28T10:00:20.000Z',
+      button: learnt,
+    });
+    await renderDetails();
+    await screen.findByText('Swing');
+    buttons.list.mockResolvedValue([power, swing, learnt]);
+
+    await press('add');
+    expect(
+      screen.getByRole('heading', { name: 'learn-button.title' }),
+    ).toBeOnTheScreen();
+    await act(async () => {
+      fireEvent.changeText(
+        screen.getByLabelText('learn-button.name.label'),
+        'Turbo',
+      );
+    });
+    await press('next');
+    await press('next');
+
+    expect(await screen.findByText('Turbo')).toBeOnTheScreen();
+    expect(buttons.learn).toHaveBeenCalledWith(ac.id, { name: 'Turbo' });
+    await waitFor(() => {
+      expect(
+        screen.queryByText('learn-button.listening'),
+      ).not.toBeOnTheScreen();
+    });
+    expect(screen.getByText('3')).toBeOnTheScreen();
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { ScrollView } from 'react-native';
 import {
   useFocusEffect,
@@ -13,6 +13,7 @@ import type { RemotesStackParamList } from '@app-types';
 import { useEditMode } from '@contexts/edit-mode';
 import ButtonTile from '@modules/remotes/components/button-tile';
 import InfoBar from '@modules/remotes/components/info-bar';
+import LearnButtonDialog from '@modules/remotes/components/learn-button-dialog';
 import { useRemoteDetails } from '@modules/remotes/hooks';
 import EmptyTiles from '@components/empty-tiles';
 import Screen from '@components/screen';
@@ -25,8 +26,8 @@ import RemoteNotFound from './remote-not-found';
 /**
  * The page under its edit-mode provider: the back arrow, V1's info card,
  * "Remote Buttons" with the button tiles (or V1's empty state, or "Try
- * again" when a first load failed). A remote that is gone shows a
- * not-found state instead.
+ * again" when a first load failed), and the Add Button dialog. A remote
+ * that is gone shows a not-found state instead.
  */
 export default function RemoteDetails() {
   const { t } = useTranslation('remotes');
@@ -47,6 +48,7 @@ export default function RemoteDetails() {
     retry,
     deleteButton,
   } = useRemoteDetails(remoteId);
+  const [isLearnOpen, setIsLearnOpen] = useState(false);
   const isEditing = useEditMode((state) => state.isEditing);
   const toggleEditMode = useEditMode((state) => state.toggle);
   const stopEditMode = useEditMode((state) => state.stop);
@@ -84,7 +86,7 @@ export default function RemoteDetails() {
           // V1 left the badge empty until the remote had loaded.
           count={isLoaded ? buttons.length : undefined}
           onAdd={() => {
-            // Learning a button comes next.
+            setIsLearnOpen(true);
           }}
           onToggleEdit={toggleEditMode}
         />
@@ -107,6 +109,13 @@ export default function RemoteDetails() {
           <EmptyTiles text={t('remote-details.load-failed')} onRetry={retry} />
         )}
       </ScrollView>
+      <LearnButtonDialog
+        isOpen={isLearnOpen}
+        remoteId={remoteId}
+        onClose={() => {
+          setIsLearnOpen(false);
+        }}
+      />
     </Screen>
   );
 }
