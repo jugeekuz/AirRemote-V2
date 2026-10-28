@@ -91,7 +91,8 @@ Contracts and data:
 
 Vitest, with three projects in the root `vitest.config.ts`. `pnpm test` runs
 all of them; `pnpm test:unit`, `pnpm test:integration` and `pnpm test:e2e`
-run one. Integration and e2e tests need Docker.
+run one. Integration and e2e tests need Docker, or an existing Postgres
+server named by `TEST_DATABASE_URL` (see `backend/README.md`).
 
 - **Unit — `*.test.ts`** in the `__tests__/` folder next to the code. Pure
   functions and mocks only: no database, network or other external service.

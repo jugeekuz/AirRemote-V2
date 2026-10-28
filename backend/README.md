@@ -137,6 +137,20 @@ that set `$TOKEN`, `$DEVICE_ID`, `$REMOTE` and `$BUTTON` and make these requests
 | `pnpm db:migrate`       | Applies pending migrations to `DATABASE_URL`                  |
 | `pnpm openapi`          | Writes the API's OpenAPI document to `openapi.json`           |
 
+## Tests without Docker
+
+Integration and e2e tests start their own Postgres container with
+Testcontainers. Where Docker isn't available (e.g. inside a container that
+runs Postgres itself), point them at an existing server instead:
+
+```sh
+TEST_DATABASE_URL=postgres://user:password@localhost:5432/postgres pnpm test:integration
+```
+
+The tests create and drop their own databases on that server
+(`test_template_*` and `test_*`), so the role needs `CREATEDB`, and the server
+needs the default `postgres` database. Nothing else on it is touched.
+
 ## OpenAPI and Postman
 
 `pnpm openapi` writes `openapi.json` (OpenAPI 3.1, git-ignored) at the
