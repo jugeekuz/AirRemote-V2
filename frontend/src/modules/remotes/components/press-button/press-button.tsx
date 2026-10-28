@@ -73,7 +73,7 @@ export default function PressButton({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('press-button.label', { name: buttonName })}
-          accessibilityState={{ busy: isPending }}
+          aria-busy={isPending}
           onPress={press}
           className={`size-9 items-center justify-center rounded-full bg-gray-50 shadow-md ${isPending ? '' : 'border-2 border-green-500'}`}
         >

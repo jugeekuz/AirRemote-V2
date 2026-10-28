@@ -67,7 +67,7 @@ export default function IndeterminateProgress({
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={label}
-      accessibilityState={{ busy: true }}
+      aria-busy
       onLayout={(event) => {
         trackWidth.set(event.nativeEvent.layout.width);
       }}

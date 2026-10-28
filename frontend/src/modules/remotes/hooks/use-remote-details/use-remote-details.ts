@@ -79,13 +79,16 @@ export function useRemoteDetails(remoteId: string): RemoteDetails {
     }
   }, [isDeviceGone, refetchRemotes]);
 
+  // The buttons only once the remote list says it still exists: asking a
+  // deleted remote for its buttons would only answer 404.
   const refetchAll = useCallback(() => {
-    void refetchRemotes();
     void refetchDevices();
-    if (remote) {
-      void refetchButtons();
-    }
-  }, [refetchRemotes, refetchDevices, refetchButtons, remote]);
+    void refetchRemotes().then(({ data }) => {
+      if (data?.some(({ id }) => id === remoteId)) {
+        void refetchButtons();
+      }
+    });
+  }, [refetchRemotes, refetchDevices, refetchButtons, remoteId]);
   useRefreshOnFocus(refetchAll);
 
   const isRemotesLoadFailed =

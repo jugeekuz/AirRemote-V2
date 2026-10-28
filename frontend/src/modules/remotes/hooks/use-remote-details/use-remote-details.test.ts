@@ -143,6 +143,7 @@ describe('useRemoteDetails', () => {
     await waitFor(() => {
       expect(result.current.isMissing).toBe(true);
     });
+    expect(buttons.list).toHaveBeenCalledTimes(1);
   });
 
   // The server deletes a device's remotes with it.
