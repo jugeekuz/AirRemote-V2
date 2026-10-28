@@ -33,7 +33,12 @@ export default function AddRemoteSteps({ onClose }: AddRemoteStepsProps) {
   const [type, setType] = useState<RemoteType | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [name, setName] = useState('');
-  const { data: devices } = useQuery(deviceQueries.list());
+  // The screens keep the list current; the dialog adds no timer of its own.
+  const {
+    data: devices,
+    isError: isDevicesError,
+    refetch: refetchDevices,
+  } = useQuery({ ...deviceQueries.list(), refetchInterval: false });
   const { mutate: create, isPending: isCreating } = useCreateRemoteMutation();
   // Gone if the device was deleted meanwhile.
   const device = deviceId
@@ -80,8 +85,11 @@ export default function AddRemoteSteps({ onClose }: AddRemoteStepsProps) {
         )}
         {step === ADD_REMOTE_STEP.DEVICE && (
           <AddRemoteDevice
-            devices={devices ?? NO_DEVICES}
-            isLoaded={devices !== undefined}
+            devices={devices}
+            isLoadFailed={isDevicesError && devices === undefined}
+            onRetry={() => {
+              void refetchDevices();
+            }}
             deviceId={deviceId}
             onChangeDevice={setDeviceId}
           />

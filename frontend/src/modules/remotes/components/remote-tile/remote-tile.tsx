@@ -40,6 +40,20 @@ export default function RemoteTile({
 }: RemoteTileProps) {
   const { t } = useTranslation('remotes');
   const picture = getRemoteTilePicture(remote.type);
+  const typeLabel = t(getRemoteTypeLabelKey(remote.type));
+  // The tile's name is all a screen reader hears of it.
+  const openLabel = device
+    ? t('remote-tile.open', {
+        name: remote.name,
+        type: typeLabel,
+        status: device.online
+          ? t('status-dot.online', { ns: 'chrome' })
+          : t('status-dot.offline', { ns: 'chrome' }),
+      })
+    : t('remote-tile.open-unknown-status', {
+        name: remote.name,
+        type: typeLabel,
+      });
 
   return (
     <Wobble isActive={isEditing}>
@@ -47,7 +61,7 @@ export default function RemoteTile({
       <View className="relative h-40 rounded-lg border-2 border-gray-300 bg-gray-100/60">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t('remote-tile.open', { name: remote.name })}
+          accessibilityLabel={openLabel}
           onPress={() => {
             onOpen(remote.id);
           }}
@@ -62,10 +76,11 @@ export default function RemoteTile({
             </Text>
             <View className="flex-row items-center">
               <Text className="text-xs font-normal text-gray-600">
-                {t(getRemoteTypeLabelKey(remote.type))}
+                {typeLabel}
               </Text>
               {!!device && (
-                <View className="mb-0.5 ml-0.5">
+                // The tile's name says it; screen readers skip the dot.
+                <View aria-hidden className="mb-0.5 ml-0.5">
                   <StatusDot online={device.online} />
                 </View>
               )}

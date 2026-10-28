@@ -1,9 +1,9 @@
 import { useWindowDimensions, View } from 'react-native';
 
+import RetryButton from '@components/retry-button';
 import { Text } from '@ui';
 
 import EmptyTilesHint from './empty-tiles-hint';
-import EmptyTilesRetry from './empty-tiles-retry';
 
 type EmptyTilesProps = {
   /** What is missing, e.g. "No devices available". */
@@ -30,7 +30,7 @@ export default function EmptyTiles({ text, onRetry }: EmptyTilesProps) {
       style={{ height }}
     >
       <Text className="font-poppins-semibold text-lg text-black">{text}</Text>
-      {onRetry ? <EmptyTilesRetry onPress={onRetry} /> : <EmptyTilesHint />}
+      {onRetry ? <RetryButton onPress={onRetry} /> : <EmptyTilesHint />}
       <View testID="empty-tiles-spacer" className="h-1/2" />
     </View>
   );

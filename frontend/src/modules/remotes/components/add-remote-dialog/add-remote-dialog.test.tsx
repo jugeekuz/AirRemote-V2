@@ -13,6 +13,7 @@ import {
 } from '@utils/tests';
 import { devicesApi } from '@api/devices';
 import { remotesApi } from '@api/remotes';
+import { DEVICE_LIST_REFETCH_MS } from '@queries/devices';
 import { createQueryClient } from '@queries/query-client';
 
 import AddRemoteDialog from './add-remote-dialog';
@@ -40,7 +41,8 @@ const created: RemoteResponse = {
   name: 'Hall heater',
   type: 'heater',
 };
-const SELECT = 'add-remote.select-option';
+const TYPE_SELECT = 'add-remote.type.heading';
+const DEVICE_SELECT = 'add-remote.device.heading';
 const NAME = 'add-remote.name.label';
 
 let queryClient: QueryClient;
@@ -83,8 +85,8 @@ async function press(name: string) {
   });
 }
 
-async function pick(option: string) {
-  await openSelect(SELECT);
+async function pick(select: string, option: string) {
+  await openSelect(select);
   await act(async () => {
     fireEvent.press(screen.getByRole('option', { name: option }));
   });
@@ -99,9 +101,9 @@ async function type(text: string) {
 /** Category Heater, then device Hall: the name step. */
 async function goToNameStep() {
   await renderDialog();
-  await pick('remote-type.heater');
+  await pick(TYPE_SELECT, 'remote-type.heater');
   await press('next');
-  await pick('Hall');
+  await pick(DEVICE_SELECT, 'Hall');
   await press('next');
   expect(screen.getByText('add-remote.name.heading')).toBeOnTheScreen();
 }
@@ -114,7 +116,10 @@ describe('AddRemoteDialog', () => {
       screen.getByRole('heading', { name: 'add-remote.title' }),
     ).toBeOnTheScreen();
     expect(screen.getByText('add-remote.type.heading')).toBeOnTheScreen();
-    expect(screen.getByRole('combobox', { name: SELECT })).toBeOnTheScreen();
+    expect(
+      screen.getByRole('combobox', { name: TYPE_SELECT }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('add-remote.select-option')).toBeOnTheScreen();
     expect(button('close')).toBeOnTheScreen();
     expect(button('next')).toBeDisabled();
     expect(
@@ -125,7 +130,7 @@ describe('AddRemoteDialog', () => {
   it("lists V1's seven categories in V1's order", async () => {
     await renderDialog();
 
-    await openSelect(SELECT);
+    await openSelect(TYPE_SELECT);
 
     expect(
       screen.getAllByRole('option').map((o) => o.props['aria-valuetext']),
@@ -143,13 +148,13 @@ describe('AddRemoteDialog', () => {
   it('goes on to the device once a category is picked', async () => {
     await renderDialog();
 
-    await pick('remote-type.heater');
+    await pick(TYPE_SELECT, 'remote-type.heater');
     expect(button('next')).toBeEnabled();
     await press('next');
 
     expect(screen.getByText('add-remote.device.heading')).toBeOnTheScreen();
     expect(button('next')).toBeDisabled();
-    await openSelect(SELECT);
+    await openSelect(DEVICE_SELECT);
     expect(
       screen.getAllByRole('option').map((o) => o.props['aria-valuetext']),
     ).toEqual(['Desk', 'Hall']);
@@ -157,7 +162,7 @@ describe('AddRemoteDialog', () => {
 
   it('goes back to the category it keeps', async () => {
     await renderDialog();
-    await pick('remote-type.heater');
+    await pick(TYPE_SELECT, 'remote-type.heater');
     await press('next');
 
     await press('back');
@@ -167,10 +172,82 @@ describe('AddRemoteDialog', () => {
     expect(button('next')).toBeEnabled();
   });
 
+  it('says the devices are loading, with nothing to pick yet', async () => {
+    devices.list.mockReturnValue(new Promise(() => {}));
+    await renderDialog();
+    await pick(TYPE_SELECT, 'remote-type.heater');
+
+    await press('next');
+
+    expect(screen.getByText('add-remote.device.loading')).toBeOnTheScreen();
+    expect(screen.queryByRole('combobox')).not.toBeOnTheScreen();
+    expect(screen.queryByText('add-remote.device.none')).not.toBeOnTheScreen();
+    expect(button('next')).toBeDisabled();
+  });
+
+  it('offers to try again when the devices could not be loaded', async () => {
+    const offline: ApiError = {
+      code: 'NETWORK_ERROR',
+      message: 'Network Error',
+      isNetworkError: true,
+    };
+    queryClient.setDefaultOptions({
+      ...queryClient.getDefaultOptions(),
+      queries: { ...queryClient.getDefaultOptions().queries, retry: false },
+    });
+    devices.list.mockReset();
+    devices.list.mockRejectedValueOnce(offline).mockResolvedValue([desk, hall]);
+    await renderDialog();
+    await pick(TYPE_SELECT, 'remote-type.heater');
+    await press('next');
+
+    expect(
+      await screen.findByText('add-remote.device.load-failed'),
+    ).toBeOnTheScreen();
+    expect(onApiError).toHaveBeenCalledWith(offline, undefined);
+    expect(screen.queryByRole('combobox')).not.toBeOnTheScreen();
+    expect(button('next')).toBeDisabled();
+
+    await press('try-again');
+
+    expect(
+      await screen.findByRole('combobox', { name: DEVICE_SELECT }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.queryByText('add-remote.device.load-failed'),
+    ).not.toBeOnTheScreen();
+  });
+
+  // The dialog reads the list; the screens poll it.
+  it('does not ask for the devices every 30 seconds itself', async () => {
+    jest.useFakeTimers();
+    try {
+      await renderDialog();
+      await act(async () => {
+        await Promise.resolve();
+      });
+      const calls = devices.list.mock.calls.length;
+
+      await act(async () => {
+        jest.advanceTimersByTime(DEVICE_LIST_REFETCH_MS * 3);
+      });
+
+      expect(devices.list).toHaveBeenCalledTimes(calls);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('takes no more characters than the server', async () => {
+    await goToNameStep();
+
+    expect(screen.getByLabelText(NAME)).toHaveProp('maxLength', 100);
+  });
+
   it('says to add a device first when there is none', async () => {
     devices.list.mockResolvedValue([]);
     await renderDialog();
-    await pick('remote-type.heater');
+    await pick(TYPE_SELECT, 'remote-type.heater');
 
     await press('next');
 

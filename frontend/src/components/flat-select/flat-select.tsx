@@ -1,5 +1,8 @@
-import { View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
+import { isWebPlatform } from '@utils/platform';
 import { Select, Text } from '@ui';
 
 export type FlatSelectOption<V extends string = string> = {
@@ -8,8 +11,10 @@ export type FlatSelectOption<V extends string = string> = {
 };
 
 type FlatSelectProps<V extends string> = {
-  /** Inside the field, as V1's NextUI label; also its accessible name. */
+  /** Inside the field, as V1's NextUI label ("Select an option"). */
   label: string;
+  /** Its accessible name, e.g. the question it answers. @default label */
+  accessibilityLabel?: string;
   options: readonly FlatSelectOption<V>[];
   /** The picked option's value, or null for none. */
   value: V | null;
@@ -19,15 +24,27 @@ type FlatSelectProps<V extends string> = {
 /**
  * V1's NextUI Select (flat): a 56 px grey field, at most 320 px wide, with
  * its label inside (14 px, smaller and higher once something is picked)
- * and a chevron; it opens a list of the options below it.
+ * and a chevron; it opens a list of the options below it, at most 256 px
+ * tall and scrolling beyond that.
  */
 export default function FlatSelect<V extends string>({
   label,
+  accessibilityLabel = label,
   options,
   value,
   onChange,
 }: FlatSelectProps<V>) {
+  const { t } = useTranslation('chrome');
+  const [isOpen, setIsOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
+  // Browsers announce a combobox's name, not `aria-valuetext`.
+  const name =
+    isWebPlatform && selected
+      ? t('flat-select.label-with-value', {
+          name: accessibilityLabel,
+          value: selected.label,
+        })
+      : accessibilityLabel;
 
   return (
     <Select
@@ -38,10 +55,14 @@ export default function FlatSelect<V extends string>({
           onChange(option.value);
         }
       }}
+      isOpen={isOpen}
+      onOpenChange={setIsOpen}
     >
       <Select.Trigger
         variant="unstyled"
-        accessibilityLabel={label}
+        accessibilityLabel={name}
+        aria-valuetext={selected?.label}
+        aria-expanded={isOpen}
         className="h-14 w-full max-w-xs justify-center rounded-medium bg-zinc-100 py-2 pr-9 pl-3 shadow-xs"
       >
         <Text
@@ -67,19 +88,21 @@ export default function FlatSelect<V extends string>({
           presentation="popover"
           placement="bottom"
           width="trigger"
-          className="max-h-64 rounded-large p-1 shadow-medium"
+          className="rounded-large p-1 shadow-medium"
         >
-          {options.map((option) => (
-            <Select.Item
-              key={option.value}
-              value={option.value}
-              label={option.label}
-              className="rounded-small px-2 py-1.5"
-            >
-              <Select.ItemLabel className="text-sm font-normal text-black" />
-              <Select.ItemIndicator />
-            </Select.Item>
-          ))}
+          <ScrollView testID="flat-select-options" className="max-h-62">
+            {options.map((option) => (
+              <Select.Item
+                key={option.value}
+                value={option.value}
+                label={option.label}
+                className="rounded-small px-2 py-1.5"
+              >
+                <Select.ItemLabel className="text-sm font-normal text-black" />
+                <Select.ItemIndicator />
+              </Select.Item>
+            ))}
+          </ScrollView>
         </Select.Content>
       </Select.Portal>
     </Select>

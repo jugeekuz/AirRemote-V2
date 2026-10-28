@@ -19,5 +19,8 @@
     "devices": "Devices",
     "automations": "Automations",
     "unavailable": "Not available yet"
+  },
+  "flat-select": {
+    "label-with-value": "{{name}}, {{value}}"
   }
 }

@@ -30,6 +30,7 @@ export default function AddRemoteType({
       </Text>
       <FlatSelect
         label={t('add-remote.select-option')}
+        accessibilityLabel={t('add-remote.type.heading')}
         options={options}
         value={type}
         onChange={onChangeType}

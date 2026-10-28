@@ -16,7 +16,8 @@ const ac: RemoteResponse = {
   name: 'Living room AC',
   type: 'air_conditioner',
 };
-const OPEN_AC = 'remote-tile.open | name: Living room AC';
+const OPEN_AC =
+  'remote-tile.open | name: Living room AC | type: remote-type.air-conditioner | status: status-dot.online';
 const DELETE_AC = 'remote-tile.delete | name: Living room AC';
 
 type Props = Partial<Parameters<typeof RemoteTile>[0]>;
@@ -87,6 +88,30 @@ describe('RemoteTile', () => {
     const picture = screen.getByTestId('remote-tile-picture');
     expect(picture).toHaveProp('contentFit', 'contain');
     expect(picture).toHaveProp('contentPosition', { bottom: 0, left: 0 });
+  });
+
+  // Screen readers hear the tile's name only, so it says it all once.
+  it('is named by the remote, its type and its device status', async () => {
+    await renderTile({ device: { ...desk, online: false } });
+
+    expect(
+      screen.getByRole('button', {
+        name: 'remote-tile.open | name: Living room AC | type: remote-type.air-conditioner | status: status-dot.offline',
+      }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.queryByRole('image', { name: 'status-dot.offline' }),
+    ).not.toBeOnTheScreen();
+  });
+
+  it('leaves the status out of its name while the device is unknown', async () => {
+    await renderTile({ device: undefined });
+
+    expect(
+      screen.getByRole('button', {
+        name: 'remote-tile.open-unknown-status | name: Living room AC | type: remote-type.air-conditioner',
+      }),
+    ).toBeOnTheScreen();
   });
 
   it('opens the remote from anywhere on the tile', async () => {

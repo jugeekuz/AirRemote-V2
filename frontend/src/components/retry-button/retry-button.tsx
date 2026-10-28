@@ -4,12 +4,15 @@ import { useTranslation } from 'react-i18next';
 
 import { Icon, Text } from '@ui';
 
-type EmptyTilesRetryProps = {
+type RetryButtonProps = {
   onPress: () => void;
 };
 
-/** "Try again" in the hint's place and type, after a failed load. */
-export default function EmptyTilesRetry({ onPress }: EmptyTilesRetryProps) {
+/**
+ * "Try again" after a failed load: a small underlined grey link with a
+ * turning arrow, in the empty grid's hint type (Poppins 14 px).
+ */
+export default function RetryButton({ onPress }: RetryButtonProps) {
   const { t } = useTranslation('actions');
 
   return (

@@ -7,7 +7,8 @@
     "load-failed": "Couldn't load your remotes"
   },
   "remote-tile": {
-    "open": "Open {{name}}",
+    "open": "Open {{name}}, {{type}}, {{status}}",
+    "open-unknown-status": "Open {{name}}, {{type}}",
     "delete": "Delete {{name}}"
   },
   "remote-type": {
@@ -27,6 +28,8 @@
     },
     "device": {
       "heading": "Select IoT device that will use this remote:",
+      "loading": "Loading devices…",
+      "load-failed": "Couldn't load your devices",
       "none": "Add a device first."
     },
     "name": {

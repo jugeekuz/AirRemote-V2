@@ -51,6 +51,10 @@ const tv: RemoteResponse = {
   type: 'smart_tv',
 };
 const DELETE_TV = 'remote-tile.delete | name: TV';
+const OPEN_AC =
+  'remote-tile.open | name: AC | type: remote-type.air-conditioner | status: status-dot.online';
+const OPEN_TV =
+  'remote-tile.open | name: TV | type: remote-type.smart-tv | status: status-dot.online';
 
 type TestParamList = {
   RemoteList: undefined;
@@ -181,7 +185,7 @@ describe('RemoteListScreen', () => {
     await renderRemotes();
     await screen.findByText('TV');
 
-    await press('remote-tile.open | name: TV');
+    await press(OPEN_TV);
 
     expect(await screen.findByText(`details of ${tv.id}`)).toBeOnTheScreen();
   });
@@ -236,7 +240,7 @@ describe('RemoteListScreen', () => {
     await press('edit');
     expect(screen.getByRole('button', { name: DELETE_TV })).toBeOnTheScreen();
 
-    await press('remote-tile.open | name: AC');
+    await press(OPEN_AC);
     await act(async () => {
       navigation.goBack();
     });
@@ -255,7 +259,7 @@ describe('RemoteListScreen', () => {
       expect(devices.list).toHaveBeenCalledTimes(1);
     });
 
-    await press('remote-tile.open | name: AC');
+    await press(OPEN_AC);
     await act(async () => {
       navigation.goBack();
     });
@@ -277,14 +281,14 @@ describe('RemoteListScreen', () => {
     expect(
       screen.getByRole('heading', { name: 'add-remote.title' }),
     ).toBeOnTheScreen();
-    await openSelect('add-remote.select-option');
+    await openSelect('add-remote.type.heading');
     await act(async () => {
       fireEvent.press(
         screen.getByRole('option', { name: 'remote-type.air-conditioner' }),
       );
     });
     await press('next');
-    await openSelect('add-remote.select-option');
+    await openSelect('add-remote.device.heading');
     await act(async () => {
       fireEvent.press(screen.getByRole('option', { name: 'Desk' }));
     });
