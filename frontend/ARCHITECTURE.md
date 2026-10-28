@@ -756,3 +756,8 @@ at a time).
     code to a shared layer instead.
 12. **`Platform.OS` checks scattered around:** use `@utils/platform` or
     platform files.
+13. **A custom `Keyframe` entering animation on web** is pinned at
+    `position: absolute` 1 s after it starts, measured from its DOM parent;
+    under a `display: contents` wrapper (gesture detectors) it lands in the
+    wrong place. Use Reanimated's built-in animations (`FadeIn`) on web, as
+    `Modal` does.
