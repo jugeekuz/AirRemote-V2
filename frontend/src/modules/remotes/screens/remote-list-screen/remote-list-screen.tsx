@@ -1,19 +1,12 @@
-import { useTranslation } from 'react-i18next';
+import { EditModeProvider } from '@contexts/edit-mode';
 
-import Screen from '@components/screen';
-import TopToolbar from '@components/top-toolbar';
-import { Text } from '@ui';
+import RemoteList from './remote-list';
 
-/** Placeholder: shows the shell until the real screen replaces it. */
+/** V1's Remotes page; edit mode starts off every time it mounts. */
 export default function RemoteListScreen() {
-  const { t } = useTranslation('remotes');
-
   return (
-    <Screen>
-      <TopToolbar />
-      <Text.Heading type="h3" className="ml-2">
-        {t('remote-list.title')}
-      </Text.Heading>
-    </Screen>
+    <EditModeProvider>
+      <RemoteList />
+    </EditModeProvider>
   );
 }

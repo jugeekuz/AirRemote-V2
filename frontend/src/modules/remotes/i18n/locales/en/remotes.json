@@ -1,6 +1,39 @@
 {
   "remote-list": {
-    "title": "Remotes"
+    "title": "Remotes",
+    "heading": "Your remotes",
+    "notice": "Connection status refreshes every 30 seconds.",
+    "empty": "No remotes available",
+    "load-failed": "Couldn't load your remotes"
+  },
+  "remote-tile": {
+    "open": "Open {{name}}",
+    "delete": "Delete {{name}}"
+  },
+  "remote-type": {
+    "air-conditioner": "Air Conditioner",
+    "audio-system": "Audio System",
+    "dehumidifier": "Dehumidifier",
+    "heater": "Heater",
+    "rgb-lights": "RGB Lights",
+    "smart-tv": "Smart TV",
+    "generic-device": "Generic Device"
+  },
+  "add-remote": {
+    "title": "Add Remote",
+    "select-option": "Select an option",
+    "type": {
+      "heading": "Select remote category:"
+    },
+    "device": {
+      "heading": "Select IoT device that will use this remote:",
+      "none": "Add a device first."
+    },
+    "name": {
+      "heading": "Select a name for the new remote",
+      "label": "Remote Name",
+      "invalid": "Please enter a valid remote name"
+    }
   },
   "remote-details": {
     "title": "Remote"

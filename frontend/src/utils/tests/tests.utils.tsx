@@ -1,7 +1,13 @@
 import type { ReactElement, ReactNode } from 'react';
 import { View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, type RenderOptions } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  type RenderOptions,
+} from '@testing-library/react-native';
 
 import { UiProvider } from '@ui';
 
@@ -61,6 +67,27 @@ export function mockViewMeasure() {
     .mockImplementation((callback: MeasureCallback) => {
       callback(0, 0, 40, 40, 0, 0);
     });
+}
+
+/**
+ * Opens the kit's `Select` named `name` (a combobox) and lets its options
+ * take presses. The list takes presses once it has been laid out on the
+ * screen, which Jest never does, so it is given a frame (the layout event
+ * goes up from an option to the list). Needs `mockViewMeasure()`.
+ */
+export async function openSelect(name: string) {
+  await act(async () => {
+    fireEvent.press(screen.getByRole('combobox', { name }));
+  });
+  const [option] = await screen.findAllByRole('option');
+  if (!option) {
+    throw new Error(`The select "${name}" has no options.`);
+  }
+  await act(async () => {
+    fireEvent(option, 'layout', {
+      nativeEvent: { layout: { x: 0, y: 64, width: 320, height: 80 } },
+    });
+  });
 }
 
 export * from '@testing-library/react-native';

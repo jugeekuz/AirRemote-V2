@@ -9,6 +9,7 @@ import {
   waitFor,
 } from '@utils/tests';
 import { devicesApi } from '@api/devices';
+import { remoteKeys } from '@queries/remotes';
 
 import {
   useDeleteDeviceMutation,
@@ -129,6 +130,25 @@ describe('useDeleteDeviceMutation', () => {
     );
     const [mutation] = queryClient.getMutationCache().getAll();
     expect(mutation?.options.mutationKey).toEqual(['devices', 'delete']);
+  });
+
+  // The server deletes the device's remotes with it.
+  it('marks the cached remote lists stale too, so its remotes disappear', async () => {
+    api.delete.mockResolvedValueOnce(undefined);
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(deviceKeys.lists(), [device]);
+    queryClient.setQueryData(remoteKeys.lists(), []);
+
+    const { result } = await renderHook(() => useDeleteDeviceMutation(), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+    await act(async () => {
+      await result.current.mutateAsync(device.id);
+    });
+
+    expect(queryClient.getQueryState(remoteKeys.lists())?.isInvalidated).toBe(
+      true,
+    );
   });
 
   // A 404 means the device is already gone: the refetch drops its tile.

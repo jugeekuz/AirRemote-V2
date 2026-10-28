@@ -21,6 +21,7 @@ export { FieldError } from './heroui/components/field-error';
 export { Input } from './heroui/components/input';
 export { Label } from './heroui/components/label';
 export { Menu } from './heroui/components/menu';
+export { Select } from './heroui/components/select';
 export { Spinner } from './heroui/components/spinner';
 export { Surface } from './heroui/components/surface';
 export { Switch } from './heroui/components/switch';
