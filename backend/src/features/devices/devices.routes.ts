@@ -2,8 +2,10 @@ import {
   deviceListResponseSchema,
   deviceResponseSchema,
   enrollDeviceRequestSchema,
+  noContentResponseSchema,
 } from '@airremote/contracts';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import type { Env } from '../../config/env';
 import { authenticatedUserId } from '../../plugins/authenticate';
 import type { DeviceConnections } from '../../shared/device-connections';
@@ -50,6 +52,24 @@ export const devicesRoutes: FastifyPluginAsyncZod<{
         'Device enrolled',
       );
       return reply.code(201).send(device);
+    },
+  );
+
+  app.delete(
+    '/:deviceId',
+    {
+      onRequest: app.authenticate,
+      schema: {
+        params: z.object({ deviceId: z.uuid() }),
+        response: { 204: noContentResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const userId = authenticatedUserId(request);
+      const { deviceId } = request.params;
+      await service.delete(userId, deviceId);
+      request.log.info({ deviceId, userId }, 'Device deleted');
+      return reply.code(204).send(null);
     },
   );
 };

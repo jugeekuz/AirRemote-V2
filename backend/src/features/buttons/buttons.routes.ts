@@ -2,6 +2,7 @@ import {
   buttonListResponseSchema,
   deviceCommandResponseSchema,
   learnButtonRequestSchema,
+  noContentResponseSchema,
 } from '@airremote/contracts';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -88,6 +89,24 @@ export const buttonsRoutes: FastifyPluginAsyncZod<{
         .code(202)
         .header('location', `/device-commands/${command.id}`)
         .send(command);
+    },
+  );
+
+  app.delete(
+    '/buttons/:buttonId',
+    {
+      onRequest: app.authenticate,
+      schema: {
+        params: z.object({ buttonId: z.uuid() }),
+        response: { 204: noContentResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      await service.delete(
+        authenticatedUserId(request),
+        request.params.buttonId,
+      );
+      return reply.code(204).send(null);
     },
   );
 };

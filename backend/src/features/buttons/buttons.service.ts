@@ -24,6 +24,8 @@ export type ButtonsService = {
    * command; the device's reply settles it.
    */
   press(userId: string, buttonId: string): Promise<DeviceCommandResponse>;
+  /** Deletes one of the user's buttons. */
+  delete(userId: string, buttonId: string): Promise<void>;
 };
 
 export function createButtonsService({
@@ -70,6 +72,13 @@ export function createButtonsService({
         buttonId: button.id,
         timingsUs: button.timingsUs,
       });
+    },
+
+    async delete(userId, buttonId) {
+      // Someone else's button answers as a missing one.
+      if (!(await repository.deleteForUser(buttonId, userId))) {
+        throw new AppError(404, 'NOT_FOUND', 'Button not found');
+      }
     },
   };
 }

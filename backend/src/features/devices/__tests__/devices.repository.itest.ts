@@ -1,4 +1,11 @@
-import { devices, pairingCodes, users } from '@airremote/db';
+import {
+  buttons,
+  deviceCommands,
+  devices,
+  pairingCodes,
+  remotes,
+  users,
+} from '@airremote/db';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useTestDatabase } from '../../../__tests__/test-db';
 import { createDevicesRepository } from '../devices.repository';
@@ -268,5 +275,70 @@ describe('devices repository: setFirmwareVersion', () => {
       '0.1.0',
     );
     expect(await firmwareVersions()).toEqual({ [deviceId]: null });
+  });
+});
+
+describe('devices repository: deleteForUser', () => {
+  async function ownerOf(id: string) {
+    const [row] = await testDb.db.select().from(devices);
+    expect(row?.id).toBe(id);
+    return row!.userId;
+  }
+
+  it('deletes the user’s device with its remotes, buttons and commands', async () => {
+    const userId = await ownerOf(deviceId);
+    const [remote] = await testDb.db
+      .insert(remotes)
+      .values({ deviceId, name: 'TV', type: 'smart_tv' })
+      .returning();
+    await testDb.db
+      .insert(buttons)
+      .values({ remoteId: remote!.id, name: 'Power', timingsUs: [9000, 4500] });
+    await testDb.db.insert(deviceCommands).values({
+      deviceId,
+      kind: 'learn_button',
+      context: { remoteId: remote!.id, name: 'Mute' },
+      expiresAt: new Date(Date.now() + 20_000),
+    });
+
+    await expect(
+      createDevicesRepository(testDb.db).deleteForUser(deviceId, userId),
+    ).resolves.toBe(true);
+
+    await expect(testDb.db.select().from(devices)).resolves.toEqual([]);
+    await expect(testDb.db.select().from(remotes)).resolves.toEqual([]);
+    await expect(testDb.db.select().from(buttons)).resolves.toEqual([]);
+    await expect(testDb.db.select().from(deviceCommands)).resolves.toEqual([]);
+  });
+
+  it('frees the MAC address, so the device can pair again', async () => {
+    const userId = await ownerOf(deviceId);
+    const repository = createDevicesRepository(testDb.db);
+
+    await repository.deleteForUser(deviceId, userId);
+
+    await expect(
+      repository.findByMacAddress('aa:bb:cc:dd:ee:01'),
+    ).resolves.toBeNull();
+  });
+
+  it('does not delete another user’s device', async () => {
+    const otherId = await insertUser('other@example.com');
+
+    await expect(
+      createDevicesRepository(testDb.db).deleteForUser(deviceId, otherId),
+    ).resolves.toBe(false);
+    await expect(testDb.db.select().from(devices)).resolves.toHaveLength(1);
+  });
+
+  it('returns false for a device that does not exist', async () => {
+    const userId = await ownerOf(deviceId);
+
+    await expect(
+      createDevicesRepository(testDb.db).deleteForUser(
+        '00000000-0000-4000-8000-000000000000',
+        userId,
+      ),
+    ).resolves.toBe(false);
   });
 });

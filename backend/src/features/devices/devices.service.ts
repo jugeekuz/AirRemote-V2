@@ -28,6 +28,11 @@ export type DevicesService = {
   enroll(userId: string, input: EnrollDeviceRequest): Promise<DeviceResponse>;
   /** The user's devices, by name ignoring case. */
   list(userId: string): Promise<DeviceResponse[]>;
+  /**
+   * Deletes one of the user's devices with its remotes, buttons and commands,
+   * then closes its connection. The device may then pair again.
+   */
+  delete(userId: string, deviceId: string): Promise<void>;
   /** What the device said it runs, from its `hello`. */
   recordFirmwareVersion(
     deviceId: string,
@@ -50,8 +55,8 @@ export function createDevicesService({
   generateCode = generatePairingCode,
 }: {
   repository: DevicesRepository;
-  /** Only `isConnected` is used, to report each device's online status. */
-  connections: Pick<DeviceConnections, 'isConnected'>;
+  /** Reports each device's online status; closes a deleted device's socket. */
+  connections: Pick<DeviceConnections, 'isConnected' | 'disconnect'>;
   pairingCodeSecret: string;
   now?: () => Date;
   generateCode?: () => string;
@@ -124,6 +129,15 @@ export function createDevicesService({
         name,
         online: connections.isConnected(id),
       }));
+    },
+
+    async delete(userId, deviceId) {
+      // Someone else's device answers as a missing one: its existence is not theirs to know.
+      if (!(await repository.deleteForUser(deviceId, userId))) {
+        throw new AppError(404, 'NOT_FOUND', 'Device not found');
+      }
+      // After the delete, so the device's reconnect is refused.
+      connections.disconnect(deviceId);
     },
 
     async recordFirmwareVersion(deviceId, firmwareVersion) {

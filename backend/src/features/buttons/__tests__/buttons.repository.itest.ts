@@ -162,3 +162,38 @@ describe('buttons repository: listForRemote', () => {
     );
   });
 });
+
+describe('buttons repository: deleteForUser', () => {
+  it('deletes the user’s button, leaving the others', async () => {
+    const [kept] = await testDb.db
+      .insert(buttons)
+      .values({ remoteId, name: 'Mute', timingsUs: [100, 200] })
+      .returning();
+
+    await expect(repository().deleteForUser(buttonId, userId)).resolves.toBe(
+      true,
+    );
+
+    const left = await testDb.db.select().from(buttons);
+    expect(left.map((b) => b.id).sort()).toEqual(
+      [kept!.id, otherUsersButtonId].sort(),
+    );
+    await expect(testDb.db.select().from(remotes)).resolves.toHaveLength(3);
+  });
+
+  it('does not delete a button on another user’s device', async () => {
+    await expect(
+      repository().deleteForUser(otherUsersButtonId, userId),
+    ).resolves.toBe(false);
+    await expect(testDb.db.select().from(buttons)).resolves.toHaveLength(2);
+  });
+
+  it('returns false for a button that does not exist', async () => {
+    await expect(
+      repository().deleteForUser(
+        '00000000-0000-4000-8000-000000000000',
+        userId,
+      ),
+    ).resolves.toBe(false);
+  });
+});

@@ -21,11 +21,13 @@ function serviceWith({
   enrolled = async () => ({ status: 'enrolled', device }),
   listed = async () => [device],
   connected = () => false,
+  deleted = async () => true,
 }: {
   found?: () => Promise<Device | null>;
   enrolled?: () => Promise<EnrollResult>;
   listed?: () => Promise<Device[]>;
   connected?: (deviceId: string) => boolean;
+  deleted?: () => Promise<boolean>;
 } = {}) {
   const repository = {
     findByMacAddress: vi.fn(found),
@@ -33,15 +35,20 @@ function serviceWith({
     enroll: vi.fn(enrolled),
     listForUser: vi.fn(listed),
     setFirmwareVersion: vi.fn(async () => {}),
+    deleteForUser: vi.fn(deleted),
+  };
+  const connections = {
+    isConnected: vi.fn(connected),
+    disconnect: vi.fn(() => true),
   };
   const service = createDevicesService({
     repository: repository satisfies DevicesRepository,
-    connections: { isConnected: connected },
+    connections,
     pairingCodeSecret: secret,
     now: () => now,
     generateCode: () => '7K4MQ9TX',
   });
-  return { service, repository };
+  return { service, repository, connections };
 }
 
 async function appErrorOf(promise: Promise<unknown>) {
@@ -227,5 +234,35 @@ describe('devices service: recordFirmwareVersion', () => {
       device.id,
       '0.2.0',
     );
+  });
+});
+
+describe('devices service: delete', () => {
+  it('deletes the user’s device, then closes its connection', async () => {
+    const { service, repository, connections } = serviceWith();
+
+    await service.delete(device.userId, device.id);
+
+    expect(repository.deleteForUser).toHaveBeenCalledExactlyOnceWith(
+      device.id,
+      device.userId,
+    );
+    expect(connections.disconnect).toHaveBeenCalledExactlyOnceWith(device.id);
+    // Deleted first, so the device's reconnect is already refused.
+    expect(repository.deleteForUser.mock.invocationCallOrder[0]).toBeLessThan(
+      connections.disconnect.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('answers 404 NOT_FOUND for a device that is missing or another user’s, closing nothing', async () => {
+    const { service, connections } = serviceWith({
+      deleted: async () => false,
+    });
+
+    expect(await appErrorOf(service.delete(device.userId, device.id))).toEqual({
+      statusCode: 404,
+      code: 'NOT_FOUND',
+    });
+    expect(connections.disconnect).not.toHaveBeenCalled();
   });
 });

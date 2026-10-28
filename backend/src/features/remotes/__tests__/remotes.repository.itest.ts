@@ -1,4 +1,10 @@
-import { devices, remotes, users } from '@airremote/db';
+import {
+  buttons,
+  deviceCommands,
+  devices,
+  remotes,
+  users,
+} from '@airremote/db';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useTestDatabase } from '../../../__tests__/test-db';
 import { createRemotesRepository } from '../remotes.repository';
@@ -143,5 +149,68 @@ describe('remotes repository: listForUser', () => {
 
   it('returns an empty list for a user without remotes', async () => {
     await expect(repository().listForUser(userId)).resolves.toEqual([]);
+  });
+});
+
+describe('remotes repository: deleteForUser', () => {
+  async function insertRemote(onDevice: string, name = 'TV') {
+    const [remote] = await testDb.db
+      .insert(remotes)
+      .values({ deviceId: onDevice, name, type: 'smart_tv' })
+      .returning();
+    return remote!.id;
+  }
+
+  it('deletes the user’s remote with its buttons, leaving the rest', async () => {
+    const remoteId = await insertRemote(deviceId);
+    const keptId = await insertRemote(deviceId, 'Heater');
+    await testDb.db.insert(buttons).values([
+      { remoteId, name: 'Power', timingsUs: [9000, 4500] },
+      { remoteId: keptId, name: 'Power', timingsUs: [9000, 4500] },
+    ]);
+
+    await expect(repository().deleteForUser(remoteId, userId)).resolves.toBe(
+      true,
+    );
+
+    const left = await testDb.db.select().from(remotes);
+    expect(left.map((r) => r.id)).toEqual([keptId]);
+    const leftButtons = await testDb.db.select().from(buttons);
+    expect(leftButtons.map((b) => b.remoteId)).toEqual([keptId]);
+    await expect(testDb.db.select().from(devices)).resolves.toHaveLength(2);
+  });
+
+  it('leaves the device’s commands', async () => {
+    const remoteId = await insertRemote(deviceId);
+    await testDb.db.insert(deviceCommands).values({
+      deviceId,
+      kind: 'learn_button',
+      context: { remoteId, name: 'Mute' },
+      expiresAt: new Date(Date.now() + 20_000),
+    });
+
+    await repository().deleteForUser(remoteId, userId);
+
+    await expect(testDb.db.select().from(deviceCommands)).resolves.toHaveLength(
+      1,
+    );
+  });
+
+  it('does not delete a remote on another user’s device', async () => {
+    const theirs = await insertRemote(otherDeviceId);
+
+    await expect(repository().deleteForUser(theirs, userId)).resolves.toBe(
+      false,
+    );
+    await expect(testDb.db.select().from(remotes)).resolves.toHaveLength(1);
+  });
+
+  it('returns false for a remote that does not exist', async () => {
+    await expect(
+      repository().deleteForUser(
+        '00000000-0000-4000-8000-000000000000',
+        userId,
+      ),
+    ).resolves.toBe(false);
   });
 });

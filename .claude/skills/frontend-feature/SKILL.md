@@ -31,11 +31,17 @@ The V2 API when this skill was written (trust `openapi.json` over this list):
 | `POST /remotes/{remoteId}/buttons`    | `learnButtonRequestSchema`  | `deviceCommandResponseSchema` (202) |
 | `POST /buttons/{buttonId}/press`      |                             | `deviceCommandResponseSchema` (202) |
 | `GET /device-commands/{id}`           |                             | `deviceCommandResponseSchema`       |
+| `DELETE /devices/{deviceId}`          |                             | none (`noContentSchema`, 204)       |
+| `DELETE /remotes/{remoteId}`          |                             | none (`noContentSchema`, 204)       |
+| `DELETE /buttons/{buttonId}`          |                             | none (`noContentSchema`, 204)       |
 
 `openapi.json` lists the devices routes as `/devices/` (a prefixed `/`
 route); the API serves them at `/devices`, which the app calls. Devices,
-remotes and buttons have no get-by-id, rename, delete or reorder; the only
-get-by-id is `GET /device-commands/{id}`. A device response carries `online`
+remotes and buttons have no get-by-id, rename or reorder; the only get-by-id
+is `GET /device-commands/{id}`. A delete answers 204 and takes the children
+with it (a device's remotes, buttons and commands; a remote's buttons), and
+someone else's id answers `404 NOT_FOUND`, like a missing one. Deleting a
+device also closes its connection; it can then pair again. A device response carries `online`
 (whether it is connected right now, from the server's in-process registry).
 There are no automations and no OAuth. Learning and pressing return a
 device command that the app polls (see `frontend-api`).
@@ -113,14 +119,14 @@ queries/remotes/remotes.queries.ts     remotesKeys, remotesQueries.list()
 queries/remotes/remotes.mutations.ts   useCreateRemoteMutation → invalidates remotesKeys.lists()
 modules/remotes/helpers/remotes/       getRemotesOfDevice(remotes, deviceId) for `select`
 modules/remotes/hooks/use-device-remotes/   useDeviceRemotes(deviceId): query + select, empty constant
-modules/remotes/components/remote-tile/     one remote; rename/delete/reorder disabled
+modules/remotes/components/remote-tile/     one remote; delete in edit mode, rename/reorder disabled
 modules/remotes/screens/remotes-list-screen/   route RemotesList: { deviceId }; list, empty state, "Add remote" dialog
 modules/remotes/navigation/remotes-navigator.tsx
 modules/remotes/i18n/locales/en/remotes.json
 ```
 
-V1's drag-to-reorder and delete have no V2 endpoint, so they appear disabled
-with the "not available yet" text.
+V1's drag-to-reorder has no V2 endpoint, so it appears disabled with the
+"not available yet" text; delete calls `DELETE /remotes/{remoteId}`.
 
 ## Verify
 

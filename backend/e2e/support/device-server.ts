@@ -66,6 +66,7 @@ export function fakeDevicesService(
     enroll: unexpected('enroll'),
     list: unexpected('list'),
     recordFirmwareVersion: unexpected('recordFirmwareVersion'),
+    delete: unexpected('delete'),
     ...methods,
   };
 }

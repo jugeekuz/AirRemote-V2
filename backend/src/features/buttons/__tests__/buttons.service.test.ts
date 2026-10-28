@@ -39,6 +39,7 @@ function serviceWith({
   listed = async () => [button],
   ownedButtonFound = async () => ownedButton,
   sent = async () => pressing,
+  deleted = async () => true,
 }: {
   owned?: () => Promise<{ id: string; deviceId: string } | null>;
   taken?: () => Promise<boolean>;
@@ -46,12 +47,14 @@ function serviceWith({
   listed?: () => Promise<{ id: string; remoteId: string; name: string }[]>;
   ownedButtonFound?: () => Promise<typeof ownedButton | null>;
   sent?: () => Promise<DeviceCommandResponse>;
+  deleted?: () => Promise<boolean>;
 } = {}) {
   const repository = {
     findOwnedRemote: vi.fn(owned),
     findOwnedButton: vi.fn(ownedButtonFound),
     nameTaken: vi.fn(taken),
     listForRemote: vi.fn(listed),
+    deleteForUser: vi.fn(deleted),
   };
   const deviceCommands = {
     startLearnButton: vi.fn(started),
@@ -192,5 +195,25 @@ describe('buttons service: press', () => {
     });
 
     await expect(service.press(userId, button.id)).rejects.toBe(busy);
+  });
+});
+
+describe('buttons service: delete', () => {
+  it('deletes the user’s button', async () => {
+    const { service, repository } = serviceWith();
+
+    await expect(service.delete(userId, button.id)).resolves.toBeUndefined();
+    expect(repository.deleteForUser).toHaveBeenCalledExactlyOnceWith(
+      button.id,
+      userId,
+    );
+  });
+
+  it('answers 404 NOT_FOUND for a button that is missing or another user’s', async () => {
+    const { service } = serviceWith({ deleted: async () => false });
+
+    await expect(
+      appErrorOf(service.delete(userId, button.id)),
+    ).resolves.toEqual({ statusCode: 404, code: 'NOT_FOUND' });
   });
 });

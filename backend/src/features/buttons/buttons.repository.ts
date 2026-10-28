@@ -1,5 +1,5 @@
 import { buttons, devices, remotes, type Database } from '@airremote/db';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 
 export type ButtonsRepository = {
   /** The remote and its device, if the device is the user's. */
@@ -23,6 +23,11 @@ export type ButtonsRepository = {
   ): Promise<{ id: string; remoteId: string; name: string }[]>;
   /** Whether the remote has a button with this name, ignoring case. */
   nameTaken(remoteId: string, name: string): Promise<boolean>;
+  /**
+   * Deletes the button if it is on one of the user's devices. False when
+   * there is no such button of theirs.
+   */
+  deleteForUser(buttonId: string, userId: string): Promise<boolean>;
 };
 
 export function createButtonsRepository(db: Database): ButtonsRepository {
@@ -76,6 +81,26 @@ export function createButtonsRepository(db: Database): ButtonsRepository {
         )
         .limit(1);
       return taken !== undefined;
+    },
+
+    async deleteForUser(buttonId, userId) {
+      const deleted = await db
+        .delete(buttons)
+        .where(
+          and(
+            eq(buttons.id, buttonId),
+            inArray(
+              buttons.remoteId,
+              db
+                .select({ id: remotes.id })
+                .from(remotes)
+                .innerJoin(devices, eq(devices.id, remotes.deviceId))
+                .where(eq(devices.userId, userId)),
+            ),
+          ),
+        )
+        .returning({ id: buttons.id });
+      return deleted.length > 0;
     },
   };
 }

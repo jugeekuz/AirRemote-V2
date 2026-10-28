@@ -77,6 +77,36 @@ describe('device connections', () => {
     expect(connections.send('device-1', message)).toBeNull();
   });
 
+  it('disconnect closes the device socket with 4001 "deleted" and forgets it at once', () => {
+    const connections = createDeviceConnections();
+    const socket = fakeSocket();
+    connections.register('device-1', socket);
+
+    expect(connections.disconnect('device-1')).toBe(true);
+
+    expect(socket.close).toHaveBeenCalledExactlyOnceWith(4001, 'deleted');
+    expect(connections.isConnected('device-1')).toBe(false);
+    expect(connections.send('device-1', message)).toBeNull();
+    expect(socket.send).not.toHaveBeenCalled();
+  });
+
+  it('disconnect returns false when the device is not connected', () => {
+    expect(createDeviceConnections().disconnect('device-1')).toBe(false);
+  });
+
+  it('still reports the connection closed when the disconnected socket closes', () => {
+    const connections = createDeviceConnections();
+    const listener = vi.fn();
+    connections.onConnectionClosed(listener);
+    const socket = fakeSocket();
+    const id = connections.register('device-1', socket);
+
+    connections.disconnect('device-1');
+    connections.unregister('device-1', socket);
+
+    expect(listener).toHaveBeenCalledExactlyOnceWith('device-1', id);
+  });
+
   it('gives every registration a distinct UUID', () => {
     const connections = createDeviceConnections();
     const a = connections.register('device-1', fakeSocket());
