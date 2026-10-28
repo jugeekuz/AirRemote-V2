@@ -21,9 +21,10 @@ function errorMessage(code: ApiErrorCode): string {
 }
 
 /**
- * Codes that mean the session is missing or over. The user is taken to Login
- * instead, and a session that ends would otherwise toast once per query in
- * flight.
+ * Codes that mean the session is missing or over. They only reach a screen
+ * when it really ended: a refresh that fails transiently rejects with its own
+ * error instead. The user is taken to Login, and a session that ends would
+ * otherwise toast once per query in flight.
  */
 const SESSION_ERROR_CODES: readonly ApiErrorCode[] = Object.freeze([
   'UNAUTHORIZED',

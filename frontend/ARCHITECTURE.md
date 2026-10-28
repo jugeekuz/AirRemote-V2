@@ -184,16 +184,16 @@ Imports are sorted by Prettier (`frontend/.prettierrc.mjs`): packages, then
 
 The most important rule: each kind of state has one owner.
 
-| Kind of state                                  | Lives in                                   | Example                                     |
-| ---------------------------------------------- | ------------------------------------------ | ------------------------------------------- |
-| Server state (the backend owns it)             | TanStack Query cache                       | devices, remotes, buttons, a device command |
-| Global client state (app-wide, may persist)    | Zustand store in `src/stores/`             | access token and auth status, language      |
-| Client state shared by several modules         | a global Zustand store in `src/stores/`    | the selected device id                      |
-| Module client state shared by several screens  | Zustand store in `modules/<m>/stores/`     | a list filter, a multi-select in one list   |
-| Subtree-scoped state (one per mounted subtree) | `createStore` + React Context, `contexts/` | a multi-step pairing flow                   |
-| Local UI state                                 | `useState` / `useReducer`                  | a dialog's visibility, text before debounce |
-| Form state                                     | react-hook-form                            | the Login form                              |
-| Route state                                    | navigation params                          | `remoteId`                                  |
+| Kind of state                                  | Lives in                                   | Example                                                    |
+| ---------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------- |
+| Server state (the backend owns it)             | TanStack Query cache                       | devices, remotes, buttons, a device command                |
+| Global client state (app-wide, may persist)    | Zustand store in `src/stores/`             | access token and auth status, language                     |
+| Client state shared by several modules         | a global Zustand store in `src/stores/`    | the selected device id                                     |
+| Module client state shared by several screens  | Zustand store in `modules/<m>/stores/`     | a list filter, a selection shown in a list and its toolbar |
+| Subtree-scoped state (one per mounted subtree) | `createStore` + React Context, `contexts/` | a multi-step pairing flow                                  |
+| Local UI state                                 | `useState` / `useReducer`                  | a dialog's visibility, text before debounce                |
+| Form state                                     | react-hook-form                            | the Login form                                             |
+| Route state                                    | navigation params                          | `remoteId`                                                 |
 
 **Never copy server data into a store or a context.** Keep ids and filters
 in Zustand and read the data with a query keyed by them. A
@@ -296,10 +296,12 @@ token, is not `skipAuth` and has not been retried:
    `onSessionExpired` runs once for that refresh, and every waiting request
    rejects with its own 401.
 6. If the refresh fails for any other reason (`NETWORK_ERROR`, a 5xx,
-   `INVALID_RESPONSE`, anything else), the session stays: every waiting
-   request rejects with its own 401 and nothing signs out. The next 401
-   refreshes again. A dropped connection or a server restart must not sign
-   the user out.
+   `INVALID_RESPONSE`), the session stays and nothing signs out: every
+   waiting request rejects with the refresh's own error, so it toasts by
+   its code and Query retries it (a 401 would be final). A failure that is
+   not an `ApiError` (e.g. signed out while refreshing) rejects each request
+   with its own 401. The next 401 refreshes again. A dropped connection or
+   a server restart must not sign the user out.
 7. If the refresh succeeds but the request was aborted while it waited, it
    rejects with `REQUEST_CANCELLED` instead of retrying.
 
@@ -459,8 +461,9 @@ query cache:
 - `errors.generic` is the fallback if a text is missing at runtime.
 - The server's `message` is for developers and is never shown.
 - A cancelled request never toasts; `meta.silent` turns the toast off.
-- `UNAUTHORIZED` and `INVALID_REFRESH_TOKEN` never toast: the session is
-  missing or over, and the user is taken to Login instead. Without this, a
+- `UNAUTHORIZED` and `INVALID_REFRESH_TOKEN` never toast: they only reach
+  a screen when the session really ended (a refresh that fails transiently
+  rejects with its own error instead), and the user is taken to Login. Without this, a
   session that ends would toast once per query in flight. Other 401s (a
   wrong password is `INVALID_CREDENTIALS`) toast as usual.
 - Form fields show their own i18n texts, not Zod's messages (see the Login

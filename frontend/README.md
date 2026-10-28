@@ -129,8 +129,8 @@ iOS, run them on a development build against `pnpm dev`:
 3. Send the app to the background and bring it back: still on Home.
 4. Turn on airplane mode, then kill and reopen the app: "Couldn't connect"
    with Retry. Turn airplane mode off and press Retry: Home.
-5. Once a screen calls an authenticated endpoint (the Devices screen, the
-   next change; Home makes no request): wait more than 10 minutes (the
+5. Once a screen calls an authenticated endpoint (Home makes no request):
+   wait more than 10 minutes (the
    access token's lifetime), then use that screen. The refresh is
    invisible: no sign-out, no error toast. To check it sooner, shorten the
    token's lifetime locally: set `ACCESS_TOKEN_TTL_SECONDS` in

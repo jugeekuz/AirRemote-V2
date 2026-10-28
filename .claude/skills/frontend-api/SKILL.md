@@ -55,7 +55,8 @@ options, mutation hooks). Both are global: any module may use them.
   `INVALID_REFRESH_TOKEN` never toast (the user lands on Login).
 - A 401 refreshes the token once and retries; only a refused refresh (a 401)
   signs out. A refresh that fails offline or with a 5xx keeps the session,
-  and the request rejects with its 401 → [The refresh on 401][refresh].
+  and the request rejects with that error (so it toasts and Query retries
+  it); `UNAUTHORIZED` only reaches a screen when the session ended → [The refresh on 401][refresh].
 - Empty defaults are module-level constants (`EMPTY_REMOTES`), derived data
   uses `select` with a stable function → [Queries][queries].
 - Polling: `refetchInterval` until the status is final, never `setInterval`
