@@ -15,6 +15,14 @@ import { useCameraAccess } from './use-camera-access';
 
 const LINK = 'airremote://pair?mac=AA:BB:CC:DD:EE:01&code=7K4MQ9TX';
 
+// Native unless a test says otherwise.
+let mockIsWeb = false;
+jest.mock('@utils/platform', () => ({
+  get isWebPlatform() {
+    return mockIsWeb;
+  },
+}));
+
 async function show(data: string) {
   await fireEvent(screen.getByTestId(CAMERA_VIEW_TEST_ID), 'barcodeScanned', {
     type: 'qr',
@@ -24,6 +32,7 @@ async function show(data: string) {
 
 beforeEach(() => {
   cameraMock.reset();
+  mockIsWeb = false;
 });
 
 describe('QrScanner', () => {
@@ -65,6 +74,19 @@ describe('QrScanner', () => {
     jest.advanceTimersByTime(QR_SCAN_REPEAT_MS);
     await show(LINK);
     expect(onScan).toHaveBeenCalledTimes(2);
+  });
+
+  it('says when the camera could not start', async () => {
+    const onError = jest.fn();
+    await render(
+      <QrScanner onScan={jest.fn()} onError={onError} label="Camera" />,
+    );
+
+    await fireEvent(screen.getByTestId(CAMERA_VIEW_TEST_ID), 'mountError', {
+      message: 'Could not start video source',
+    });
+
+    expect(onError).toHaveBeenCalledTimes(1);
   });
 
   it('reports another code straight away', async () => {
@@ -133,6 +155,30 @@ describe('useCameraAccess', () => {
 
     await waitFor(() => {
       expect(result.current.access).toBe('undetermined');
+    });
+  });
+
+  it('is denied in a browser that blocks the camera', async () => {
+    // A browser can always be asked again as far as expo-camera knows, but
+    // a blocked camera never shows its prompt.
+    mockIsWeb = true;
+    cameraMock.setPermission('denied', true);
+
+    const { result } = await renderHook(() => useCameraAccess());
+
+    await waitFor(() => {
+      expect(result.current.access).toBe('denied');
+    });
+  });
+
+  it('offers manual entry only when the permission cannot be read', async () => {
+    // A browser without the Permissions API.
+    cameraMock.setPermissionReadFails(true);
+
+    const { result } = await renderHook(() => useCameraAccess());
+
+    await waitFor(() => {
+      expect(result.current.access).toBe('unavailable');
     });
   });
 });

@@ -121,6 +121,8 @@ export default function BorderedField({
         <TextInput
           ref={inputRef}
           aria-labelledby={labelId}
+          // iOS reads this; `aria-labelledby` reaches Android and web.
+          accessibilityLabel={label}
           accessibilityHint={errorText}
           {...webAria}
           value={value}

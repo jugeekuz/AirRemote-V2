@@ -52,6 +52,17 @@ export default function AddDeviceSteps({
     setStep(ADD_DEVICE_STEP.NAME);
   };
 
+  const goBack = () => {
+    if (step === ADD_DEVICE_STEP.NAME) {
+      // The values to correct, not the camera, which could read the same QR
+      // code again and jump straight back.
+      setIsManual(true);
+      setStep(ADD_DEVICE_STEP.CODE);
+    } else {
+      setStep(ADD_DEVICE_STEP.INSTRUCTIONS);
+    }
+  };
+
   // Errors (a wrong or expired code, a board already enrolled) open the
   // Error dialog; the steps stay, so the user can go back to the code.
   const finish = () => {
@@ -93,16 +104,7 @@ export default function AddDeviceSteps({
           {t('close', { ns: 'actions' })}
         </Modal.Button>
         {step !== ADD_DEVICE_STEP.INSTRUCTIONS && (
-          <Modal.Button
-            variant="secondary"
-            onPress={() =>
-              setStep(
-                step === ADD_DEVICE_STEP.NAME
-                  ? ADD_DEVICE_STEP.CODE
-                  : ADD_DEVICE_STEP.INSTRUCTIONS,
-              )
-            }
-          >
+          <Modal.Button variant="secondary" onPress={goBack}>
             {t('back', { ns: 'actions' })}
           </Modal.Button>
         )}

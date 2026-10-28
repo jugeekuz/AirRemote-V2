@@ -21,6 +21,11 @@ describe('BorderedField', () => {
     await renderWithProviders(<Controlled />);
 
     expect(screen.getByLabelText('Device Name')).toBeOnTheScreen();
+    // iOS reads `accessibilityLabel`; `aria-labelledby` reaches Android and web.
+    expect(screen.getByLabelText('Device Name')).toHaveProp(
+      'accessibilityLabel',
+      'Device Name',
+    );
   });
 
   it('takes what is typed and reports leaving the field', async () => {

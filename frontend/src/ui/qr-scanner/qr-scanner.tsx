@@ -8,6 +8,8 @@ import styles from './qr-scanner.styles';
 type QrScannerProps = {
   /** The text of a QR code the camera sees (once while it stays in view). */
   onScan: (data: string) => void;
+  /** The camera could not start (taken by another app, blocked, broken). */
+  onError?: () => void;
   /** What the camera view is, for screen readers. */
   label: string;
 };
@@ -18,7 +20,7 @@ const QR_ONLY = { barcodeTypes: ['qr' as const] };
  * A square view of the back camera that reads QR codes. Render it only
  * once `useCameraAccess()` says `granted`.
  */
-export default function QrScanner({ onScan, label }: QrScannerProps) {
+export default function QrScanner({ onScan, onError, label }: QrScannerProps) {
   const lastSeen = useRef<{ data: string; at: number } | null>(null);
 
   const handleScanned = useCallback(
@@ -45,6 +47,7 @@ export default function QrScanner({ onScan, label }: QrScannerProps) {
         facing="back"
         barcodeScannerSettings={QR_ONLY}
         onBarcodeScanned={handleScanned}
+        onMountError={onError}
       />
     </View>
   );

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useCameraPermissions } from 'expo-camera';
 
+import { isWebPlatform } from '@utils/platform';
+
 import { isCameraAvailable } from './is-camera-available';
 
 /**
@@ -8,7 +10,7 @@ import { isCameraAvailable } from './is-camera-available';
  * - `unavailable`: no camera (a browser without one)
  * - `undetermined`: the user can be asked
  * - `denied`: the user said no and can't be asked again (only the system
- *   settings can turn it on)
+ *   or browser settings can turn it on)
  * - `granted`: the camera can be used
  */
 export type CameraAccess =
@@ -33,7 +35,12 @@ export function useCameraAccess(): {
       }
       setIsAvailable(available);
       if (available) {
-        void getPermission();
+        // A browser without the Permissions API can't say: type it instead.
+        getPermission().catch(() => {
+          if (isCurrent) {
+            setIsAvailable(false);
+          }
+        });
       }
     });
     return () => {
@@ -48,9 +55,25 @@ export function useCameraAccess(): {
   return { access: getCameraAccess(isAvailable, permission), requestAccess };
 }
 
+type CameraPermission = {
+  status: string;
+  granted: boolean;
+  canAskAgain: boolean;
+};
+
+/**
+ * Whether the user said no for good. expo-camera always says a browser can
+ * ask again, but a browser that blocks the camera never shows its prompt.
+ */
+function isDeniedForGood(permission: CameraPermission): boolean {
+  return (
+    permission.status === 'denied' && (!permission.canAskAgain || isWebPlatform)
+  );
+}
+
 function getCameraAccess(
   isAvailable: boolean | null,
-  permission: { granted: boolean; canAskAgain: boolean } | null,
+  permission: CameraPermission | null,
 ): CameraAccess {
   if (isAvailable === false) {
     return 'unavailable';
@@ -61,5 +84,5 @@ function getCameraAccess(
   if (permission.granted) {
     return 'granted';
   }
-  return permission.canAskAgain ? 'undetermined' : 'denied';
+  return isDeniedForGood(permission) ? 'denied' : 'undetermined';
 }

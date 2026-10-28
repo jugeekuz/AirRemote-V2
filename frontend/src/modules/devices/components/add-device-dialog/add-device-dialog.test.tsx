@@ -208,6 +208,37 @@ describe('AddDeviceDialog', () => {
     expect(screen.getByTestId(CAMERA_VIEW_TEST_ID)).toBeOnTheScreen();
   });
 
+  it('switches to typing when the camera cannot start', async () => {
+    await goToCodeStep();
+
+    await act(async () => {
+      fireEvent(screen.getByTestId(CAMERA_VIEW_TEST_ID), 'mountError', {
+        message: 'Could not start video source',
+      });
+    });
+
+    expect(screen.getByText('add-device.code.camera-failed')).toBeOnTheScreen();
+    expect(screen.queryByTestId(CAMERA_VIEW_TEST_ID)).not.toBeOnTheScreen();
+    expect(
+      screen.getByLabelText('add-device.code.mac-address'),
+    ).toBeOnTheScreen();
+  });
+
+  it('goes back from the name to the typed values, not the camera', async () => {
+    await renderDialog(PAIRING);
+
+    await press('back');
+
+    expect(screen.queryByTestId(CAMERA_VIEW_TEST_ID)).not.toBeOnTheScreen();
+    expect(
+      screen.getByLabelText('add-device.code.mac-address'),
+    ).toHaveDisplayValue(MAC);
+    expect(
+      screen.getByLabelText('add-device.code.pairing-code'),
+    ).toHaveDisplayValue('7K4M-Q9TX');
+    expect(screen.getByRole('button', { name: 'next' })).toBeEnabled();
+  });
+
   it('says the camera is turned off when it may not be asked again', async () => {
     cameraMock.setPermission('denied', false);
 

@@ -1,7 +1,8 @@
 // Stands in for expo-camera in Jest (mapped in jest.config.js): a camera
 // with nothing in view. Tests set what the device answers through
 // `cameraMock`, and show the camera a code with
-// `fireEvent(screen.getByTestId(CAMERA_VIEW_TEST_ID), 'barcodeScanned', { type: 'qr', data })`.
+// `fireEvent(screen.getByTestId(CAMERA_VIEW_TEST_ID), 'barcodeScanned', { type: 'qr', data })`,
+// and fail to start it with `fireEvent(…, 'mountError', { message })`.
 import { useCallback, useState } from 'react';
 import { View, type ViewProps } from 'react-native';
 
@@ -32,6 +33,8 @@ const INITIAL_CAMERA = {
   permission: permissionOf('granted', true),
   /** What the user answers when asked. */
   answer: 'granted' as 'granted' | 'denied',
+  /** Reading the permission rejects (a browser without the Permissions API). */
+  doesReadFail: false,
 };
 let camera = { ...INITIAL_CAMERA };
 
@@ -50,10 +53,14 @@ export const cameraMock = {
   setAnswer(answer: 'granted' | 'denied') {
     camera.answer = answer;
   },
+  setPermissionReadFails(doesReadFail: boolean) {
+    camera.doesReadFail = doesReadFail;
+  },
 };
 
 type CameraViewProps = ViewProps & {
   onBarcodeScanned?: (result: { type: string; data: string }) => void;
+  onMountError?: (event: { message: string }) => void;
   barcodeScannerSettings?: { barcodeTypes: string[] };
   facing?: string;
 };
@@ -67,6 +74,9 @@ CameraView.isAvailableAsync = () => Promise.resolve(camera.isAvailable);
 export function useCameraPermissions() {
   const [permission, setPermission] = useState<PermissionResponse | null>(null);
   const getPermission = useCallback(() => {
+    if (camera.doesReadFail) {
+      return Promise.reject(new Error('navigator.permissions is undefined'));
+    }
     setPermission(camera.permission);
     return Promise.resolve(camera.permission);
   }, []);

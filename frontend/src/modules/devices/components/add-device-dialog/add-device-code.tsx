@@ -27,7 +27,8 @@ type AddDeviceCodeProps = {
 /**
  * Step 2: the board's QR code through the camera, or its MAC address and
  * code typed by hand ("Enter manually"). Without a camera (a browser with
- * none) only the typing is offered.
+ * none) only the typing is offered; a camera that fails to start switches
+ * to typing, with a message.
  */
 export default function AddDeviceCode({
   macAddress,
@@ -41,6 +42,12 @@ export default function AddDeviceCode({
   const { t } = useTranslation('devices');
   const { access, requestAccess } = useCameraAccess();
   const isCameraless = access === 'unavailable';
+  const [hasCameraFailed, setHasCameraFailed] = useState(false);
+
+  const handleCameraError = () => {
+    setHasCameraFailed(true);
+    onChangeManual(true);
+  };
 
   return (
     <View className="w-full gap-3">
@@ -61,6 +68,11 @@ export default function AddDeviceCode({
           </View>
         </View>
       )}
+      {hasCameraFailed && isManual && (
+        <Text role="alert" className="text-sm text-danger">
+          {t('add-device.code.camera-failed')}
+        </Text>
+      )}
       {isManual || isCameraless ? (
         <ManualEntry
           macAddress={macAddress}
@@ -73,6 +85,7 @@ export default function AddDeviceCode({
           access={access}
           onRequestAccess={requestAccess}
           onScanned={onScanned}
+          onCameraError={handleCameraError}
         />
       )}
     </View>

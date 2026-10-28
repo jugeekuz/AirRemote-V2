@@ -28,6 +28,7 @@
       "camera-needed": "AirRemote needs the camera to scan the code.",
       "allow-camera": "Allow camera",
       "camera-denied": "Camera access is turned off. Turn it on in your settings, or enter the code manually.",
+      "camera-failed": "Couldn't start the camera — enter the code manually.",
       "invalid-scan": "That QR code isn't an AirRemote pairing code.",
       "enter-manually": "Enter manually",
       "manual-heading": "Type the MAC address that <cmd>status</cmd> shows and the code that <cmd>pair</cmd> printed.",

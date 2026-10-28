@@ -11,6 +11,8 @@ type AddDeviceCameraProps = {
   onRequestAccess: () => void;
   /** A QR code with a valid pairing link was seen. */
   onScanned: (pairing: PairingDetails) => void;
+  /** The camera could not start. */
+  onCameraError: () => void;
 };
 
 /**
@@ -21,6 +23,7 @@ export default function AddDeviceCamera({
   access,
   onRequestAccess,
   onScanned,
+  onCameraError,
 }: AddDeviceCameraProps) {
   const { t } = useTranslation('devices');
   const [hasScannedOther, setHasScannedOther] = useState(false);
@@ -63,7 +66,11 @@ export default function AddDeviceCamera({
   }
   return (
     <>
-      <QrScanner onScan={handleScan} label={t('add-device.code.camera')} />
+      <QrScanner
+        onScan={handleScan}
+        onError={onCameraError}
+        label={t('add-device.code.camera')}
+      />
       {hasScannedOther && (
         <Text role="alert" className="text-sm text-danger">
           {t('add-device.code.invalid-scan')}
