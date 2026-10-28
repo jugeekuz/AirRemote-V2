@@ -36,6 +36,26 @@ describe('authStore', () => {
     expect(authStore.getStatus()).toBe(AUTH_STATUS.ANONYMOUS);
   });
 
+  it('onSessionEnd hears a signed-in session end, and nothing else', () => {
+    const listener = jest.fn();
+    const unsubscribe = authStore.onSessionEnd(listener);
+
+    authStore.startHydration();
+    authStore.signOut();
+    authStore.signIn('token-1');
+    authStore.setAccessToken('token-2');
+    expect(listener).not.toHaveBeenCalled();
+
+    authStore.signOut();
+    authStore.signOut();
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+    authStore.signIn('token-3');
+    authStore.signOut();
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
   it('failHydration clears the token and records the failure', () => {
     authStore.signIn('token-1');
     authStore.failHydration();

@@ -12,6 +12,7 @@ import { isWebPlatform } from '@utils/platform';
 import { authApi } from '@api/auth';
 import { configureHttpClient, type HttpClientHooks } from '@api/http-client';
 import { AUTH_STATUS, authStore } from '@stores/auth';
+import { alert } from '@ui';
 
 import { queryClient } from './query-client';
 
@@ -68,10 +69,24 @@ export function createSessionHooks({
 }
 
 /**
+ * When the signed-in session ends (a forced sign-out included), every
+ * dialog closes and an open confirmation answers no, so nothing the
+ * session asked shows over Login. Nothing explains the sign-out in a
+ * dialog (a session error shows none), so nothing worth keeping is
+ * dropped. Returns the function that disconnects it.
+ */
+export function connectAlertsToSession(): () => void {
+  return authStore.onSessionEnd(() => {
+    alert.dismissAll();
+  });
+}
+
+/**
  * Runs once, before the first render. Restoring the session is not part of
  * it: the root navigator's `useSessionHydration` does that.
  */
 export function bootstrap(): void {
   configureHttpClient(createSessionHooks({ queryClient }));
   connectQueryRuntimeToReactNative();
+  connectAlertsToSession();
 }

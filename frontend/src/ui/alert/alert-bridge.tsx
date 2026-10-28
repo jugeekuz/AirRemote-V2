@@ -6,34 +6,47 @@ import { enqueueAlert, type QueuedAlert } from './alert-queue';
 
 const EMPTY_QUEUE: readonly QueuedAlert[] = [];
 
+/** Confirmations nobody will answer any more resolve `false`. */
+function answerNo(queue: readonly QueuedAlert[]): void {
+  for (const { request } of queue) {
+    if (request.kind === 'confirm') {
+      request.resolve(false);
+    }
+  }
+}
+
 /**
  * Connects the imperative `alert` to V1's dialogs while it is mounted. It
  * shows the first request and keeps the rest waiting; answering one shows
- * the next. Confirmations still waiting when it unmounts resolve `false`.
+ * the next. Confirmations still waiting when it unmounts, or when
+ * `alert.dismissAll` drops them, resolve `false`.
  */
 export default function AlertBridge() {
   const [queue, setQueue] = useState(EMPTY_QUEUE);
-  // What is still waiting when the bridge unmounts.
+  // The queue as the sink and the unmount see it, ahead of any render.
   const queueRef = useRef(queue);
   const nextId = useRef(0);
 
   useEffect(() => {
-    queueRef.current = queue;
-  }, [queue]);
-
-  useEffect(() => {
-    const unregister = registerAlertSink((request) => {
-      nextId.current += 1;
-      const queued = { id: nextId.current, request };
-      setQueue((current) => enqueueAlert(current, queued));
+    // The ref is updated at once, so a dismissal in the same moment as a
+    // request (before the queue renders) still sees that request.
+    const unregister = registerAlertSink({
+      show: (request) => {
+        nextId.current += 1;
+        const queued = { id: nextId.current, request };
+        queueRef.current = enqueueAlert(queueRef.current, queued);
+        setQueue(queueRef.current);
+      },
+      dismissAll: () => {
+        const dismissed = queueRef.current;
+        queueRef.current = EMPTY_QUEUE;
+        setQueue(EMPTY_QUEUE);
+        answerNo(dismissed);
+      },
     });
     return () => {
       unregister();
-      for (const { request } of queueRef.current) {
-        if (request.kind === 'confirm') {
-          request.resolve(false);
-        }
-      }
+      answerNo(queueRef.current);
     };
   }, []);
 
@@ -46,7 +59,8 @@ export default function AlertBridge() {
     if (current.request.kind === 'confirm') {
       current.request.resolve(confirmed);
     }
-    setQueue((waiting) => waiting.filter(({ id }) => id !== current.id));
+    queueRef.current = queueRef.current.filter(({ id }) => id !== current.id);
+    setQueue(queueRef.current);
   };
 
   // Keyed by request, so each dialog opens afresh instead of swapping text.

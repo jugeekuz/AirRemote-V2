@@ -90,26 +90,28 @@ describe('alert.error', () => {
   });
 
   it('stops sending to a sink once it is unregistered', () => {
-    const sink = jest.fn();
+    const sink = { show: jest.fn(), dismissAll: jest.fn() };
     const unregister = registerAlertSink(sink);
     unregister();
 
     alert.error('x');
+    alert.dismissAll();
 
-    expect(sink).not.toHaveBeenCalled();
+    expect(sink.show).not.toHaveBeenCalled();
+    expect(sink.dismissAll).not.toHaveBeenCalled();
   });
 
   it('keeps a newer sink when an older one unregisters', () => {
-    const older = jest.fn();
-    const newer = jest.fn();
+    const older = { show: jest.fn(), dismissAll: jest.fn() };
+    const newer = { show: jest.fn(), dismissAll: jest.fn() };
     const unregisterOlder = registerAlertSink(older);
     const unregisterNewer = registerAlertSink(newer);
     unregisterOlder();
 
     alert.error('x');
 
-    expect(newer).toHaveBeenCalledTimes(1);
-    expect(older).not.toHaveBeenCalled();
+    expect(newer.show).toHaveBeenCalledTimes(1);
+    expect(older.show).not.toHaveBeenCalled();
     unregisterNewer();
   });
 });
@@ -178,5 +180,45 @@ describe('alert.confirm', () => {
     await unmount();
 
     await expect(answer).resolves.toBe(false);
+  });
+});
+
+describe('alert.dismissAll', () => {
+  // A forced sign-out: nothing asked in the session may show over Login.
+  it('closes every dialog, waiting or shown, and answers confirmations no', async () => {
+    await renderProvider();
+    let shown: Promise<boolean> = Promise.resolve(true);
+    let waiting: Promise<boolean> = Promise.resolve(true);
+    await act(async () => {
+      shown = alert.confirm(CONFIRM_DELETE);
+      alert.error('Boom');
+      waiting = alert.confirm({ ...CONFIRM_DELETE, message: 'And this?' });
+    });
+
+    await act(async () => {
+      alert.dismissAll();
+    });
+
+    await expect(shown).resolves.toBe(false);
+    await expect(waiting).resolves.toBe(false);
+    expect(screen.queryByText('Delete it?')).not.toBeOnTheScreen();
+    expect(screen.queryByText('Boom')).not.toBeOnTheScreen();
+    expect(screen.queryByText('And this?')).not.toBeOnTheScreen();
+  });
+
+  it('shows what is asked afterwards', async () => {
+    await renderProvider();
+    await act(async () => {
+      alert.error('Before');
+      alert.dismissAll();
+      alert.error('After');
+    });
+
+    expect(screen.queryByText('Before')).not.toBeOnTheScreen();
+    expect(screen.getByText('After')).toBeOnTheScreen();
+  });
+
+  it('does nothing without a bridge', () => {
+    expect(() => alert.dismissAll()).not.toThrow();
   });
 });

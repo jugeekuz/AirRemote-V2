@@ -600,7 +600,10 @@ caches call `notifyApiError` (`src/app/notify-api-error.ts`), which opens
   `alert.confirm({ title, message, confirmLabel, cancelLabel })`, which
   resolves `true` only on the confirm button (the delete badges use it).
   Without a mounted `UiProvider` an error is dropped and a confirmation
-  resolves `false`. `toast` still exists but nothing uses it.
+  resolves `false`. `alert.dismissAll()` closes every dialog, shown or
+  waiting, and answers open confirmations `false`; `bootstrap` calls it
+  when a signed-in session ends (`authStore.onSessionEnd`, a forced
+  sign-out included), so nothing the session asked shows over Login. `toast` still exists but nothing uses it.
 - **Theme:** V1 is light-only, so the app is: `UiProvider` fixes Uniwind's
   theme to light and `app.config.ts` sets `userInterfaceStyle: 'light'`.
   `src/ui/global.css` imports Tailwind, Uniwind, the kit's styles and then

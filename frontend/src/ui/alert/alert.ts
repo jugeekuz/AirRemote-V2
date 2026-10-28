@@ -17,7 +17,12 @@ export type AlertRequest =
       resolve: (confirmed: boolean) => void;
     };
 
-export type AlertSink = (request: AlertRequest) => void;
+/** The mounted `AlertBridge`'s side of `alert`. */
+export type AlertSink = {
+  show: (request: AlertRequest) => void;
+  /** Drops every dialog, shown or waiting; confirmations resolve `false`. */
+  dismissAll: () => void;
+};
 
 let sink: AlertSink | null = null;
 
@@ -42,7 +47,7 @@ export function registerAlertSink(next: AlertSink): () => void {
 export const alert = {
   /** The "Error" dialog with the message and an OK button. */
   error(message: string): void {
-    sink?.({ kind: 'error', message });
+    sink?.show({ kind: 'error', message });
   },
   /** A confirmation; resolves `true` only on the confirm button. */
   confirm(options: ConfirmOptions): Promise<boolean> {
@@ -51,7 +56,15 @@ export const alert = {
       return Promise.resolve(false);
     }
     return new Promise((resolve) => {
-      current({ kind: 'confirm', options, resolve });
+      current.show({ kind: 'confirm', options, resolve });
     });
+  },
+  /**
+   * Closes every dialog, the one shown and those waiting; confirmations
+   * resolve `false`. For the end of a session: nothing asked while signed
+   * in may show over Login. What is asked afterwards shows as usual.
+   */
+  dismissAll(): void {
+    sink?.dismissAll();
   },
 };
