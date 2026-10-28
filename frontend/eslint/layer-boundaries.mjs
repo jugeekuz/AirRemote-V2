@@ -149,6 +149,11 @@ const PACKAGE_RULES = [
     allowedIn: ['ui/'],
     message: `Only src/ui imports uniwind, tailwind-variants and tailwind-merge. Use what @ui exports. ${SEE_DOCS}`,
   },
+  {
+    group: ['expo-image', 'expo-image/**'],
+    allowedIn: ['ui/'],
+    message: `Only src/ui imports expo-image. Use Image from @ui. ${SEE_DOCS}`,
+  },
 ];
 
 const TEST_SUPPORT_FILES = [

@@ -2,6 +2,8 @@
 // screen first needs it; app code never imports `@ui/heroui/...`.
 export { UiProvider } from './ui-provider';
 export { toast } from './toast';
+export { Icon } from './icon';
+export { Image } from './image';
 
 export { Button } from './heroui/components/button';
 export { Card } from './heroui/components/card';

@@ -31,6 +31,10 @@ module.exports = {
     // First, so `@ui/global.css` matches it before the `@ui/*` alias.
     '\\.css$': '<rootDir>/mocks/file.mock.ts',
     ...toModuleNameMapper(config.compilerOptions.paths),
+    // Its "react-native" entry is ESM (.mjs), which Jest does not transform;
+    // the CommonJS build has the same icons.
+    '^lucide-react-native$':
+      '<rootDir>/node_modules/lucide-react-native/dist/cjs/lucide-react-native.js',
     '\\.(png|jpe?g|gif|webp|svg|ttf|otf|woff2?|mp3|wav)$':
       '<rootDir>/mocks/file.mock.ts',
   },

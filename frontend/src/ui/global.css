@@ -2,6 +2,8 @@
 @import 'uniwind';
 
 @import './heroui/styles/index.css';
+/* V1's colours, radii, shadows and fonts; after the kit's, so they win. */
+@import './theme.css';
 
 /* Scan the kit and the app code for class names. */
 @source './heroui';

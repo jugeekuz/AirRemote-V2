@@ -14,7 +14,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
-  userInterfaceStyle: 'automatic',
+  // V1 is light-only (src/ui/ui-provider fixes the kit's theme to light).
+  userInterfaceStyle: 'light',
   ios: {
     supportsTablet: true,
     bundleIdentifier: isDevelopment ? `${APP_ID}.dev` : APP_ID,
@@ -33,6 +34,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundler: 'metro',
     favicon: './assets/favicon.png',
   },
+  plugins: ['expo-font', 'expo-image'],
   experiments: {
     // Metro resolves the import aliases from tsconfig.json `paths`.
     tsconfigPaths: true,

@@ -177,6 +177,18 @@ describe('layer boundaries', () => {
     ).toEqual([]);
   });
 
+  it('lets only src/ui import expo-image', async () => {
+    expect(
+      await boundaryErrors(
+        'components/top-toolbar/top-toolbar.tsx',
+        importing('expo-image'),
+      ),
+    ).toEqual([expect.stringContaining('Only src/ui imports expo-image')]);
+    expect(
+      await boundaryErrors('ui/image/image.tsx', importing('expo-image')),
+    ).toEqual([]);
+  });
+
   it('lets only src/config read process.env', async () => {
     const code = 'export const x = process.env.X;\n';
 
