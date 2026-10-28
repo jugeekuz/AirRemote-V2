@@ -7,6 +7,10 @@ import { buttonKeys } from '@queries/buttons';
 
 import { remoteKeys } from './remotes.queries';
 
+// Every mutation here fails fast offline with NETWORK_ERROR instead of
+// pausing (`networkMode: 'always'`): paused, the dialog would spin and the
+// change would happen whenever the network came back.
+
 type CreateRemoteVariables = {
   /** The device whose IR transmitter the remote uses. */
   deviceId: string;
@@ -22,6 +26,7 @@ export function useCreateRemoteMutation() {
 
   return useMutation({
     mutationKey: [...remoteKeys.all, 'create'],
+    networkMode: 'always',
     mutationFn: ({ deviceId, body }: CreateRemoteVariables) =>
       remotesApi.create(deviceId, body),
     onSettled: () =>
@@ -39,6 +44,7 @@ export function useDeleteRemoteMutation() {
 
   return useMutation({
     mutationKey: [...remoteKeys.all, 'delete'],
+    networkMode: 'always',
     mutationFn: (remoteId: string) => remotesApi.delete(remoteId),
     onSettled: () =>
       Promise.all([

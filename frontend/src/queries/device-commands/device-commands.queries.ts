@@ -26,6 +26,9 @@ export const deviceCommandQueries = {
     queryOptions({
       queryKey: deviceCommandKeys.detail(id),
       queryFn: ({ signal }) => deviceCommandsApi.get(id, { signal }),
+      // Asked offline too, so the wait ends with NETWORK_ERROR instead of
+      // pausing until the network is back.
+      networkMode: 'always',
       refetchInterval: (query) =>
         query.state.status !== 'error' && query.state.data?.status === 'pending'
           ? DEVICE_COMMAND_POLL_MS

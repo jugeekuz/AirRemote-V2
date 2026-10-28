@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query';
+import { onlineManager, type QueryClient } from '@tanstack/react-query';
 
 import type { DeviceCommandResponse } from '@airremote/contracts';
 
@@ -83,6 +83,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  onlineManager.setOnline(true);
   jest.useRealTimers();
   jest.restoreAllMocks();
   queryClient.clear();
@@ -187,6 +188,33 @@ describe('usePressButton', () => {
     expect(result.current.phase).toBe('idle');
     await tap(result.current.press);
     expect(buttons.press).toHaveBeenCalledTimes(2);
+  });
+
+  // Paused offline, the press would spin until the network came back and
+  // then send its code to the device, long after the tap.
+  it('goes back to idle at once when the phone is offline, sending nothing later', async () => {
+    const unreachable: ApiError = {
+      code: 'NETWORK_ERROR',
+      message: 'Network Error',
+      isNetworkError: true,
+    };
+    buttons.press.mockReset();
+    buttons.press.mockRejectedValue(unreachable);
+    onlineManager.setOnline(false);
+    const { result } = await renderPress();
+
+    await tap(result.current.press);
+
+    expect(result.current.phase).toBe('idle');
+    expect(buttons.press).toHaveBeenCalledTimes(1);
+    expect(queryClient.getMutationCache().getAll()[0]?.state.isPaused).toBe(
+      false,
+    );
+    await act(async () => {
+      onlineManager.setOnline(true);
+    });
+    await wait(DEVICE_COMMAND_POLL_MS);
+    expect(buttons.press).toHaveBeenCalledTimes(1);
   });
 
   it.each(['DEVICE_OFFLINE', 'DEVICE_NOT_RESPONDING'] as const)(

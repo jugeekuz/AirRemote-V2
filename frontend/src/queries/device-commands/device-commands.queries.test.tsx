@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { onlineManager, useQuery } from '@tanstack/react-query';
 
 import type {
   ButtonResponse,
@@ -58,6 +58,7 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+  onlineManager.setOnline(true);
 });
 
 describe('deviceCommandKeys', () => {
@@ -170,5 +171,31 @@ describe('deviceCommandQueries.detail', () => {
     });
 
     expect(onApiError).not.toHaveBeenCalled();
+  });
+
+  // Paused offline, the poll would never answer, so the wait for the
+  // command could not end until the network came back.
+  it('asks even while offline, and fails instead of pausing', async () => {
+    onlineManager.setOnline(false);
+    const unreachable: ApiError = {
+      code: 'NETWORK_ERROR',
+      message: 'Network Error',
+      isNetworkError: true,
+    };
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(deviceCommandKeys.detail(pending.id), pending);
+    api.get.mockRejectedValue(unreachable);
+    const { result } = await renderHook(
+      () => useQuery(deviceCommandQueries.detail(pending.id)),
+      { wrapper: createQueryWrapper(queryClient) },
+    );
+
+    await advancePolls();
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(result.current.error).toBe(unreachable);
   });
 });

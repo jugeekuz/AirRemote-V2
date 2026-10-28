@@ -1,4 +1,8 @@
-import { focusManager, type QueryClient } from '@tanstack/react-query';
+import {
+  focusManager,
+  onlineManager,
+  type QueryClient,
+} from '@tanstack/react-query';
 
 import type {
   ButtonResponse,
@@ -231,6 +235,7 @@ describe('useDeviceCommand', () => {
 
     afterEach(() => {
       focusManager.setFocused(undefined);
+      onlineManager.setOnline(true);
     });
 
     it('asks once more, and a settled answer wins', async () => {
@@ -261,6 +266,27 @@ describe('useDeviceCommand', () => {
         });
       });
       expect(api.get).toHaveBeenCalledTimes(1);
+    });
+
+    // Paused offline, that last ask would never answer and the wait would
+    // only end once the network came back.
+    it('gives up while offline too, when that last ask fails', async () => {
+      api.get.mockRejectedValue({
+        code: 'NETWORK_ERROR',
+        message: 'Network Error',
+        isNetworkError: true,
+      } satisfies ApiError);
+      const { result } = await renderWaiting();
+      focusManager.setFocused(false);
+      onlineManager.setOnline(false);
+
+      await wait(PRESS_LIFETIME_MS + DEVICE_COMMAND_GRACE_MS);
+
+      await waitFor(() => {
+        expect(result.current.status).toBe('failed');
+      });
+      expect(api.get).toHaveBeenCalledTimes(1);
+      expect(alertError).toHaveBeenCalledTimes(1);
     });
   });
 

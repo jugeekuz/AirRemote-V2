@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, Text } from 'react-native';
-import type { QueryClient } from '@tanstack/react-query';
+import { onlineManager, type QueryClient } from '@tanstack/react-query';
 
 import type {
   ButtonResponse,
@@ -104,6 +104,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  onlineManager.setOnline(true);
   jest.useRealTimers();
   queryClient.clear();
   jest.restoreAllMocks();
@@ -236,6 +237,40 @@ describe('LearnButtonDialog', () => {
     expect(onApiError).toHaveBeenCalledTimes(1);
     expect(onApiError).toHaveBeenCalledWith(offline, undefined);
     expect(screen.queryByText('errors.DEVICE_OFFLINE')).not.toBeOnTheScreen();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Paused offline, the dialog would stay on its progress bar with no way
+  // out, and the learn would start whenever the network came back.
+  it('closes when the phone is offline, which the app reports', async () => {
+    const unreachable: ApiError = {
+      code: 'NETWORK_ERROR',
+      message: 'Network Error',
+      isNetworkError: true,
+    };
+    buttons.learn.mockRejectedValue(unreachable);
+    onlineManager.setOnline(false);
+
+    await startLearning();
+    await wait(0);
+
+    expect(buttons.learn).toHaveBeenCalledTimes(1);
+    expect(onApiError).toHaveBeenCalledWith(unreachable, undefined);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the Error dialog and closes when the network drops while listening', async () => {
+    await startLearning();
+    commands.get.mockRejectedValue({
+      code: 'NETWORK_ERROR',
+      message: 'Network Error',
+      isNetworkError: true,
+    } satisfies ApiError);
+    onlineManager.setOnline(false);
+
+    await wait(DEVICE_COMMAND_POLL_MS);
+
+    expect(screen.getByText('errors.NETWORK_ERROR')).toBeOnTheScreen();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

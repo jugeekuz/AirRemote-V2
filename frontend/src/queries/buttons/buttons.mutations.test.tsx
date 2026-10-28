@@ -1,3 +1,5 @@
+import { onlineManager } from '@tanstack/react-query';
+
 import type {
   ButtonResponse,
   DeviceCommandResponse,
@@ -56,8 +58,48 @@ const notFound: ApiError = {
   isNetworkError: false,
 };
 
+const unreachable: ApiError = {
+  code: 'NETWORK_ERROR',
+  message: 'Network Error',
+  isNetworkError: true,
+};
+
 beforeEach(() => {
   jest.resetAllMocks();
+});
+
+afterEach(() => {
+  onlineManager.setOnline(true);
+});
+
+// Paused offline, a press or learn would be sent when the network comes
+// back (an IR code minutes later) and its control would spin until then.
+it('fails fast while offline instead of pausing', async () => {
+  onlineManager.setOnline(false);
+  api.learn.mockRejectedValueOnce(unreachable);
+  api.press.mockRejectedValueOnce(unreachable);
+  api.delete.mockRejectedValueOnce(unreachable);
+
+  const { result } = await renderHook(
+    () => ({
+      learn: useLearnButtonMutation(),
+      press: usePressButtonMutation(),
+      remove: useDeleteButtonMutation(),
+    }),
+    { wrapper: createQueryWrapper() },
+  );
+
+  await act(async () => {
+    await expect(
+      result.current.learn.mutateAsync({ remoteId, body: { name: 'Power' } }),
+    ).rejects.toBe(unreachable);
+    await expect(result.current.press.mutateAsync(button.id)).rejects.toBe(
+      unreachable,
+    );
+    await expect(result.current.remove.mutateAsync(button.id)).rejects.toBe(
+      unreachable,
+    );
+  });
 });
 
 describe('useLearnButtonMutation', () => {

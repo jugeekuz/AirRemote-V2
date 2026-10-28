@@ -51,8 +51,11 @@ options, mutation hooks). Both are global: any module may use them.
   [Queries][queries]. A delete invalidates in `onSettled` (a 404 means it
   is gone already) and also invalidates its children's lists: a device's
   remotes and buttons, a remote's buttons.
-- Mutations other than auth keep TanStack's default and pause offline; only
-  the auth ones use `networkMode: 'always'` → [Auth][auth].
+- Every mutation, and the device command poll, uses
+  `networkMode: 'always'`: offline it fails fast with `NETWORK_ERROR`
+  instead of pausing and being sent when the network is back (an IR code
+  minutes after the tap). List queries keep the default and pause →
+  [Auth][auth].
 - A failed request opens V1's Error dialog with its code's text
   automatically (`notifyApiError` → `alert.error`); don't open one
   yourself. `meta: { silent: true }` when the screen shows its own error,
@@ -134,6 +137,7 @@ export const deviceCommandQueries = {
     queryOptions({
       queryKey: deviceCommandKeys.detail(id),
       queryFn: ({ signal }) => deviceCommandsApi.get(id, { signal }),
+      networkMode: 'always', // offline it fails instead of pausing
       // Ask again until the device settles it, unless the poll itself
       // failed for good (a 404 once the device is gone); `false` stops.
       refetchInterval: (query) =>

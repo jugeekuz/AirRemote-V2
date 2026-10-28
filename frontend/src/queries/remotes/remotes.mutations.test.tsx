@@ -1,3 +1,5 @@
+import { onlineManager } from '@tanstack/react-query';
+
 import type { CreateRemoteRequest, RemoteResponse } from '@airremote/contracts';
 
 import type { ApiError } from '@app-types';
@@ -43,8 +45,43 @@ const notFound: ApiError = {
   isNetworkError: false,
 };
 
+const unreachable: ApiError = {
+  code: 'NETWORK_ERROR',
+  message: 'Network Error',
+  isNetworkError: true,
+};
+
 beforeEach(() => {
   jest.resetAllMocks();
+});
+
+afterEach(() => {
+  onlineManager.setOnline(true);
+});
+
+// Paused offline, the wizard's Finish would spin until the network came
+// back, and a delete would happen whenever it did.
+it('fails fast while offline instead of pausing', async () => {
+  onlineManager.setOnline(false);
+  api.create.mockRejectedValueOnce(unreachable);
+  api.delete.mockRejectedValueOnce(unreachable);
+
+  const { result } = await renderHook(
+    () => ({
+      create: useCreateRemoteMutation(),
+      remove: useDeleteRemoteMutation(),
+    }),
+    { wrapper: createQueryWrapper() },
+  );
+
+  await act(async () => {
+    await expect(
+      result.current.create.mutateAsync({ deviceId: remote.deviceId, body }),
+    ).rejects.toBe(unreachable);
+    await expect(result.current.remove.mutateAsync(remote.id)).rejects.toBe(
+      unreachable,
+    );
+  });
 });
 
 describe('useCreateRemoteMutation', () => {

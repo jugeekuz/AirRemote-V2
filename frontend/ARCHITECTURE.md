@@ -377,10 +377,14 @@ never navigates between them. `useAuth` gives the UI `isLoggedIn`,
 `isInitializing` and `hasInitializationFailed`, from the status alone (V2
 has no current-user endpoint).
 
-The auth mutations use `networkMode: 'always'`, so offline they fail fast
-with `NETWORK_ERROR`: the launch refresh offers Retry instead of spinning,
-and logout still signs out. Every other query and mutation keeps TanStack's
-default and pauses while offline.
+Every mutation uses `networkMode: 'always'`, so offline it fails fast with
+`NETWORK_ERROR` and the Error dialog says so: the launch refresh offers
+Retry instead of spinning, logout still signs out, and a press, a learn, an
+enrollment, a new remote or a delete is never paused and sent minutes later
+when the network comes back. The device command poll
+(`deviceCommandQueries.detail`) does the same, so the wait for a command
+ends offline too. The list queries keep TanStack's default and pause while
+offline.
 
 `isSignedOutError` (any 401) is for the refresh and authenticated calls
 only: a wrong password is a 401 too (`INVALID_CREDENTIALS`).
