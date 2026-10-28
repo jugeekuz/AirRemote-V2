@@ -4,7 +4,14 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { UserResponse } from '@airremote/contracts';
 
 import type { ApiError } from '@app-types';
-import { renderWithProviders, screen, userEvent, waitFor } from '@utils/tests';
+import {
+  act,
+  fireEvent,
+  renderWithProviders,
+  screen,
+  userEvent,
+  waitFor,
+} from '@utils/tests';
 import { usersApi } from '@api/users';
 import { createQueryClient } from '@queries/query-client';
 import { AUTH_STATUS, authStore } from '@stores/auth';
@@ -212,6 +219,31 @@ describe('SignUpScreen', () => {
     expect(
       screen.getByRole('button', { name: 'sign-up.submit' }),
     ).toBeEnabled();
+  });
+
+  // Two Enters (or Enter and a click) before the busy button renders.
+  it('sends one request for two submits in the same moment, and takes the next once it failed', async () => {
+    api.register.mockRejectedValue(emailTaken);
+    await renderSignUp();
+    await fill({ ...form, confirmPassword: form.password });
+
+    await act(async () => {
+      fireEvent(field('confirmPassword'), 'submitEditing');
+      fireEvent(field('confirmPassword'), 'submitEditing');
+    });
+
+    await waitFor(() => {
+      expect(onApiError).toHaveBeenCalledTimes(1);
+    });
+    expect(api.register).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fireEvent(field('confirmPassword'), 'submitEditing');
+    });
+
+    await waitFor(() => {
+      expect(api.register).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('is busy while the account is being created', async () => {

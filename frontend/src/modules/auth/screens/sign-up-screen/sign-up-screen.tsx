@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { View } from 'react-native';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigation } from '@react-navigation/native';
@@ -129,15 +130,27 @@ export default function SignUpScreen() {
   };
 
   // Enter in a field works while the button is disabled, so a pending
-  // request is checked here too.
-  const validateAndRegister = handleSubmit((values) => {
-    register(toRegisterUserRequest(values), { onSuccess: goToLogin });
-  });
+  // request is checked here too; two submits in the same moment both pass
+  // that check (`isPending` has not rendered yet), so the ref stops the
+  // second one.
+  const isInFlightRef = useRef(false);
+  const registerOnce = (values: SignUpForm) => {
+    if (isInFlightRef.current) {
+      return;
+    }
+    isInFlightRef.current = true;
+    register(toRegisterUserRequest(values), {
+      onSuccess: goToLogin,
+      onSettled: () => {
+        isInFlightRef.current = false;
+      },
+    });
+  };
   const submit = () => {
     if (isPending) {
       return;
     }
-    void validateAndRegister();
+    void handleSubmit(registerOnce)();
   };
 
   return (

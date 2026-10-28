@@ -5,6 +5,7 @@ import type { AccessTokenResponse } from '@airremote/contracts';
 
 import type { ApiError } from '@app-types';
 import {
+  act,
   fireEvent,
   renderWithProviders,
   screen,
@@ -204,6 +205,34 @@ describe('LoginScreen', () => {
       expect(authStore.getStatus()).toBe(AUTH_STATUS.AUTHENTICATED);
     });
     expect(api.login).toHaveBeenCalledTimes(1);
+  });
+
+  // Two Enters (or Enter and a click) before the busy button renders.
+  it('sends one sign-in for two submits in the same moment, and takes the next once it failed', async () => {
+    api.login.mockRejectedValue(wrongCredentials);
+    await renderLogin();
+    const user = userEvent.setup();
+    const password = screen.getByLabelText('login.password');
+    await user.type(screen.getByLabelText('login.email'), credentials.email);
+    await user.type(password, credentials.password);
+
+    await act(async () => {
+      fireEvent(password, 'submitEditing');
+      fireEvent(password, 'submitEditing');
+    });
+
+    await waitFor(() => {
+      expect(onApiError).toHaveBeenCalledTimes(1);
+    });
+    expect(api.login).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fireEvent(password, 'submitEditing');
+    });
+
+    await waitFor(() => {
+      expect(api.login).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('is not red any more when the user comes back from Sign up', async () => {

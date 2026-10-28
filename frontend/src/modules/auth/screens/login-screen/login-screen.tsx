@@ -44,7 +44,8 @@ export default function LoginScreen() {
   // texts to screen readers (never the schema's own messages). Called
   // without the press event, which isn't a web form event. Enter in a field
   // still works while the button is disabled, so a pending sign-in is
-  // checked here too.
+  // checked here too (and `useLogin` drops a second one sent in the same
+  // moment, before `isLoggingIn` renders).
   const validateAndLogin = handleSubmit(login);
   const submit = () => {
     if (isLoggingIn) {

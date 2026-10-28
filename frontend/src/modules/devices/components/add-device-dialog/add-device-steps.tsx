@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { PairingDetails } from '@app-types';
@@ -65,11 +65,23 @@ export default function AddDeviceSteps({
 
   // Errors (a wrong or expired code, a board already enrolled) open the
   // Error dialog; the steps stay, so the user can go back to the code.
+  // Enter and Finish in the same moment both see the last render's
+  // `canFinish`, so the ref lets only the first one through.
+  const isInFlightRef = useRef(false);
   const finish = () => {
-    if (!pairing || !canFinish) {
+    if (!pairing || !canFinish || isInFlightRef.current) {
       return;
     }
-    enroll({ ...pairing, name: name.trim() }, { onSuccess: onClose });
+    isInFlightRef.current = true;
+    enroll(
+      { ...pairing, name: name.trim() },
+      {
+        onSuccess: onClose,
+        onSettled: () => {
+          isInFlightRef.current = false;
+        },
+      },
+    );
   };
 
   return (

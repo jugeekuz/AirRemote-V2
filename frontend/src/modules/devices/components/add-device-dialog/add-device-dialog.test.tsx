@@ -268,6 +268,34 @@ describe('AddDeviceDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  // Enter and a click (or two Enters) before the busy Finish renders.
+  it('sends one enrollment for two submits in the same moment, and takes the next once it failed', async () => {
+    const taken: ApiError = {
+      status: 409,
+      code: 'DEVICE_ALREADY_REGISTERED',
+      message: 'Taken',
+      isNetworkError: false,
+    };
+    api.enroll.mockRejectedValue(taken);
+    await renderDialog(PAIRING);
+    await type('add-device.name.label', 'Living room');
+
+    await act(async () => {
+      fireEvent(
+        screen.getByLabelText('add-device.name.label'),
+        'submitEditing',
+      );
+      fireEvent.press(screen.getByRole('button', { name: 'finish' }));
+    });
+
+    expect(api.enroll).toHaveBeenCalledTimes(1);
+    expect(onApiError).toHaveBeenCalledTimes(1);
+
+    await press('finish');
+
+    expect(api.enroll).toHaveBeenCalledTimes(2);
+  });
+
   it('wants a name that is not blank', async () => {
     await renderDialog(PAIRING);
 
