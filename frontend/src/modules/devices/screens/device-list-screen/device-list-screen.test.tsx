@@ -8,7 +8,7 @@ import type { QueryClient } from '@tanstack/react-query';
 
 import type { DeviceResponse } from '@airremote/contracts';
 
-import type { ApiError } from '@app-types';
+import type { ApiError, DevicesStackParamList } from '@app-types';
 import {
   act,
   fireEvent,
@@ -19,6 +19,7 @@ import {
 } from '@utils/tests';
 import { devicesApi } from '@api/devices';
 import { createQueryClient } from '@queries/query-client';
+import { pendingPairingStore } from '@stores/pending-pairing';
 
 import DeviceListScreen from './device-list-screen';
 
@@ -39,8 +40,14 @@ const hall: DeviceResponse = {
   online: false,
 };
 const DELETE_HALL = 'device-tile.delete | name: Hall';
+const PAIR_PARAMS = { pairMac: 'aa:bb:cc:dd:ee:01', pairCode: '7k4m-q9tx' };
+const PREFILLED =
+  'add-device.name.device | macAddress: AA:BB:CC:DD:EE:01 | pairingCode: 7K4M-Q9TX';
 
-type TestParamList = { DeviceList: undefined; Elsewhere: undefined };
+type TestParamList = {
+  DeviceList: DevicesStackParamList['DeviceList'];
+  Elsewhere: undefined;
+};
 const Stack = createNativeStackNavigator<TestParamList>();
 const navigation = createNavigationContainerRef<TestParamList>();
 
@@ -53,6 +60,7 @@ let onApiError: jest.Mock;
 
 beforeEach(() => {
   jest.resetAllMocks();
+  pendingPairingStore.reset();
   mockViewMeasure();
   onApiError = jest.fn();
   // The app's client, with the Error dialog replaced by a mock. Nothing
@@ -70,11 +78,17 @@ afterEach(() => {
 });
 
 /** The Devices screen in a stack, with another screen to navigate to. */
-async function renderDevices() {
+async function renderDevices(
+  initialParams?: DevicesStackParamList['DeviceList'],
+) {
   await renderWithProviders(
     <NavigationContainer ref={navigation}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="DeviceList" component={DeviceListScreen} />
+        <Stack.Screen
+          name="DeviceList"
+          component={DeviceListScreen}
+          initialParams={initialParams}
+        />
         <Stack.Screen name="Elsewhere" component={Elsewhere} />
       </Stack.Navigator>
     </NavigationContainer>,
@@ -245,5 +259,78 @@ describe('DeviceListScreen', () => {
       expect(screen.queryByText('Hall')).not.toBeOnTheScreen();
     });
     expect(api.list).toHaveBeenCalledTimes(2);
+  });
+
+  describe('adding a device', () => {
+    const added: DeviceResponse = {
+      id: '3d2c1b0a-9f8e-4d7c-8b6a-5f4e3d2c1b0a',
+      macAddress: 'aa:bb:cc:dd:ee:01',
+      name: 'Living room',
+      online: false,
+    };
+
+    it('opens the Add device dialog from the add button', async () => {
+      api.list.mockResolvedValue([]);
+      await renderDevices();
+      await screen.findByText('device-list.empty');
+
+      await press('add');
+
+      expect(
+        screen.getByRole('heading', { name: 'add-device.title' }),
+      ).toBeOnTheScreen();
+      expect(
+        screen.getByText('add-device.instructions.heading'),
+      ).toBeOnTheScreen();
+    });
+
+    it('enrolls it, closes the dialog and lists it', async () => {
+      api.list.mockResolvedValueOnce([]).mockResolvedValue([added]);
+      api.enroll.mockResolvedValueOnce(added);
+      await renderDevices(PAIR_PARAMS);
+      await screen.findByText(PREFILLED);
+
+      await act(async () => {
+        fireEvent.changeText(
+          screen.getByLabelText('add-device.name.label'),
+          'Living room',
+        );
+      });
+      await press('finish');
+
+      expect(await screen.findByText('Living room')).toBeOnTheScreen();
+      expect(screen.queryByText('add-device.title')).not.toBeOnTheScreen();
+      expect(screen.getByText('1')).toBeOnTheScreen();
+    });
+
+    it('opens a pairing link at the name, filled in, and clears the link on close', async () => {
+      api.list.mockResolvedValue([]);
+
+      await renderDevices(PAIR_PARAMS);
+
+      expect(await screen.findByText(PREFILLED)).toBeOnTheScreen();
+      expect(navigation.getCurrentRoute()?.params).toEqual(PAIR_PARAMS);
+
+      await press('close');
+
+      expect(screen.queryByText(PREFILLED)).not.toBeOnTheScreen();
+      expect(navigation.getCurrentRoute()?.params).toEqual({
+        pairMac: undefined,
+        pairCode: undefined,
+      });
+    });
+
+    it('opens a pairing link that arrived before sign-in', async () => {
+      api.list.mockResolvedValue([]);
+      pendingPairingStore.set({
+        macAddress: 'AA:BB:CC:DD:EE:01',
+        pairingCode: '7K4MQ9TX',
+      });
+
+      await renderDevices();
+
+      expect(await screen.findByText(PREFILLED)).toBeOnTheScreen();
+      expect(pendingPairingStore.getPending()).toBeNull();
+    });
   });
 });

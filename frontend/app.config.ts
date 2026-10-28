@@ -34,7 +34,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundler: 'metro',
     favicon: './assets/favicon.png',
   },
-  plugins: ['expo-font', 'expo-image'],
+  plugins: [
+    'expo-font',
+    'expo-image',
+    [
+      'expo-camera',
+      {
+        // Only to scan a board's pairing QR code: no photos, video or sound.
+        cameraPermission:
+          "AirRemote uses the camera to scan your device's pairing code.",
+        microphonePermission: false,
+        recordAudioAndroid: false,
+      },
+    ],
+  ],
   experiments: {
     // Metro resolves the import aliases from tsconfig.json `paths`.
     tsconfigPaths: true,

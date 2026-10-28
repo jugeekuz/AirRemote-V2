@@ -139,6 +139,19 @@ iOS, run them on a development build against `pnpm dev`:
 6. Kill the app and open it again: still signed in. This is the refresh
    cookie surviving a restart, which is unverified on native.
 7. Sign out: back on Login, and reopening the app stays on Login.
+8. Devices → ⊕ → Next: the app asks for the camera (the prompt says it
+   scans the pairing code). Allow it, then point it at the simulator's QR
+   code (`pnpm device-sim`, then `/enroll`): the dialog moves to the name
+   with the board and code filled in. A QR code that isn't a pairing link
+   (any other QR) shows "That QR code isn't an AirRemote pairing code." and
+   keeps scanning. Deny the camera and reopen: "Camera access is turned
+   off…", with "Enter manually" still there.
+9. With the app closed and signed in, open
+   `airremote://pair?mac=<MAC>&code=<CODE>` (e.g.
+   `adb shell am start -a android.intent.action.VIEW -d "<link>"` or
+   `xcrun simctl openurl booted "<link>"`): Devices opens with the dialog at
+   the name, filled in. Signed out: Login first, then the same after
+   signing in.
 
 ## Common failures
 

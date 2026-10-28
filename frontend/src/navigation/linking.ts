@@ -7,6 +7,9 @@ import {
 } from '@react-navigation/native';
 
 import type { RemotesStackParamList, RootStackParamList } from '@app-types';
+import { AUTH_STATUS, authStore } from '@stores/auth';
+import { pendingPairingStore } from '@stores/pending-pairing';
+import { getPairingDetails } from '@modules/devices/helpers/pairing';
 
 type LinkState = PartialState<NavigationState>;
 type LinkConfig = NonNullable<LinkingOptions<RootStackParamList>['config']>;
@@ -62,10 +65,59 @@ function renamePairingParams(state: LinkState): LinkState {
   };
 }
 
-/** React Navigation's parser, then the pairing link's parameter names. */
+/** The device list's params anywhere in the state, if it is in it. */
+function findDeviceListParams(state: LinkState): object | undefined {
+  for (const route of state.routes) {
+    if (route.name === 'DeviceList') {
+      return route.params;
+    }
+    const nested = route.state ? findDeviceListParams(route.state) : undefined;
+    if (nested) {
+      return nested;
+    }
+  }
+  return undefined;
+}
+
+function readString(params: object, name: string): string | undefined {
+  const value: unknown = Reflect.get(params, name);
+  return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * Without a session the root navigator shows Login and drops the link's
+ * state, so a valid pairing is kept for the device list to open after
+ * sign-in. While the session is still being restored nobody knows yet, so
+ * it is kept too; the device list clears it when the link reaches it.
+ */
+function keepPairingUntilSignedIn(state: LinkState) {
+  if (authStore.getStatus() === AUTH_STATUS.AUTHENTICATED) {
+    return;
+  }
+  const params = findDeviceListParams(state);
+  const pairing = params
+    ? getPairingDetails(
+        readString(params, 'pairMac'),
+        readString(params, 'pairCode'),
+      )
+    : null;
+  if (pairing) {
+    pendingPairingStore.set(pairing);
+  }
+}
+
+/**
+ * React Navigation's parser, then the pairing link's parameter names. A
+ * pairing link that arrives signed out is kept for after sign-in.
+ */
 export function getStateFromLink(path: string): LinkState | undefined {
-  const state = getStateFromPath<RootStackParamList>(path, config);
-  return state ? renamePairingParams(state) : undefined;
+  const parsed = getStateFromPath<RootStackParamList>(path, config);
+  if (!parsed) {
+    return undefined;
+  }
+  const state = renamePairingParams(parsed);
+  keepPairingUntilSignedIn(state);
+  return state;
 }
 
 /** URLs for each screen: `airremote://login` on native, `/login` on web. */

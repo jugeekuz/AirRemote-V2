@@ -10,5 +10,37 @@
     "online": "Connected",
     "offline": "Disconnected",
     "delete": "Delete {{name}}"
+  },
+  "add-device": {
+    "title": "Add device",
+    "instructions": {
+      "heading": "Steps to connecting your device",
+      "usb": "<b>Connect the board: </b>plug it into your computer with a USB cable and open its serial console.",
+      "wifi": "<b>Put it on Wi‑Fi: </b>type <cmd>wifi</cmd>, your network's name and its password, like <cmd>wifi MyHome secret123</cmd>.",
+      "pair": "<b>Ask for a pairing code: </b>type <cmd>pair</cmd>. The board prints a code like 7K4M-Q9TX, valid for 15 minutes.",
+      "status": "<b>Note its MAC address: </b>type <cmd>status</cmd> and copy the MAC line.",
+      "simulator": "Using the simulator? Type <cmd>/enroll</cmd> and scan the QR code it shows."
+    },
+    "code": {
+      "heading": "Scan the QR code",
+      "camera": "Camera",
+      "checking-camera": "Starting the camera…",
+      "camera-needed": "AirRemote needs the camera to scan the code.",
+      "allow-camera": "Allow camera",
+      "camera-denied": "Camera access is turned off. Turn it on in your settings, or enter the code manually.",
+      "invalid-scan": "That QR code isn't an AirRemote pairing code.",
+      "enter-manually": "Enter manually",
+      "manual-heading": "Type the MAC address that <cmd>status</cmd> shows and the code that <cmd>pair</cmd> printed.",
+      "mac-address": "MAC address",
+      "mac-address-invalid": "Enter a MAC address like AA:BB:CC:DD:EE:FF.",
+      "pairing-code": "Pairing code",
+      "pairing-code-invalid": "Enter the 8-character code, like 7K4M-Q9TX."
+    },
+    "name": {
+      "heading": "Select a name for the new device",
+      "label": "Device Name",
+      "invalid": "Enter a name of 1 to 100 characters.",
+      "device": "Board {{macAddress}}, code {{pairingCode}}"
+    }
   }
 }

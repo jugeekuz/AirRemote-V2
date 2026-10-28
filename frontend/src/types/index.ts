@@ -12,3 +12,4 @@ export type {
   RemotesStackParamList,
   RootStackParamList,
 } from './navigation.types';
+export type { PairingDetails } from './pairing.types';

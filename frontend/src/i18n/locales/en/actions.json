@@ -1,8 +1,11 @@
 {
   "add": "Add",
+  "back": "Back",
   "close": "Close",
   "delete": "Delete",
   "edit": "Edit",
+  "finish": "Finish",
+  "next": "Next",
   "no": "No",
   "ok": "OK",
   "retry": "Retry",

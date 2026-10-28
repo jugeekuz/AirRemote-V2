@@ -10,6 +10,8 @@ export { LinearGradient } from './linear-gradient';
 export type { GradientDirection } from './linear-gradient';
 export { Modal } from './modal';
 export type { ModalButtonVariant, ModalPlacement } from './modal';
+export { QrScanner, useCameraAccess } from './qr-scanner';
+export type { CameraAccess } from './qr-scanner';
 
 export { Button } from './heroui/components/button';
 export { Card } from './heroui/components/card';
@@ -21,6 +23,7 @@ export { Label } from './heroui/components/label';
 export { Menu } from './heroui/components/menu';
 export { Spinner } from './heroui/components/spinner';
 export { Surface } from './heroui/components/surface';
+export { Switch } from './heroui/components/switch';
 // The kit's `Text` is a deprecated alias of `Typography`; same component.
 export { Typography as Text } from './heroui/components/text';
 export { TextField } from './heroui/components/text-field';

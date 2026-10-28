@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
 
 import type { MainTabParamList } from '@app-types';
+import { pendingPairingStore } from '@stores/pending-pairing';
 import DevicesNavigator from '@modules/devices/navigation/devices-navigator';
 import RemotesNavigator from '@modules/remotes/navigation/remotes-navigator';
 import BottomTabBar from '@components/bottom-tab-bar';
@@ -13,13 +15,19 @@ function NotAvailable() {
   return null;
 }
 
-/** The signed-in app: V1's four tabs, opening on Remotes. */
+/**
+ * The signed-in app: V1's four tabs, opening on Remotes, or on Devices when
+ * a pairing link arrived before sign-in (the device list then opens it).
+ */
 export default function MainTabs() {
   const { t } = useTranslation('chrome');
+  const [initialTab] = useState<keyof MainTabParamList>(() =>
+    pendingPairingStore.getPending() ? 'Devices' : 'Remotes',
+  );
 
   return (
     <Tab.Navigator
-      initialRouteName="Remotes"
+      initialRouteName={initialTab}
       tabBar={(props) => <BottomTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >

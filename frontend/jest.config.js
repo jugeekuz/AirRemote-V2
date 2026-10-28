@@ -35,6 +35,8 @@ module.exports = {
     // the CommonJS build has the same icons.
     '^lucide-react-native$':
       '<rootDir>/node_modules/lucide-react-native/dist/cjs/lucide-react-native.js',
+    // A camera Jest can drive; see the file.
+    '^expo-camera$': '<rootDir>/mocks/expo-camera.mock.tsx',
     '\\.(png|jpe?g|gif|webp|svg|ttf|otf|woff2?|mp3|wav)$':
       '<rootDir>/mocks/file.mock.ts',
   },

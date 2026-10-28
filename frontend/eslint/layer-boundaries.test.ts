@@ -189,6 +189,21 @@ describe('layer boundaries', () => {
     ).toEqual([]);
   });
 
+  it('lets only src/ui import expo-camera', async () => {
+    expect(
+      await boundaryErrors(
+        'modules/devices/components/add-device-dialog/add-device-dialog.tsx',
+        importing('expo-camera'),
+      ),
+    ).toEqual([expect.stringContaining('Only src/ui imports expo-camera')]);
+    expect(
+      await boundaryErrors(
+        'ui/qr-scanner/qr-scanner.tsx',
+        importing('expo-camera'),
+      ),
+    ).toEqual([]);
+  });
+
   it('lets only src/ui import expo-linear-gradient', async () => {
     expect(
       await boundaryErrors(

@@ -1,4 +1,15 @@
+import { authStore } from '@stores/auth';
+import { pendingPairingStore } from '@stores/pending-pairing';
+
 import { getStateFromLink } from './linking';
+
+const PAIR_LINK = 'pair?mac=aa:bb:cc:dd:ee:01&code=7k4m-q9tx';
+const PAIRING = { macAddress: 'AA:BB:CC:DD:EE:01', pairingCode: '7K4MQ9TX' };
+
+beforeEach(() => {
+  authStore.reset();
+  pendingPairingStore.reset();
+});
 
 describe('linking', () => {
   it('opens a pairing link on the device list with its mac and code', () => {
@@ -77,6 +88,39 @@ describe('linking', () => {
     });
     expect(getStateFromLink('sign-up')).toMatchObject({
       routes: [{ name: 'Auth', state: { routes: [{ name: 'SignUp' }] } }],
+    });
+  });
+
+  describe('a pairing link before sign-in', () => {
+    it('is kept for after sign-in when there is no session', () => {
+      authStore.signOut();
+
+      getStateFromLink(PAIR_LINK);
+
+      expect(pendingPairingStore.getPending()).toEqual(PAIRING);
+    });
+
+    it('is kept while the session is still being restored', () => {
+      getStateFromLink(PAIR_LINK);
+
+      expect(pendingPairingStore.getPending()).toEqual(PAIRING);
+    });
+
+    it('is not kept when signed in: the device list gets it', () => {
+      authStore.signIn('token-1');
+
+      getStateFromLink(PAIR_LINK);
+
+      expect(pendingPairingStore.getPending()).toBeNull();
+    });
+
+    it('is not kept when it is not a valid pairing', () => {
+      authStore.signOut();
+
+      getStateFromLink('pair?mac=aa:bb&code=7K4MQ9TX');
+      getStateFromLink('devices');
+
+      expect(pendingPairingStore.getPending()).toBeNull();
     });
   });
 });

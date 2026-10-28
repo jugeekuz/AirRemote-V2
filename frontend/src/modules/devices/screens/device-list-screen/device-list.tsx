@@ -1,11 +1,19 @@
 import { useCallback } from 'react';
 import { ScrollView } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
+import type { DevicesStackParamList } from '@app-types';
 import { useEditMode } from '@contexts/edit-mode';
+import AddDeviceDialog from '@modules/devices/components/add-device-dialog';
 import DeviceTile from '@modules/devices/components/device-tile';
-import { useDeviceList } from '@modules/devices/hooks';
+import { useAddDeviceDialog, useDeviceList } from '@modules/devices/hooks';
 import EmptyTiles from '@components/empty-tiles';
 import NoticeBox from '@components/notice-box';
 import Screen from '@components/screen';
@@ -13,16 +21,26 @@ import SectionHeader from '@components/section-header';
 import TileGrid from '@components/tile-grid';
 import TopToolbar from '@components/top-toolbar';
 
-/** No device to enroll from here yet: the Add device wizard comes next. */
-function openAddDevice() {}
+const NO_PAIRING_LINK = {};
 
 /**
  * The page under its edit-mode provider: header, notice, the device tiles
  * (or V1's empty state once the list is known to be empty, or "Try again"
- * when the first load failed).
+ * when the first load failed), and the Add device dialog, which a pairing
+ * link (`/pair?mac=…&code=…`) opens filled in.
  */
 export default function DeviceList() {
   const { t } = useTranslation('devices');
+  const { params = NO_PAIRING_LINK } =
+    useRoute<RouteProp<DevicesStackParamList, 'DeviceList'>>();
+  const navigation =
+    useNavigation<
+      NativeStackNavigationProp<DevicesStackParamList, 'DeviceList'>
+    >();
+  const clearPairingLink = useCallback(() => {
+    navigation.setParams({ pairMac: undefined, pairCode: undefined });
+  }, [navigation]);
+  const addDevice = useAddDeviceDialog(params, clearPairingLink);
   const { devices, isLoaded, isLoadFailed, retry, deleteDevice } =
     useDeviceList();
   const isEditing = useEditMode((state) => state.isEditing);
@@ -39,7 +57,7 @@ export default function DeviceList() {
         <SectionHeader
           title={t('device-list.heading')}
           count={devices.length}
-          onAdd={openAddDevice}
+          onAdd={addDevice.open}
           onToggleEdit={toggleEditMode}
         />
         <NoticeBox>{t('device-list.notice')}</NoticeBox>
@@ -62,6 +80,11 @@ export default function DeviceList() {
           <EmptyTiles text={t('device-list.load-failed')} onRetry={retry} />
         )}
       </ScrollView>
+      <AddDeviceDialog
+        isOpen={addDevice.isOpen}
+        pairing={addDevice.pairing}
+        onClose={addDevice.close}
+      />
     </Screen>
   );
 }
