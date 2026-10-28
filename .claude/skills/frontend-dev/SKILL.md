@@ -15,16 +15,26 @@ them in and how an agent checks a change.
       `pnpm dev` after changing it.
 - [ ] `pnpm dev` at the repository root (Docker for Postgres): the API on
       http://localhost:3000; `curl localhost:3000/health`.
-- [ ] An account: the app has no sign-up screen yet, so register one:
+- [ ] An account: Sign up in the app, or register one with curl:
 
   ```bash
   curl localhost:3000/users/register -H 'content-type: application/json' \
     -d '{"email":"you@example.com","firstName":"A","lastName":"B","password":"password123"}'
   ```
 
-- [ ] Learning or pressing a button needs a connected device: the mock device
-      (`pnpm device-sim`, see `tools/device-sim/README.md` for certificates
-      and enrolling).
+- [ ] Devices, remotes and buttons need a device: the mock device
+      (`pnpm device-sim --mac AA:BB:CC:DD:EE:01`, then `/enroll`; see
+      `tools/device-sim/README.md` for certificates). Add it in the app
+      with Devices → ⊕ → "Enter manually" and the code it prints. The
+      whole setup is "The whole app on your machine" in
+      `frontend/README.md`.
+- [ ] Never use the owner's running `pnpm dev`, root `.env` or database
+      for a check that changes data: start a second API on other ports
+      (`PORT=3001`, `DEVICE_PORT=8444`, the `certs/` paths,
+      `CORS_ORIGINS=http://localhost:8081`, a throwaway Postgres), point
+      the app at it with `EXPO_PUBLIC_API_URL=http://localhost:3001` in
+      `frontend/.env.development.local`, and start the mock with
+      `--server https://localhost:8444`. Remove all of it afterwards.
 
 ## Run the app
 
@@ -60,7 +70,8 @@ Tests passing is not "done" for UI. With the backend up:
 
 - [ ] Start the web app in the background:
       `pnpm --filter @airremote/frontend web` (Bash `run_in_background`);
-      wait until http://localhost:8081 answers.
+      wait until http://localhost:8081 answers. Add `--clear` after
+      changing `src/ui/theme.css` or an env file.
 - [ ] Load the Playwright MCP tools (`mcp__playwright__browser_*`; if they are
       deferred, fetch them with ToolSearch in one call): `browser_navigate`
       to http://localhost:8081, `browser_snapshot` to read the page,
@@ -70,8 +81,16 @@ Tests passing is not "done" for UI. With the backend up:
       change) and `browser_network_requests` (the calls you expect, no 4xx
       you didn't mean, no CORS failures).
 - [ ] Check the loading, empty and error states (stop the API to see the
-      network error toast), a phone width (`browser_resize` to 390×844) and
-      dark mode (`browser_emulate_media` with `colorScheme: 'dark'`).
+      Error dialog's network error and the list's "Try again") at a phone
+      width (`browser_resize` to 390×844). The app is light-only, so dark
+      mode needs no check.
+- [ ] **Never grant the browser camera or microphone access.** Before
+      opening the Add device wizard, stub them in the page (an init script
+      that makes `navigator.mediaDevices.getUserMedia` reject and
+      `enumerateDevices` resolve `[]`) and use "Enter manually".
+- [ ] Tiles in edit mode wobble forever, so Playwright never sees them as
+      stable: click a delete badge with
+      `browser_evaluate` (`el => el.click()`).
 - [ ] `browser_take_screenshot` of the result for your report; stop the dev
       server when done.
 

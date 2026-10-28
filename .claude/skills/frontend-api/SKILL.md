@@ -32,9 +32,10 @@ options, mutation hooks). Both are global: any module may use them.
 
 - `httpClient.get(url, schema, config)`, `.post(url, body, schema, config)`
   (also `put`, `patch`), `.delete(url, schema, config)`; a 204 uses
-  `noContentSchema`.
-  `config` is `HttpRequestConfig` (`signal`, `skipAuth`, `withCredentials`,
-  `params`), nothing else → [The http client][http].
+  `noContentSchema` from the http client (not the contracts'
+  `noContentResponseSchema`). `config` is `HttpRequestConfig` (`signal`,
+  `skipAuth`, `withCredentials`, `params`), nothing else →
+  [The http client][http].
 - API functions return contract types; reads take `options?: RequestOptions`
   and pass it on → [Layers and import rules][layers]. Path params go through
   `encodeURIComponent`, as the generated code does.
@@ -46,28 +47,37 @@ options, mutation hooks). Both are global: any module may use them.
 - Query factories are plain functions: no hooks inside; `queryFn` passes
   `{ signal }` on → [Queries][queries].
 - Mutation hooks own the cache effects (`invalidateQueries`, `setQueryData`);
-  toasts and navigation happen at the call site → [Queries][queries].
+  closing a dialog and navigating happen at the call site →
+  [Queries][queries]. A delete invalidates in `onSettled` (a 404 means it
+  is gone already) and also invalidates its children's lists: a device's
+  remotes and buttons, a remote's buttons.
 - Mutations other than auth keep TanStack's default and pause offline; only
   the auth ones use `networkMode: 'always'` → [Auth][auth].
-- Errors toast by code automatically; `meta: { silent: true }` when the
-  screen shows its own error, `meta.errorMessage` for generic codes →
-  [i18n and error messages][i18n]. `UNAUTHORIZED` and
-  `INVALID_REFRESH_TOKEN` never toast (the user lands on Login).
-- A 401 refreshes the token once and retries; only a refused refresh (a 401)
-  signs out. A refresh that fails offline or with a 5xx keeps the session,
-  and the request rejects with that error (so it toasts and Query retries
-  it); `UNAUTHORIZED` only reaches a screen when the session ended → [The refresh on 401][refresh].
+- A failed request opens V1's Error dialog with its code's text
+  automatically (`notifyApiError` → `alert.error`); don't open one
+  yourself. `meta: { silent: true }` when the screen shows its own error,
+  `meta.errorMessage` for generic codes → [i18n and error messages][i18n].
+  `UNAUTHORIZED` and `INVALID_REFRESH_TOKEN` show nothing (the user lands
+  on Login).
+- A 401 refreshes the token once and retries; only a refused refresh
+  signs out. A refresh that fails offline or with a 5xx keeps the
+  session, and the request rejects with that error (so the dialog shows it
+  and Query retries it); `UNAUTHORIZED` only reaches a screen when the
+  session ended → [The refresh on 401][refresh].
 - Empty defaults are module-level constants (`EMPTY_REMOTES`), derived data
   uses `select` with a stable function → [Queries][queries].
 - Polling: `refetchInterval` until the status is final, never `setInterval`
   → [Queries][queries]. A failed refetch or poll of a query that has data
-  shows no dialog (only a failed first load does), so a poll whose failure
-  matters (a device command) handles `isError` itself; a screen kept
-  mounted by the tabs polls with `subscribed: useIsFocused()`.
+  shows no dialog (only a failed first load does, and the screen then
+  offers "Try again" with `EmptyTiles`'s `onRetry`), so a poll whose
+  failure matters (a device command) handles `isError` itself, as
+  `useDeviceCommand` does. A screen kept mounted by the tabs spreads the
+  query's options with `subscribed: useIsFocused()`, so it polls only
+  while shown, and adds `useRefreshOnFocus(refetch)` (`useDeviceList`).
 - `queries/` never imports stores or `@ui`; `api/` never imports queries,
   stores or helpers → [Layers and import rules][layers].
 
-## Example: remotes (a path parameter, a list for a parent)
+## Example: remotes (a path parameter, a delete)
 
 ```ts
 // src/api/remotes/remotes.api.ts
@@ -82,25 +92,32 @@ export const remotesApi = {
       remoteResponseSchema,
     );
   },
+  delete(remoteId: string): Promise<void> {
+    return httpClient.delete(
+      `/remotes/${encodeURIComponent(remoteId)}`,
+      noContentSchema,
+    );
+  },
 };
 
 // src/queries/remotes/remotes.queries.ts
-export const remotesKeys = {
+export const remoteKeys = {
   all: ['remotes'] as const,
-  lists: () => [...remotesKeys.all, 'list'] as const,
+  lists: () => [...remoteKeys.all, 'list'] as const,
 };
-export const remotesQueries = {
+export const remoteQueries = {
   list: () =>
     queryOptions({
-      queryKey: remotesKeys.lists(),
+      queryKey: remoteKeys.lists(),
       queryFn: ({ signal }) => remotesApi.list({ signal }),
     }),
 };
 ```
 
-`useCreateRemoteMutation` invalidates `remotesKeys.lists()` on success;
-the screen closes its dialog in `mutate(body, { onSuccess })`. Compare
-`src/api/auth/auth.api.ts` and `src/queries/auth/auth.mutations.ts`.
+`useCreateRemoteMutation` and `useDeleteRemoteMutation` invalidate
+`remoteKeys.lists()` (the delete also `buttonKeys.lists()`) in `onSettled`;
+the wizard closes itself in `mutate(body, { onSuccess })`. See
+`src/queries/remotes/` and `src/queries/devices/`.
 
 ## Example: a device command (learn a button, press a button)
 
@@ -112,30 +129,40 @@ app polls `GET /device-commands/{id}` until it is `succeeded`, `failed` or
 
 ```ts
 // src/queries/device-commands/device-commands.queries.ts
-export const deviceCommandsQueries = {
+export const deviceCommandQueries = {
   detail: (id: string) =>
     queryOptions({
-      queryKey: deviceCommandsKeys.detail(id),
+      queryKey: deviceCommandKeys.detail(id),
       queryFn: ({ signal }) => deviceCommandsApi.get(id, { signal }),
-      // Ask again until the device settles it; `false` stops polling.
+      // Ask again until the device settles it, unless the poll itself
+      // failed for good (a 404 once the device is gone); `false` stops.
       refetchInterval: (query) =>
-        query.state.data?.status === 'pending'
-          ? DEVICE_COMMAND_POLL_INTERVAL_MS
+        query.state.status !== 'error' && query.state.data?.status === 'pending'
+          ? DEVICE_COMMAND_POLL_MS
           : false,
+      meta: { silent: true },
     }),
 };
 ```
 
-- The learn/press mutation seeds the poll with its 202 reply:
-  `queryClient.setQueryData(deviceCommandsKeys.detail(command.id), command)`.
-- The interval is a named constant (`device-commands.constants.ts` next to
-  the queries).
-- A hook (`useLearnButton(remoteId)`) runs the mutation, polls the command,
-  and when it succeeds invalidates the remote's buttons list. A settled
-  command's `error.code` is shown as `messages:errors.<CODE>`; it is a 200
-  reply, so the query cache does not toast it.
+- `useLearnButtonMutation` and `usePressButtonMutation` seed the poll with
+  the 202 reply: `queryClient.setQueryData(deviceCommandKeys.detail(id),
+command)`.
+- **`useDeviceCommand(commandId)`** (`src/hooks/use-device-command`) is
+  the reference for following one: it polls, returns `idle`, `pending`,
+  `succeeded` (with `button`) or `failed` (with `errorCode`), opens the
+  Error dialog with `messages:errors.<CODE>` once per command (a settled
+  command is a 200 reply, so the query cache never reports it), and gives
+  up with `DEVICE_NOT_RESPONDING` when the command is still pending at its
+  lifetime plus 5 s. It is not limited to the focused screen: the result
+  must arrive.
+- Module hooks build on it: `useLearnButton(remoteId, …)` and
+  `usePressButton(buttonId)` in `modules/remotes/hooks/` invalidate the
+  buttons list when a learn settles, and the device list when the device
+  turned out to be unreachable (`isDeviceUnreachableCode`).
 - Starting the command can itself fail as an `ApiError` (`DEVICE_OFFLINE`,
-  `DEVICE_BUSY`); that toasts like any mutation.
+  `DEVICE_BUSY`, `BUTTON_NAME_TAKEN`); the mutation cache shows that like
+  any mutation's.
 
 ## Verify
 

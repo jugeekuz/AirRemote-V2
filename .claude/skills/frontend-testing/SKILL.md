@@ -18,9 +18,9 @@ next to its file as `<name>.test.ts(x)`, not in `__tests__/` →
 | stores                       | unit: drive the facade, `reset()` in `beforeEach`                           | `src/stores/auth/auth.store.test.ts`                              |
 | helpers, utils, config       | unit: inputs → outputs                                                      | `src/helpers/errors/errors.helpers.test.ts`                       |
 | hooks, contexts              | integration: `renderHook` with `createQueryWrapper()`                       | `src/hooks/use-login/use-login.test.ts`                           |
-| components                   | unit + integration: `renderWithProviders`, user events                      | generated `<name>.test.tsx`                                       |
-| screens                      | optional integration, API mocked                                            | `src/modules/auth/screens/login-screen/login-screen.test.tsx`     |
-| app (session hooks, toasts)  | unit: `@api/auth` or `@ui` mocked, real `authStore` and query client        | `src/app/bootstrap.test.ts`, `src/app/notify-api-error.test.ts`   |
+| components                   | unit + integration: `renderWithProviders`, user events                      | `src/components/delete-badge/delete-badge.test.tsx`               |
+| screens                      | integration, API mocked, real query client and navigator                    | `src/modules/devices/screens/device-list-screen/`                 |
+| app (session hooks, errors)  | unit: `@api/auth` or `@ui` mocked, real `authStore` and query client        | `src/app/bootstrap.test.ts`, `src/app/notify-api-error.test.ts`   |
 | navigation, constants        | none                                                                        |                                                                   |
 
 ## Steps
@@ -70,8 +70,27 @@ next to its file as `<name>.test.ts(x)`, not in `__tests__/` →
 - Tests are exempt from the layer rules, not from no-`../` or
   `process.env` → [Layers and import rules][layers].
 - `jest.setup.ts` already mocks `@config/env` (`https://api.test`), the
-  storage adapter (in-memory), NetInfo, react-i18next and the kit's native
-  modules. Add a global mock there only for a new native dependency.
+  storage adapter (in-memory), NetInfo, react-i18next, the safe area and
+  the kit's native modules. Add a global mock there only for a new native
+  dependency. `expo-camera` is mapped to `mocks/expo-camera.mock.tsx`: set
+  the permission with `cameraMock`, scan with
+  `fireEvent(screen.getByTestId(CAMERA_VIEW_TEST_ID), 'barcodeScanned', { type: 'qr', data })`,
+  fail it with `'mountError'` (`src/ui/qr-scanner/qr-scanner.test.tsx`).
+- The Error and Confirmation dialogs render through `renderWithProviders`
+  (it mounts `UiProvider`): assert the message text (`errors.<CODE>` with
+  the `t` mock) and press `OK`, `Yes` or `No`; or spy on `alert.error`
+  from `@ui` in a hook test (`use-device-command.test.ts`).
+- A screen test mounts the real screen in a navigator with a second route
+  ("Elsewhere") to check focus and blur (edit mode stops, the list
+  refetches), with the app's `createQueryClient(onApiError)` to see what
+  reaches the Error dialog (`device-list-screen.test.tsx`).
+- Under fake timers TanStack Query hands a query's answer over on a
+  zero-delay timer, so a timing test advances a few ms past the moment it
+  checks (`RENDER_MS` in `use-press-button.test.ts`), and sets the app's
+  `staleTime` where a seeded query must not refetch on mount.
+- react-native-web's `aria-*` props are folded into `accessibilityState`
+  by React Native in Jest; to assert them, record the props given to
+  `Pressable` (`submit-button.test.tsx`).
 
 ## Example: polling a device command
 
@@ -92,7 +111,7 @@ it('polls until the device settles the command, then stops', async () => {
     .mockResolvedValueOnce({ ...command, status: 'pending' })
     .mockResolvedValueOnce({ ...command, status: 'succeeded', button });
   const { result } = await renderHook(
-    () => useQuery(deviceCommandsQueries.detail(command.id)),
+    () => useQuery(deviceCommandQueries.detail(command.id)),
     { wrapper: createQueryWrapper() },
   );
   await waitFor(() => {
@@ -100,21 +119,24 @@ it('polls until the device settles the command, then stops', async () => {
   });
 
   await act(async () => {
-    jest.advanceTimersByTime(DEVICE_COMMAND_POLL_INTERVAL_MS);
+    jest.advanceTimersByTime(DEVICE_COMMAND_POLL_MS);
   });
 
   await waitFor(() => {
     expect(result.current.data?.status).toBe('succeeded');
   });
   await act(async () => {
-    jest.advanceTimersByTime(DEVICE_COMMAND_POLL_INTERVAL_MS * 3);
+    jest.advanceTimersByTime(DEVICE_COMMAND_POLL_MS * 3);
   });
   expect(api.get).toHaveBeenCalledTimes(2);
 });
 ```
 
 Advance by the named interval rather than relying on `waitFor`, whose
-default timeout (1 s) may be shorter than the interval.
+default timeout (1 s) may be shorter than the interval. The real tests are
+`src/queries/device-commands/device-commands.queries.test.tsx` (the poll)
+and `src/hooks/use-device-command/use-device-command.test.ts` (states,
+the Error dialog once per command, giving up past the deadline).
 
 ## Verify
 
