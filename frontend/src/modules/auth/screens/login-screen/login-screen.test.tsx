@@ -1,6 +1,12 @@
 import type { AccessTokenResponse } from '@airremote/contracts';
 
-import { renderWithProviders, screen, userEvent, waitFor } from '@utils/tests';
+import {
+  fireEvent,
+  renderWithProviders,
+  screen,
+  userEvent,
+  waitFor,
+} from '@utils/tests';
 import { authApi } from '@api/auth';
 import { AUTH_STATUS, authStore } from '@stores/auth';
 
@@ -77,5 +83,33 @@ describe('LoginScreen', () => {
     await waitFor(() => {
       expect(authStore.getStatus()).toBe(AUTH_STATUS.AUTHENTICATED);
     });
+  });
+
+  it('does not submit again on Enter while signing in', async () => {
+    let resolveLogin: (value: AccessTokenResponse) => void = () => {};
+    api.login.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveLogin = resolve;
+      }),
+    );
+    await renderWithProviders(<LoginScreen />);
+    const user = userEvent.setup();
+    const password = screen.getByLabelText('login.password');
+
+    await user.type(screen.getByLabelText('login.email'), credentials.email);
+    await user.type(password, credentials.password, { submitEditing: true });
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'login.submit' }),
+      ).toBeDisabled();
+    });
+    await fireEvent(password, 'submitEditing');
+
+    expect(api.login).toHaveBeenCalledTimes(1);
+    resolveLogin(token);
+    await waitFor(() => {
+      expect(authStore.getStatus()).toBe(AUTH_STATUS.AUTHENTICATED);
+    });
+    expect(api.login).toHaveBeenCalledTimes(1);
   });
 });

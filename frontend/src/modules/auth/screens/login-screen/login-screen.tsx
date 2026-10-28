@@ -24,9 +24,13 @@ export default function LoginScreen() {
 
   // Validates first; on failure the fields show their i18n texts (never the
   // schema's own messages). Called without the press event, which isn't a
-  // web form event.
+  // web form event. Enter in the password field still works while the
+  // button is disabled, so a pending sign-in is checked here too.
   const validateAndLogin = handleSubmit(login);
   const submit = () => {
+    if (isLoggingIn) {
+      return;
+    }
     void validateAndLogin();
   };
 
