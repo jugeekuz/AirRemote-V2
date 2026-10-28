@@ -1,0 +1,21 @@
+import { View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
+
+import TopToolbar from '@components/top-toolbar';
+import { Text } from '@ui';
+
+/** Placeholder: shows the shell until the real screen replaces it. */
+export default function RemoteDetailsScreen() {
+  const { t } = useTranslation('remotes');
+  const navigation = useNavigation();
+
+  return (
+    <View className="flex-1 bg-background">
+      <TopToolbar onBack={() => navigation.goBack()} />
+      <Text.Heading type="h3" className="ml-2">
+        {t('remote-details.title')}
+      </Text.Heading>
+    </View>
+  );
+}

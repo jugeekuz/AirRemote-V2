@@ -12,5 +12,12 @@
   "status-dot": {
     "online": "Connected",
     "offline": "Disconnected"
+  },
+  "bottom-tab-bar": {
+    "dashboard": "Dashboard",
+    "remotes": "Remotes",
+    "devices": "Devices",
+    "automations": "Automations",
+    "unavailable": "Not available yet"
   }
 }

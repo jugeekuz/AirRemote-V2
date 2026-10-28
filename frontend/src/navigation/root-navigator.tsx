@@ -5,8 +5,8 @@ import type { RootStackParamList } from '@app-types';
 import { useAuth } from '@hooks/use-auth';
 import { useSessionHydration } from '@hooks/use-session-hydration';
 import { useSyncLanguage } from '@hooks/use-sync-language';
+import MainTabs from '@navigation/main-tabs';
 import AuthNavigator from '@modules/auth/navigation/auth-navigator';
-import HomeNavigator from '@modules/home/navigation/home-navigator';
 import LoadingFailedScreen from '@screens/loading-failed-screen';
 import LoadingScreen from '@screens/loading-screen';
 
@@ -33,11 +33,7 @@ export default function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {isLoggedIn ? (
-        <Stack.Screen
-          name="Main"
-          component={HomeNavigator}
-          options={{ title: t('home') }}
-        />
+        <Stack.Screen name="Main" component={MainTabs} />
       ) : (
         <Stack.Screen
           name="Auth"
