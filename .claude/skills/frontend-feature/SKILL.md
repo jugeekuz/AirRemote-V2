@@ -49,11 +49,11 @@ device command that the app polls (see `frontend-api`).
 
 ## 2. Porting a V1 page
 
-- Read `legacy/frontend/src/pages/<Page>.jsx` (`Login`, `SignUp`, `Devices`,
-  `Remotes`, `RemoteButtons`, ...) and the components it uses for
-  **behaviour only**: what it shows, which actions it offers, its loading,
-  empty and error states, its texts. `legacy/` is read-only: never import,
-  copy or imitate its code, structure or dependencies (root `CLAUDE.md`).
+- Read V1's page with `git show v1-final:frontend/src/pages/<Page>.jsx`
+  (`Login`, `SignUp`, `Devices`, `Remotes`, `RemoteButtons`, ...) and the
+  components it uses for **behaviour only**: what it shows, which actions it
+  offers, its loading, empty and error states, its texts. Never import, copy
+  or imitate its code, structure or dependencies (root `CLAUDE.md`).
 - Map every V1 action to a row of the table above. V1's own mechanisms are
   replaced, not ported: `useFetch`/`useFetchMemo` → queries, `AuthContext` →
   `authStore`/`useAuth`, the browser WebSocket for IR → polling a device
@@ -71,7 +71,7 @@ device command that the app polls (see `frontend-api`).
 - V1's look is resolved to values (every class, colour, size, text and
   asset of its pages) in
   `docs/superpowers/specs/2026-10-28-v1-look-inventory.md`; read that
-  before the legacy code. Rebuild it with `@ui`, the shared components and
+  before V1's code. Rebuild it with `@ui`, the shared components and
   the theme (`frontend-ui`).
 - A deliberate difference from V1 (a Back button, a not-found state, a
   disabled Next) is fine when V2 needs it; list it in your report and in
