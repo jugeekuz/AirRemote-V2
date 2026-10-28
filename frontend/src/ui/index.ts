@@ -16,6 +16,7 @@ export { Dialog } from './heroui/components/dialog';
 export { FieldError } from './heroui/components/field-error';
 export { Input } from './heroui/components/input';
 export { Label } from './heroui/components/label';
+export { Menu } from './heroui/components/menu';
 export { Spinner } from './heroui/components/spinner';
 export { Surface } from './heroui/components/surface';
 // The kit's `Text` is a deprecated alias of `Typography`; same component.

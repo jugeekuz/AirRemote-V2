@@ -2,6 +2,7 @@ import enAuth from '@modules/auth/i18n/locales/en/auth.json';
 import enHome from '@modules/home/i18n/locales/en/home.json';
 
 import enActions from './locales/en/actions.json';
+import enChrome from './locales/en/chrome.json';
 import enMessages from './locales/en/messages.json';
 import enScreens from './locales/en/screens.json';
 
@@ -9,6 +10,7 @@ import enScreens from './locales/en/screens.json';
 export const resources = {
   en: {
     actions: enActions,
+    chrome: enChrome,
     messages: enMessages,
     screens: enScreens,
     auth: enAuth,

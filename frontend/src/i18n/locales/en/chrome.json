@@ -1,0 +1,16 @@
+{
+  "top-toolbar": {
+    "logo": "AirRemote",
+    "back": "Back",
+    "account": "Account",
+    "invite-friend": "Invite a friend",
+    "logout": "Logout"
+  },
+  "empty-tiles": {
+    "hint": "Click the <icon/> icon to get started."
+  },
+  "status-dot": {
+    "online": "Connected",
+    "offline": "Disconnected"
+  }
+}
