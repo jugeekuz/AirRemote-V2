@@ -54,20 +54,22 @@ interfaces by default, so a phone can reach it at the LAN address.
 
 A phone or emulator makes plain native requests, so it needs no CORS. The
 web app runs on another origin (`http://localhost:8081`), so the API must
-list it in `CORS_ORIGINS` in the root `.env` (`.env.example` already does);
-restart `pnpm dev` after changing it.
+list it in `CORS_ORIGINS` (`.env.example` already does, and `pnpm dev` adds it
+when it is missing); restart `pnpm dev` after changing it.
 
 ## Run it
 
 Run these from `frontend/`, or from the root with
 `pnpm --filter @airremote/frontend <script>`.
 
-**Web:** `pnpm web`, then open http://localhost:8081.
+**Web:** `pnpm dev` at the repository root runs the API and the web app
+together; open http://localhost:8081. `pnpm web` here starts only the app,
+for an API that is already running (`pnpm dev --api-only`).
 
 **Android:** `pnpm android` builds a development build, installs it on the
 running emulator or the connected phone, and starts the dev server. Until
 native code or native dependencies change, `pnpm start` is enough: the
-installed build connects to it.
+installed build connects to it (`pnpm dev` at the root already runs it).
 
 **iOS:** `pnpm ios` on a Mac, the same way. On Linux, iOS builds need EAS.
 
@@ -136,12 +138,12 @@ device stands in for a board (`tools/device-sim/README.md`):
    ```
 
 2. `pnpm dev` at the root: Postgres, migrations, then the API on
-   http://localhost:3000 and the device listener on https://localhost:8443.
+   http://localhost:3000, the device listener on https://localhost:8443 and
+   the web app on http://localhost:8081.
 3. In another terminal, `pnpm device-sim --mac AA:BB:CC:DD:EE:01`, then
    type `/enroll`: it prints a pairing code (and a QR code).
-4. `pnpm --filter @airremote/frontend web`, open http://localhost:8081,
-   sign up, log in, then Devices → ⊕ → Next → "Enter manually" with the
-   MAC and the code (or scan the QR code on a phone). The mock connects
+4. Open http://localhost:8081, sign up, log in, then Devices → ⊕ → Next →
+   "Enter manually" with the MAC and the code (or scan the QR code on a phone). The mock connects
    within 5 s; the tile says Connected at the next refresh (30 s, or when
    you come back to the tab).
 5. Remotes → ⊕ adds a remote on the device; open it and ⊕ to learn a

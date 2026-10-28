@@ -30,8 +30,11 @@ pnpm dev
 ```
 
 `pnpm dev` (`scripts/dev.ts`) starts Postgres with Docker Compose, applies
-pending migrations, then runs the API and restarts it on file changes.
-Ctrl+C stops the API, then Postgres.
+pending migrations, then runs the API (restarting it on file changes) and the
+app's dev server: the web app on http://localhost:8081, which installed
+development builds connect to as well. It adds `http://localhost:8081` to
+`CORS_ORIGINS` for the API when it is missing. `pnpm dev --api-only` runs the
+API without the app. Ctrl+C stops both servers, then Postgres.
 
 ## Device listener
 
@@ -134,13 +137,14 @@ sends the httpOnly refresh cookie) only if its origin is in `CORS_ORIGINS`:
 comma-separated origins such as `http://localhost:8081,https://app.example.com`
 (scheme, host and optional port; no path or trailing slash). It is empty by
 default, which adds no CORS headers. The Expo web dev server runs at
-`http://localhost:8081`. Native apps do not use CORS.
+`http://localhost:8081`; `pnpm dev` adds it when it is missing. Native apps do
+not use CORS.
 
 ## Scripts (from the repository root)
 
 | Script                  | What it does                                                  |
 | ----------------------- | ------------------------------------------------------------- |
-| `pnpm dev`              | Starts Postgres, migrates, runs the API in watch mode         |
+| `pnpm dev`              | Starts Postgres, migrates, runs the API and the web app       |
 | `pnpm build`            | Builds the API and the migrate script to `dist/`              |
 | `pnpm typecheck`        | Type-checks every package                                     |
 | `pnpm lint`             | Runs ESLint                                                   |
