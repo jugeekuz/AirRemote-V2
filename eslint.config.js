@@ -10,7 +10,6 @@ import { layerBoundaryConfigs } from './frontend/eslint/layer-boundaries.mjs';
 export default tseslint.config(
   {
     ignores: [
-      'legacy/**',
       '**/dist/**',
       '**/node_modules/**',
       'packages/db/migrations/**',

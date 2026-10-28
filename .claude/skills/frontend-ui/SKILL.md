@@ -108,11 +108,11 @@ in `src/ui/heroui/components/` (`list-group`, `chip`, `skeleton`, `select`,
 
 Every class, colour, size, text and asset of V1's pages is resolved to
 values in `docs/superpowers/specs/2026-10-28-v1-look-inventory.md`: start
-there. Read the V1 page in `legacy/frontend/src/` only for what the
-inventory doesn't cover, for layout and content only; never copy markup,
-CSS or code. The app is light-only, as V1 was. V1's pictures are already
-in `src/assets/` (`IMAGES`); a new one needs the owner's approval before
-it is copied, and nothing may reference `legacy/`. A change to
+there. Read the V1 page (`git show v1-final:frontend/src/...`) only for
+what the inventory doesn't cover, for layout and content only; never copy
+markup, CSS or code. The app is light-only, as V1 was. V1's pictures are
+already in `src/assets/` (`IMAGES`); a new one needs the owner's approval
+before it is copied. A change to
 `src/ui/theme.css` needs the dev server restarted with `--clear`.
 
 ## Example: a tile with edit mode (module component)
