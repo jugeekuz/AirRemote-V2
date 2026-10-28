@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CreateRemoteRequest } from '@airremote/contracts';
 
 import { remotesApi } from '@api/remotes';
+import { buttonKeys } from '@queries/buttons';
 
 import { remoteKeys } from './remotes.queries';
 
@@ -30,7 +31,8 @@ export function useCreateRemoteMutation() {
 
 /**
  * Deletes a remote (the server deletes its buttons with it) and refreshes
- * the remote lists, after a failure too: a 404 means it is already gone.
+ * the remote and buttons lists, after a failure too: a 404 means it is
+ * already gone.
  */
 export function useDeleteRemoteMutation() {
   const queryClient = useQueryClient();
@@ -39,6 +41,9 @@ export function useDeleteRemoteMutation() {
     mutationKey: [...remoteKeys.all, 'delete'],
     mutationFn: (remoteId: string) => remotesApi.delete(remoteId),
     onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: remoteKeys.lists() }),
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: remoteKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: buttonKeys.lists() }),
+      ]),
   });
 }

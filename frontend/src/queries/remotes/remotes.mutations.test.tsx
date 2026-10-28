@@ -9,6 +9,7 @@ import {
   waitFor,
 } from '@utils/tests';
 import { remotesApi } from '@api/remotes';
+import { buttonKeys } from '@queries/buttons';
 
 import {
   useCreateRemoteMutation,
@@ -133,6 +134,24 @@ describe('useDeleteRemoteMutation', () => {
     );
     const [mutation] = queryClient.getMutationCache().getAll();
     expect(mutation?.options.mutationKey).toEqual(['remotes', 'delete']);
+  });
+
+  // The server deletes the remote's buttons with it.
+  it('marks the cached buttons lists stale too', async () => {
+    api.delete.mockResolvedValueOnce(undefined);
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(buttonKeys.list(remote.id), []);
+
+    const { result } = await renderHook(() => useDeleteRemoteMutation(), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+    await act(async () => {
+      await result.current.mutateAsync(remote.id);
+    });
+
+    expect(
+      queryClient.getQueryState(buttonKeys.list(remote.id))?.isInvalidated,
+    ).toBe(true);
   });
 
   // A 404 means the remote is already gone: the refetch drops its tile.

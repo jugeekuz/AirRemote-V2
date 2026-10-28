@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { EnrollDeviceRequest } from '@airremote/contracts';
 
 import { devicesApi } from '@api/devices';
+import { buttonKeys } from '@queries/buttons';
 import { remoteKeys } from '@queries/remotes';
 
 import { deviceKeys } from './devices.queries';
@@ -21,9 +22,8 @@ export function useEnrollDeviceMutation() {
 
 /**
  * Deletes a device (the server deletes its remotes and buttons with it) and
- * refreshes the device and remote lists, after a failure too: a 404 means
- * the device is already gone. Buttons lists join the invalidation once
- * their queries exist.
+ * refreshes the device, remote and buttons lists, after a failure too: a
+ * 404 means the device is already gone.
  */
 export function useDeleteDeviceMutation() {
   const queryClient = useQueryClient();
@@ -35,6 +35,7 @@ export function useDeleteDeviceMutation() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: deviceKeys.lists() }),
         queryClient.invalidateQueries({ queryKey: remoteKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: buttonKeys.lists() }),
       ]),
   });
 }

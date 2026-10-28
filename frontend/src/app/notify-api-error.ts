@@ -1,7 +1,7 @@
 import i18next, { type ParseKeys } from 'i18next';
 
 import type { ApiError, ApiErrorCode } from '@app-types';
-import { isGenericErrorCode } from '@helpers/errors';
+import { isGenericErrorCode, isSessionErrorCode } from '@helpers/errors';
 import { alert } from '@ui';
 
 /**
@@ -21,17 +21,6 @@ function errorMessage(code: ApiErrorCode): string {
 }
 
 /**
- * Codes that mean the session is missing or over. They only reach a screen
- * when it really ended: a refresh that fails transiently rejects with its own
- * error instead. The user is taken to Login, and a session that ends would
- * otherwise show an error once per query in flight.
- */
-const SESSION_ERROR_CODES: readonly ApiErrorCode[] = Object.freeze([
-  'UNAUTHORIZED',
-  'INVALID_REFRESH_TOKEN',
-] as const);
-
-/**
  * V1's Error dialog for a failed request (several queue, one at a time).
  * The text comes from the error's code; a caller's `fallbackMessage`
  * replaces it only for generic codes, which say nothing specific. The server's `message` is never shown, and a session
@@ -41,7 +30,9 @@ export function notifyApiError(
   error: ApiError,
   fallbackMessage?: string,
 ): void {
-  if (SESSION_ERROR_CODES.includes(error.code)) {
+  // The user is taken to Login; a session that ends would otherwise show
+  // an error once per query in flight.
+  if (isSessionErrorCode(error.code)) {
     return;
   }
   const message = isGenericErrorCode(error.code)
