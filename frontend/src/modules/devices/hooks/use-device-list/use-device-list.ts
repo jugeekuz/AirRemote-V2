@@ -1,3 +1,5 @@
+import { useCallback } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 
 import type { DeviceResponse } from '@airremote/contracts';
@@ -12,23 +14,39 @@ type DeviceList = {
   devices: readonly DeviceResponse[];
   /** The list has answered at least once (it may be empty). */
   isLoaded: boolean;
+  /** The first load failed, so there is nothing to show. */
+  isLoadFailed: boolean;
+  /** Asks for the list again (the "Try again" button). */
+  retry: () => void;
   /** Deletes a device; the list drops it once the server agrees. */
   deleteDevice: (deviceId: string) => void;
 };
 
 /**
- * The Devices screen's data: the device list (refetched every 30 s and when
- * the screen regains focus, so the online dots stay current) and deleting
- * one. Failures show the Error dialog through the query client.
+ * The Devices screen's data: the device list and deleting one. The list is
+ * refetched every 30 s while the screen is shown (the tabs keep it mounted
+ * behind other tabs, where it stays quiet) and when it regains focus, so
+ * the online dots stay current. A failed first load shows the Error dialog
+ * and `isLoadFailed`; a failed refetch keeps the last list.
  */
 export function useDeviceList(): DeviceList {
-  const { data, refetch } = useQuery(deviceQueries.list());
+  const isFocused = useIsFocused();
+  const { data, isError, refetch } = useQuery({
+    ...deviceQueries.list(),
+    subscribed: isFocused,
+  });
   const { mutate: deleteDevice } = useDeleteDeviceMutation();
   useRefreshOnFocus(refetch);
+
+  const retry = useCallback(() => {
+    void refetch();
+  }, [refetch]);
 
   return {
     devices: data ?? EMPTY_DEVICES,
     isLoaded: data !== undefined,
+    isLoadFailed: isError && data === undefined,
+    retry,
     deleteDevice,
   };
 }

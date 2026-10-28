@@ -131,7 +131,8 @@ describe('useDeleteDeviceMutation', () => {
     expect(mutation?.options.mutationKey).toEqual(['devices', 'delete']);
   });
 
-  it('exposes the ApiError of a rejected delete and keeps the list', async () => {
+  // A 404 means the device is already gone: the refetch drops its tile.
+  it('exposes the ApiError of a rejected delete and refreshes the list', async () => {
     api.delete.mockRejectedValueOnce(notFound);
     const queryClient = createTestQueryClient();
     queryClient.setQueryData(deviceKeys.lists(), [device]);
@@ -146,7 +147,7 @@ describe('useDeleteDeviceMutation', () => {
     });
     expect(result.current.error).toBe(notFound);
     expect(queryClient.getQueryState(deviceKeys.lists())?.isInvalidated).toBe(
-      false,
+      true,
     );
   });
 });

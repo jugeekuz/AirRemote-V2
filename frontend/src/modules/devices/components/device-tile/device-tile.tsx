@@ -9,6 +9,9 @@ import Wobble from '@components/wobble';
 import { Image, Text } from '@ui';
 import { IMAGES } from '@assets/images';
 
+/** microcontroller3.png is 252 × 175. */
+const MICROCONTROLLER_ASPECT_RATIO = 252 / 175;
+
 type DeviceTileProps = {
   device: DeviceResponse;
   /** Edit mode: the tile wobbles and shows its delete badge. */
@@ -53,13 +56,20 @@ export default function DeviceTile({
               </View>
             </View>
           </View>
+          {/* V1's `background-size: auto 100%`, bottom left, 12 px left. */}
           <View className="h-2/3 w-full">
-            <Image
-              source={IMAGES.microcontroller}
-              contentFit="contain"
-              contentPosition="bottom left"
-              className="-ml-3 flex-1"
-            />
+            {/* The box sets the size: expo-image drops `aspectRatio` on web. */}
+            <View
+              testID="device-tile-picture"
+              className="-ml-3 h-full self-start"
+              style={{ aspectRatio: MICROCONTROLLER_ASPECT_RATIO }}
+            >
+              <Image
+                source={IMAGES.microcontroller}
+                contentFit="cover"
+                className="size-full"
+              />
+            </View>
           </View>
         </View>
         {isEditing && (

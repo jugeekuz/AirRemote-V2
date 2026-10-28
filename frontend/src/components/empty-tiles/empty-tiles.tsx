@@ -1,12 +1,18 @@
 import { useWindowDimensions, View } from 'react-native';
-import { CircleFadingPlus } from 'lucide-react-native';
-import { Trans } from 'react-i18next';
 
-import { Icon, Text } from '@ui';
+import { Text } from '@ui';
+
+import EmptyTilesHint from './empty-tiles-hint';
+import EmptyTilesRetry from './empty-tiles-retry';
 
 type EmptyTilesProps = {
   /** What is missing, e.g. "No devices available". */
   text: string;
+  /**
+   * The list failed to load: a "Try again" button replaces "Click the ⊕
+   * icon to get started.", and `text` says what failed.
+   */
+  onRetry?: () => void;
 };
 
 /**
@@ -14,7 +20,7 @@ type EmptyTilesProps = {
  * Like V1 it is as tall as the window with an empty lower half, so the text
  * sits in the upper middle below the header. Put it in a ScrollView.
  */
-export default function EmptyTiles({ text }: EmptyTilesProps) {
+export default function EmptyTiles({ text, onRetry }: EmptyTilesProps) {
   const { height } = useWindowDimensions();
 
   return (
@@ -24,23 +30,7 @@ export default function EmptyTiles({ text }: EmptyTilesProps) {
       style={{ height }}
     >
       <Text className="font-poppins-semibold text-lg text-black">{text}</Text>
-      <Text className="font-poppins text-sm text-gray-500">
-        <Trans
-          ns="chrome"
-          i18nKey="empty-tiles.hint"
-          components={{
-            icon: (
-              <View className="mx-1">
-                <Icon
-                  as={CircleFadingPlus}
-                  size={16}
-                  colorClassName="text-gray-500"
-                />
-              </View>
-            ),
-          }}
-        />
-      </Text>
+      {onRetry ? <EmptyTilesRetry onPress={onRetry} /> : <EmptyTilesHint />}
       <View testID="empty-tiles-spacer" className="h-1/2" />
     </View>
   );

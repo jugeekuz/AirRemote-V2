@@ -127,6 +127,32 @@ describe('DeviceListScreen', () => {
     expect(screen.getByText('0')).toBeOnTheScreen();
   });
 
+  it('offers to try again when the first load fails', async () => {
+    const offline: ApiError = {
+      code: 'NETWORK_ERROR',
+      message: 'Network Error',
+      isNetworkError: true,
+    };
+    api.list.mockRejectedValueOnce(offline).mockResolvedValueOnce([desk]);
+    queryClient.setDefaultOptions({
+      ...queryClient.getDefaultOptions(),
+      queries: { ...queryClient.getDefaultOptions().queries, retry: false },
+    });
+
+    await renderDevices();
+
+    expect(
+      await screen.findByText('device-list.load-failed'),
+    ).toBeOnTheScreen();
+    expect(onApiError).toHaveBeenCalledWith(offline, undefined);
+    expect(screen.queryByText('device-list.empty')).not.toBeOnTheScreen();
+
+    await press('try-again');
+
+    expect(await screen.findByText('Desk')).toBeOnTheScreen();
+    expect(screen.queryByText('device-list.load-failed')).not.toBeOnTheScreen();
+  });
+
   it('deletes a device in edit mode after the confirmation', async () => {
     api.list.mockResolvedValueOnce([desk, hall]).mockResolvedValueOnce([desk]);
     api.delete.mockResolvedValueOnce(undefined);

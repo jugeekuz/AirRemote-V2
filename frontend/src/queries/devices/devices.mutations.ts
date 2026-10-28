@@ -20,8 +20,9 @@ export function useEnrollDeviceMutation() {
 
 /**
  * Deletes a device (the server deletes its remotes and buttons with it) and
- * refreshes the device lists. Remotes and buttons lists join the
- * invalidation once their queries exist.
+ * refreshes the device lists, after a failure too: a 404 means the device
+ * is already gone. Remotes and buttons lists join the invalidation once
+ * their queries exist.
  */
 export function useDeleteDeviceMutation() {
   const queryClient = useQueryClient();
@@ -29,7 +30,7 @@ export function useDeleteDeviceMutation() {
   return useMutation({
     mutationKey: [...deviceKeys.all, 'delete'],
     mutationFn: (deviceId: string) => devicesApi.delete(deviceId),
-    onSuccess: () =>
+    onSettled: () =>
       queryClient.invalidateQueries({ queryKey: deviceKeys.lists() }),
   });
 }

@@ -96,5 +96,27 @@ describe('deviceQueries.list', () => {
       });
       expect(api.list).toHaveBeenCalledTimes(2);
     });
+
+    // Nothing to keep current yet; the screen offers "Try again" instead.
+    it('does not poll after a failed first load', async () => {
+      api.list.mockRejectedValue({
+        code: 'NETWORK_ERROR',
+        message: 'Network Error',
+        isNetworkError: true,
+      });
+
+      const { result } = await renderHook(
+        () => useQuery({ ...deviceQueries.list(), retry: false }),
+        { wrapper: createQueryWrapper() },
+      );
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      });
+
+      await act(async () => {
+        jest.advanceTimersByTime(DEVICE_LIST_REFETCH_MS * 3);
+      });
+      expect(api.list).toHaveBeenCalledTimes(1);
+    });
   });
 });

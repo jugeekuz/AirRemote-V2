@@ -1,4 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 
 import type { DeviceResponse } from '@airremote/contracts';
 
@@ -11,12 +11,14 @@ import {
   waitFor,
 } from '@utils/tests';
 import { devicesApi } from '@api/devices';
+import { DEVICE_LIST_REFETCH_MS } from '@queries/devices';
 
 import { useDeviceList } from './use-device-list';
 
 jest.mock('@api/devices');
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: jest.fn(),
+  useIsFocused: jest.fn(),
 }));
 
 const api = jest.mocked(devicesApi);
@@ -43,8 +45,15 @@ async function focus() {
   });
 }
 
+const offline: ApiError = {
+  code: 'NETWORK_ERROR',
+  message: 'Network Error',
+  isNetworkError: true,
+};
+
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.mocked(useIsFocused).mockReturnValue(true);
   jest.mocked(useFocusEffect).mockImplementation((callback) => {
     focusCallback = () => {
       callback();
@@ -77,26 +86,78 @@ describe('useDeviceList', () => {
     expect(result.current.devices).toEqual([desk, hall]);
   });
 
-  it('is not loaded when the first load failed', async () => {
-    const offline: ApiError = {
-      code: 'NETWORK_ERROR',
-      message: 'Network Error',
-      isNetworkError: true,
-    };
-    const queryClient = createTestQueryClient();
-    api.list.mockRejectedValueOnce(offline);
+  it('says when the first load failed, and tries again', async () => {
+    api.list.mockRejectedValueOnce(offline).mockResolvedValueOnce([desk]);
 
     const { result } = await renderHook(() => useDeviceList(), {
-      wrapper: createQueryWrapper(queryClient),
+      wrapper: createQueryWrapper(),
     });
 
     await waitFor(() => {
-      expect(queryClient.getQueryState(['devices', 'list'])?.status).toBe(
-        'error',
-      );
+      expect(result.current.isLoadFailed).toBe(true);
     });
     expect(result.current.isLoaded).toBe(false);
     expect(result.current.devices).toEqual([]);
+
+    await act(async () => {
+      result.current.retry();
+    });
+
+    await waitFor(() => {
+      expect(result.current.devices).toEqual([desk]);
+    });
+    expect(result.current.isLoadFailed).toBe(false);
+    expect(result.current.isLoaded).toBe(true);
+  });
+
+  it('keeps the devices when a later refetch fails', async () => {
+    api.list.mockResolvedValueOnce([desk]).mockRejectedValueOnce(offline);
+
+    const { result } = await renderHook(() => useDeviceList(), {
+      wrapper: createQueryWrapper(),
+    });
+    await waitFor(() => {
+      expect(result.current.isLoaded).toBe(true);
+    });
+
+    await act(async () => {
+      result.current.retry();
+    });
+
+    await waitFor(() => {
+      expect(api.list).toHaveBeenCalledTimes(2);
+    });
+    expect(result.current.devices).toEqual([desk]);
+    expect(result.current.isLoadFailed).toBe(false);
+  });
+
+  // Bottom tabs keep the screen mounted; it must not poll from behind.
+  describe('while the screen is not shown', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('stops asking every 30 seconds', async () => {
+      api.list.mockResolvedValue([desk]);
+      const { result, rerender } = await renderHook(() => useDeviceList(), {
+        wrapper: createQueryWrapper(createTestQueryClient()),
+      });
+      await waitFor(() => {
+        expect(result.current.isLoaded).toBe(true);
+      });
+
+      jest.mocked(useIsFocused).mockReturnValue(false);
+      await rerender({});
+      await act(async () => {
+        jest.advanceTimersByTime(DEVICE_LIST_REFETCH_MS * 3);
+      });
+
+      expect(api.list).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('asks again when the screen regains focus', async () => {

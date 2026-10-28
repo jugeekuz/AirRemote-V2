@@ -79,4 +79,16 @@ describe('DeviceTile', () => {
 
     expect(onDelete).toHaveBeenCalledWith(desk.id);
   });
+
+  // V1's `background-size: auto 100%`: as tall as the bottom area at any
+  // tile width, so it does not shrink in narrow tiles.
+  it('draws the picture at full height, keeping its proportions', async () => {
+    await renderWithProviders(
+      <DeviceTile device={desk} isEditing={false} onDelete={jest.fn()} />,
+    );
+
+    const picture = screen.getByTestId('device-tile-picture');
+    expect(picture).toHaveStyle({ aspectRatio: 252 / 175 });
+    expect(picture.props.className).toContain('h-full');
+  });
 });

@@ -17,11 +17,13 @@ function openAddDevice() {}
 
 /**
  * The page under its edit-mode provider: header, notice, the device tiles
- * (or V1's empty state once the list is known to be empty).
+ * (or V1's empty state once the list is known to be empty, or "Try again"
+ * when the first load failed).
  */
 export default function DeviceList() {
   const { t } = useTranslation('devices');
-  const { devices, isLoaded, deleteDevice } = useDeviceList();
+  const { devices, isLoaded, isLoadFailed, retry, deleteDevice } =
+    useDeviceList();
   const isEditing = useEditMode((state) => state.isEditing);
   const toggleEditMode = useEditMode((state) => state.toggle);
   const stopEditMode = useEditMode((state) => state.stop);
@@ -56,6 +58,9 @@ export default function DeviceList() {
       )}
       {isLoaded && devices.length === 0 && (
         <EmptyTiles text={t('device-list.empty')} />
+      )}
+      {isLoadFailed && (
+        <EmptyTiles text={t('device-list.load-failed')} onRetry={retry} />
       )}
     </ScrollView>
   );

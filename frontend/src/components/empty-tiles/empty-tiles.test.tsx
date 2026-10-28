@@ -1,6 +1,6 @@
 import { Dimensions } from 'react-native';
 
-import { renderWithProviders, screen } from '@utils/tests';
+import { fireEvent, renderWithProviders, screen } from '@utils/tests';
 
 import EmptyTiles from './empty-tiles';
 
@@ -21,5 +21,21 @@ describe('EmptyTiles', () => {
       height: Dimensions.get('window').height,
     });
     expect(screen.getByTestId('empty-tiles-spacer')).toBeOnTheScreen();
+  });
+
+  // A list that failed to load: the title says so, and the hint becomes a
+  // button that asks again.
+  it('offers to try again in place of the hint', async () => {
+    const onRetry = jest.fn();
+    await renderWithProviders(
+      <EmptyTiles text="Couldn't load your devices" onRetry={onRetry} />,
+    );
+
+    expect(screen.getByText("Couldn't load your devices")).toBeOnTheScreen();
+    expect(screen.queryByText('empty-tiles.hint')).not.toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'try-again' }));
+
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

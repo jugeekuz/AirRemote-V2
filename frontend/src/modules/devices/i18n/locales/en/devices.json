@@ -3,7 +3,8 @@
     "title": "Devices",
     "heading": "Your Devices",
     "notice": "Connection status refreshes every 30 seconds.",
-    "empty": "No devices available"
+    "empty": "No devices available",
+    "load-failed": "Couldn't load your devices"
   },
   "device-tile": {
     "online": "Connected",
