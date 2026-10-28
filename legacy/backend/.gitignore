@@ -1,7 +1,0 @@
-node_modules
-.serverless
-outputs/
-src/vendor/
-.env
-package-lock.json
-Pipfile.lock

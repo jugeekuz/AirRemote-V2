@@ -1,6 +1,0 @@
-{
-  "corsOrigin": "<CORS_ORIGIN>",
-  "cognitoDomain": "<COGNITO_DOMAIN>",
-  "adminEmail": "https://<YOUR_DOMAIN_PREFIX>.auth.eu-central-1.amazoncognito.com",
-  "region": "<ADMIN_EMAIL>"
-}
