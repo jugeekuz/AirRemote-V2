@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { BackHandler } from 'react-native';
 import { useAnimatedReaction } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import GorhomBottomSheetPackage from '../../../optional/gorhom-bottom-sheet';
 import type { BottomSheetContentContainerProps } from '../types/bottom-sheet';
+import { addBackHandlerListener } from '../utils';
 
 const BottomSheetView = GorhomBottomSheetPackage?.BottomSheetView;
 const useBottomSheet = GorhomBottomSheetPackage?.useBottomSheet;
@@ -67,7 +67,7 @@ export function BottomSheetContentContainer({
   useEffect(() => {
     if (!isOpen || !enablePanDownToClose) return;
 
-    const backHandler = BackHandler.addEventListener(
+    const backHandler = addBackHandlerListener(
       'hardwareBackPress',
       () => {
         close();

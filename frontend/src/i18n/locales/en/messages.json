@@ -1,4 +1,11 @@
 {
+  "alert": {
+    "error-title": "Error"
+  },
+  "confirm": {
+    "title": "Confirmation",
+    "delete": "Are you sure you want to delete this item?"
+  },
   "errors": {
     "generic": "Something went wrong. Please try again.",
     "VALIDATION_FAILED": "Some of the details aren't valid. Check them and try again.",

@@ -1,7 +1,7 @@
 import type BottomSheet from '@gorhom/bottom-sheet';
 import { forwardRef, useLayoutEffect, useMemo, useRef } from 'react';
 import type { GestureResponderEvent } from 'react-native';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View, Platform } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -442,7 +442,12 @@ const SelectContentPopover = forwardRef<
 
     // Initially useRelativePosition returns { position: 'absolute', opacity: 0, top: dimensions.height }
     // So we need to wait for the content to be ready before showing it
-    const isReady = Boolean(contentLayout?.y && contentLayout.y < screenHeight);
+    // react-native-web reports a layout only when the size changes, so the
+    // move into place is never reported there; measured is enough on web.
+    const isReady =
+      Platform.OS === 'web'
+        ? Boolean(contentLayout)
+        : Boolean(contentLayout?.y && contentLayout.y < screenHeight);
 
     const insets = {
       top: DEFAULT_INSETS.top + safeAreaInsets.top,

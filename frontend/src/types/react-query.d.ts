@@ -4,11 +4,11 @@ import type { ApiError } from './api.types';
 
 type AppQueryMeta = Record<string, unknown> & {
   /**
-   * Toast text used when the error's code has no specific message (a generic
+   * Error text used when the code has no specific message (a generic
    * code, see `isGenericErrorCode`). The server's message is never shown.
    */
   errorMessage?: string;
-  /** Skip the global error toast (the screen renders its own error UI). */
+  /** Skip the global Error dialog (the screen renders its own error UI). */
   silent?: boolean;
   /** Reserved for a blocking loading overlay on mutations; nothing reads it yet. */
   blocking?: boolean;

@@ -7,7 +7,7 @@ import { authStore } from '@stores/auth';
 
 /**
  * Signs in and keeps the access token. A failure (e.g. wrong credentials)
- * leaves the session as it was; the query client shows its toast.
+ * leaves the session as it was; the query client shows its Error dialog.
  */
 export function useLogin(): {
   login: (credentials: LoginRequest) => void;

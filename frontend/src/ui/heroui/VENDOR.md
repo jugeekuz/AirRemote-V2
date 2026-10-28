@@ -65,6 +65,23 @@ otherwise unchanged.
    toast. `aria-hidden` maps to `accessibilityElementsHidden` on iOS,
    `importantForAccessibility="no-hide-descendants"` on Android and
    `aria-hidden` on web. Found by `src/ui/toast/toast.test.tsx`.
+2. `helpers/internal/utils/back-handler.ts` (new, exported from
+   `helpers/internal/utils/index.ts`): `addBackHandlerListener`, which is
+   `BackHandler.addEventListener` except on web, where it does nothing.
+   `primitives/dialog/dialog.tsx`, `primitives/menu/menu.tsx`,
+   `primitives/popover/popover.tsx`, `primitives/select/select.tsx` and
+   `helpers/internal/components/bottom-sheet-content-container.tsx` call it
+   instead of `BackHandler.addEventListener`. react-native-web logs "BackHandler
+   is not supported on web" as a console error on every call, so every opened
+   dialog, menu, popover or select logged an error. Found in the web check of
+   the V1 dialogs and the account menu.
+3. `components/menu/menu.tsx`, `components/popover/popover.tsx`,
+   `components/select/select.tsx`: on web, `isReady` is true as soon as the
+   content has been measured. The content is measured off screen
+   (y = window height), then moved into place; native reports the move with a
+   second `onLayout`, but react-native-web reports a layout only when the size
+   changes, so the content stayed at opacity 0 and ignored presses on web.
+   Found when the account menu would not show on web.
 
 The web spike (provider, `Card`, `TextField` with `Label` and `Input`,
 `Button`, and a success toast in `expo start --web`) needed no change: it
@@ -78,7 +95,13 @@ in `frontend/tsconfig.json`.
 ## Set-up outside this folder
 
 - `frontend/src/ui/global.css` imports Tailwind, Uniwind and
-  `./heroui/styles/index.css`, and adds the `@source` paths.
+  `./heroui/styles/index.css`, then `./theme.css` (V1's look: the kit's
+  tokens with NextUI's light values, Tailwind 3's palette, radii, shadows,
+  Poppins), and adds the `@source` paths. The theme is overridden there, not
+  in `styles/`. Two tokens the kit reads in JavaScript
+  (`--color-danger-soft`, `--color-default-hover`) get hex values because
+  its colorKit cannot parse `color-mix()` on web.
+- `frontend/src/ui/ui-provider/ui-provider.tsx` fixes the theme to light.
 - `frontend/metro.config.js` wraps Expo's config with Uniwind's
   `withUniwindConfig`, which writes `frontend/src/ui/uniwind-types.d.ts`
   (generated, committed). Without Metro:

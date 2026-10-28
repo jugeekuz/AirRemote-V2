@@ -9,7 +9,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  BackHandler,
   Pressable,
   StyleSheet,
   Text,
@@ -59,6 +58,7 @@ import type {
   ValueRef,
 } from './select.types';
 import { formatSelectedLabels, isItemSelected } from './select.utils';
+import { addBackHandlerListener } from '../../helpers/internal/utils';
 
 const RootContext = createContext<IRootContext | null>(null);
 
@@ -397,7 +397,7 @@ const PopoverContent = forwardRef<ContentRef, PopoverContentProps>(
     } = useRootContext();
 
     useEffect(() => {
-      const backHandler = BackHandler.addEventListener(
+      const backHandler = addBackHandlerListener(
         'hardwareBackPress',
         () => {
           onOpenChange(false);
@@ -473,7 +473,7 @@ const DialogContent = forwardRef<ContentRef, DialogContentProps>(
     const { isOpen, nativeID, onOpenChange } = useRootContext();
 
     useEffect(() => {
-      const backHandler = BackHandler.addEventListener(
+      const backHandler = addBackHandlerListener(
         'hardwareBackPress',
         () => {
           onOpenChange(false);

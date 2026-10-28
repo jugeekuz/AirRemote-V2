@@ -7,7 +7,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  BackHandler,
   Pressable,
   View,
   useWindowDimensions,
@@ -37,6 +36,7 @@ import type {
   TriggerProps,
   TriggerRef,
 } from './popover.types';
+import { addBackHandlerListener } from '../../helpers/internal/utils';
 
 const RootContext = React.createContext<IRootContext | null>(null);
 
@@ -293,7 +293,7 @@ const Content = forwardRef<ContentRef, ContentProps>(
     } = useRootContext();
 
     useEffect(() => {
-      const backHandler = BackHandler.addEventListener(
+      const backHandler = addBackHandlerListener(
         'hardwareBackPress',
         () => {
           onOpenChange(false);

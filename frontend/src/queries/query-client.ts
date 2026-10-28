@@ -36,7 +36,7 @@ function shouldRetryQuery(failureCount: number, error: ApiError): boolean {
 
 /**
  * Builds a QueryClient. How errors are PRESENTED is injected so this layer
- * stays UI-free: the app passes a toast notifier, tests pass nothing. A
+ * stays UI-free: the app passes an error notifier, tests pass nothing. A
  * cancelled request is not a failure the user needs to hear about.
  */
 export function createQueryClient(

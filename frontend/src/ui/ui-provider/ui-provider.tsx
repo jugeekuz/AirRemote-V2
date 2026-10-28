@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Uniwind } from 'uniwind';
 
+import AlertBridge from '@ui/alert/alert-bridge';
 import { HeroUINativeProvider } from '@ui/heroui/providers/hero-ui-native';
 import type { HeroUINativeConfig } from '@ui/heroui/providers/hero-ui-native';
 import ToastBridge from '@ui/toast/toast-bridge';
@@ -21,8 +22,8 @@ const config: HeroUINativeConfig = {
 
 /**
  * Everything the kit needs around the app (gesture root, theme, portals,
- * toasts), plus the bridge behind the imperative `toast`. It must sit inside
- * a `SafeAreaProvider`.
+ * toasts), plus the bridges behind the imperative `toast` and `alert`. It
+ * must sit inside a `SafeAreaProvider`.
  */
 export default function UiProvider({ children }: UiProviderProps) {
   return (
@@ -30,6 +31,7 @@ export default function UiProvider({ children }: UiProviderProps) {
       <HeroUINativeProvider config={config}>
         {children}
         <ToastBridge />
+        <AlertBridge />
       </HeroUINativeProvider>
     </GestureHandlerRootView>
   );
