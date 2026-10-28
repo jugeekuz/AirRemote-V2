@@ -16,6 +16,7 @@ import { buttonsApi } from '@api/buttons';
 import { deviceCommandsApi } from '@api/device-commands';
 import { buttonKeys } from '@queries/buttons';
 import { DEVICE_COMMAND_POLL_MS } from '@queries/device-commands';
+import { deviceKeys } from '@queries/devices';
 import { DEFAULT_STALE_TIME_MS } from '@queries/queries.constants';
 
 import { useLearnButton } from './use-learn-button';
@@ -117,9 +118,73 @@ describe('useLearnButton', () => {
     await wait(DEVICE_COMMAND_POLL_MS);
 
     expect(onDone).toHaveBeenCalledTimes(1);
+    // The device may have saved it anyway (a late answer).
     expect(
       queryClient.getQueryState(buttonKeys.list(REMOTE_ID))?.isInvalidated,
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  // The server may still save the button the app gave up on: the list
+  // must show it, or the next try is refused with BUTTON_NAME_TAKEN.
+  it('refreshes the buttons when following the learn failed on the network', async () => {
+    commands.get.mockRejectedValue({
+      code: 'NETWORK_ERROR',
+      message: 'Network Error',
+      isNetworkError: true,
+    } satisfies ApiError);
+    queryClient.setQueryData(buttonKeys.list(REMOTE_ID), []);
+    const { result } = await renderLearn();
+
+    await act(async () => {
+      result.current.learn('Power');
+    });
+    await wait(DEVICE_COMMAND_POLL_MS);
+
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(
+      queryClient.getQueryState(buttonKeys.list(REMOTE_ID))?.isInvalidated,
+    ).toBe(true);
+  });
+
+  it.each(['DEVICE_OFFLINE', 'DEVICE_NOT_RESPONDING'] as const)(
+    'asks for the devices again when the learn failed with %s',
+    async (code) => {
+      commands.get.mockResolvedValue({
+        ...command,
+        status: 'failed',
+        error: { code, message: 'Gone' },
+      });
+      queryClient.setQueryData(deviceKeys.lists(), []);
+      const { result } = await renderLearn();
+
+      await act(async () => {
+        result.current.learn('Power');
+      });
+      await wait(DEVICE_COMMAND_POLL_MS);
+
+      expect(queryClient.getQueryState(deviceKeys.lists())?.isInvalidated).toBe(
+        true,
+      );
+    },
+  );
+
+  it('leaves the devices alone when the device just saw no signal', async () => {
+    commands.get.mockResolvedValue({
+      ...command,
+      status: 'failed',
+      error: { code: 'IR_READ_TIMEOUT', message: 'No IR' },
+    });
+    queryClient.setQueryData(deviceKeys.lists(), []);
+    const { result } = await renderLearn();
+
+    await act(async () => {
+      result.current.learn('Power');
+    });
+    await wait(DEVICE_COMMAND_POLL_MS);
+
+    expect(queryClient.getQueryState(deviceKeys.lists())?.isInvalidated).toBe(
+      false,
+    );
   });
 
   it('asks for another name when the remote already has it', async () => {
@@ -141,13 +206,14 @@ describe('useLearnButton', () => {
     expect(result.current.isListening).toBe(false);
   });
 
-  it('is done when the learn is refused up front for another reason', async () => {
+  it('is done when the device is offline up front, and asks for the devices again', async () => {
     buttons.learn.mockRejectedValueOnce({
       status: 409,
       code: 'DEVICE_OFFLINE',
       message: 'Offline',
       isNetworkError: false,
     } satisfies ApiError);
+    queryClient.setQueryData(deviceKeys.lists(), []);
     const { result } = await renderLearn();
 
     await act(async () => {
@@ -157,5 +223,8 @@ describe('useLearnButton', () => {
 
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(onNameTaken).not.toHaveBeenCalled();
+    expect(queryClient.getQueryState(deviceKeys.lists())?.isInvalidated).toBe(
+      true,
+    );
   });
 });

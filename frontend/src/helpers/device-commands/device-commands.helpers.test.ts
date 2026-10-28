@@ -9,6 +9,7 @@ import { DEVICE_COMMAND_GRACE_MS } from './device-commands.constants';
 import {
   getDeviceCommandState,
   getDeviceCommandWaitMs,
+  isDeviceUnreachableCode,
   isReportedCommandError,
 } from './device-commands.helpers';
 
@@ -172,6 +173,22 @@ describe('isReportedCommandError', () => {
     'keeps %s quiet (the session ended, or nobody waits any more)',
     (code) => {
       expect(isReportedCommandError(code)).toBe(false);
+    },
+  );
+});
+
+describe('isDeviceUnreachableCode', () => {
+  it.each(['DEVICE_OFFLINE', 'DEVICE_NOT_RESPONDING'] as const)(
+    'is true for %s (the online status is stale)',
+    (code) => {
+      expect(isDeviceUnreachableCode(code)).toBe(true);
+    },
+  );
+
+  it.each(['IR_READ_TIMEOUT', 'DEVICE_BUSY', 'NETWORK_ERROR'] as const)(
+    'is false for %s',
+    (code) => {
+      expect(isDeviceUnreachableCode(code)).toBe(false);
     },
   );
 });

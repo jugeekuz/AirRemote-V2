@@ -17,6 +17,9 @@ import { getRemoteDevice } from '@modules/remotes/helpers/remotes';
 const EMPTY_BUTTONS: readonly ButtonResponse[] = Object.freeze([]);
 const NO_DEVICES: readonly DeviceResponse[] = Object.freeze([]);
 
+/** What failed to load the first time: the remote list, or its buttons. */
+export type RemoteDetailsLoadFailure = 'remote' | 'buttons';
+
 type RemoteDetails = {
   /** The remote, once the remote list has it. */
   remote: RemoteResponse | undefined;
@@ -31,8 +34,8 @@ type RemoteDetails = {
    * its device, or from another screen), or an id that never was one.
    */
   isMissing: boolean;
-  /** A first load failed (the remotes or the buttons): nothing to show. */
-  isLoadFailed: boolean;
+  /** What failed to load the first time (nothing to show), if anything. */
+  loadFailure: RemoteDetailsLoadFailure | null;
   /** Asks again for what failed to load (the "Try again" button). */
   retry: () => void;
   /** Deletes a button; the list drops it once the server agrees. */
@@ -115,7 +118,11 @@ export function useRemoteDetails(remoteId: string): RemoteDetails {
     buttons: remote ? (buttonList.data ?? EMPTY_BUTTONS) : EMPTY_BUTTONS,
     isLoaded: remote !== undefined && buttonList.data !== undefined,
     isMissing: remoteList.data !== undefined && remote === undefined,
-    isLoadFailed: isRemotesLoadFailed || isButtonsLoadFailed,
+    loadFailure: isRemotesLoadFailed
+      ? 'remote'
+      : isButtonsLoadFailed
+        ? 'buttons'
+        : null,
     retry,
     deleteButton,
   };

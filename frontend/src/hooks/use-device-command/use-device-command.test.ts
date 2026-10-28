@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query';
+import { focusManager, type QueryClient } from '@tanstack/react-query';
 
 import type {
   ButtonResponse,
@@ -18,6 +18,7 @@ import {
   DEVICE_COMMAND_POLL_MS,
   deviceCommandKeys,
 } from '@queries/device-commands';
+import { DEFAULT_STALE_TIME_MS } from '@queries/queries.constants';
 import { DEVICE_COMMAND_GRACE_MS } from '@helpers/device-commands';
 import { alert } from '@ui';
 
@@ -201,14 +202,66 @@ describe('useDeviceCommand', () => {
     expect(result.current).toEqual({ status: 'pending' });
     await wait(1);
 
-    expect(result.current).toEqual({
-      status: 'failed',
-      errorCode: 'DEVICE_NOT_RESPONDING',
+    await waitFor(() => {
+      expect(result.current).toEqual({
+        status: 'failed',
+        errorCode: 'DEVICE_NOT_RESPONDING',
+      });
     });
     expect(alertError).toHaveBeenCalledWith('errors.DEVICE_NOT_RESPONDING');
     const calls = api.get.mock.calls.length;
     await wait(DEVICE_COMMAND_POLL_MS * 3);
     expect(api.get).toHaveBeenCalledTimes(calls);
+  });
+
+  // Polling pauses while the app is in the background; the deadline does
+  // not. Coming back late, the command may well have settled meanwhile.
+  describe('when the deadline passes in the background', () => {
+    beforeEach(() => {
+      // As the app's client: the seeded command is fresh, so nothing asks
+      // for it on mount.
+      queryClient.setDefaultOptions({
+        queries: {
+          retry: false,
+          gcTime: Infinity,
+          staleTime: DEFAULT_STALE_TIME_MS,
+        },
+      });
+    });
+
+    afterEach(() => {
+      focusManager.setFocused(undefined);
+    });
+
+    it('asks once more, and a settled answer wins', async () => {
+      api.get.mockResolvedValue({ ...pending, status: 'succeeded', button });
+      const { result } = await renderWaiting();
+      focusManager.setFocused(false);
+
+      await wait(PRESS_LIFETIME_MS + DEVICE_COMMAND_GRACE_MS);
+
+      await waitFor(() => {
+        expect(result.current).toEqual({ status: 'succeeded', button });
+      });
+      expect(api.get).toHaveBeenCalledTimes(1);
+      expect(alertError).not.toHaveBeenCalled();
+    });
+
+    it('gives up when that last answer is still pending', async () => {
+      api.get.mockResolvedValue(pending);
+      const { result } = await renderWaiting();
+      focusManager.setFocused(false);
+
+      await wait(PRESS_LIFETIME_MS + DEVICE_COMMAND_GRACE_MS);
+
+      await waitFor(() => {
+        expect(result.current).toEqual({
+          status: 'failed',
+          errorCode: 'DEVICE_NOT_RESPONDING',
+        });
+      });
+      expect(api.get).toHaveBeenCalledTimes(1);
+    });
   });
 
   // Review focus 5: a refused refresh lands on Login; no dialogs pile up.

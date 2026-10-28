@@ -87,3 +87,11 @@ export function getDeviceCommandWaitMs(
 export function isReportedCommandError(code: ApiErrorCode): boolean {
   return !isSessionErrorCode(code) && code !== 'REQUEST_CANCELLED';
 }
+
+/**
+ * Whether the failure says the device is not connected, so the online
+ * status the screens show is stale and worth asking for again.
+ */
+export function isDeviceUnreachableCode(code: ApiErrorCode): boolean {
+  return code === 'DEVICE_OFFLINE' || code === 'DEVICE_NOT_RESPONDING';
+}

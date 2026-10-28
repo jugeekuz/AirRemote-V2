@@ -43,6 +43,7 @@
     "heading": "Remote Buttons",
     "empty": "No remote buttons available",
     "load-failed": "Couldn't load the buttons",
+    "remote-load-failed": "Couldn't load this remote",
     "not-found": "This remote doesn't exist anymore.",
     "back-to-remotes": "Back to remotes"
   },

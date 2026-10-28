@@ -44,7 +44,7 @@ export default function RemoteDetails() {
     buttons,
     isLoaded,
     isMissing,
-    isLoadFailed,
+    loadFailure,
     retry,
     deleteButton,
   } = useRemoteDetails(remoteId);
@@ -64,7 +64,8 @@ export default function RemoteDetails() {
   if (isMissing) {
     return (
       <Screen>
-        <ScrollView className="flex-1" contentContainerClassName="px-2">
+        {/* Grows to the screen's height, so the state centres without scrolling. */}
+        <ScrollView className="flex-1" contentContainerClassName="grow px-2">
           <TopToolbar onBack={goBack} />
           <RemoteNotFound
             onBack={() => {
@@ -105,8 +106,15 @@ export default function RemoteDetails() {
         {isLoaded && buttons.length === 0 && (
           <EmptyTiles text={t('remote-details.empty')} />
         )}
-        {isLoadFailed && (
-          <EmptyTiles text={t('remote-details.load-failed')} onRetry={retry} />
+        {loadFailure !== null && (
+          <EmptyTiles
+            text={
+              loadFailure === 'remote'
+                ? t('remote-details.remote-load-failed')
+                : t('remote-details.load-failed')
+            }
+            onRetry={retry}
+          />
         )}
       </ScrollView>
       <LearnButtonDialog

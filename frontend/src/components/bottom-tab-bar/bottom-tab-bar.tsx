@@ -83,6 +83,9 @@ export default function BottomTabBar({ state, navigation }: BottomTabBarProps) {
               selected: isActive,
               disabled: item.isInert,
             }}
+            // react-native-web ignores accessibilityState; browsers read these.
+            aria-selected={isActive}
+            aria-disabled={item.isInert}
             disabled={item.isInert}
             onPress={() => {
               const event = navigation.emit({

@@ -266,6 +266,23 @@ describe('RemoteDetailsScreen', () => {
     ).not.toBeOnTheScreen();
   });
 
+  it('says the remote failed to load, not its buttons, and offers to try again', async () => {
+    remotes.list.mockRejectedValueOnce(offline);
+
+    await renderDetails();
+
+    expect(
+      await screen.findByText('remote-details.remote-load-failed'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.queryByText('remote-details.load-failed'),
+    ).not.toBeOnTheScreen();
+
+    await press('try-again');
+
+    expect(await screen.findByText('Swing')).toBeOnTheScreen();
+  });
+
   it('deletes a button in edit mode after the confirmation', async () => {
     buttons.delete.mockResolvedValueOnce(undefined);
     await renderDetails();

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
+import type { ApiErrorCode } from '@app-types';
 import { usePressButtonMutation } from '@queries/buttons';
+import { deviceKeys } from '@queries/devices';
+import { isDeviceUnreachableCode } from '@helpers/device-commands';
 import { useDeviceCommand } from '@hooks/use-device-command';
 
 import { PRESS_SUCCESS_MS } from './use-press-button.constants';
@@ -20,9 +24,11 @@ type PressButton = {
  * then the control is idle again; a failure goes straight back to idle,
  * its Error dialog opened by `useDeviceCommand` (one refused up front by the
  * global mutation error handler). Taps while it is not idle are ignored, so
- * one tap sends at most one command.
+ * one tap sends at most one command. When the device turns out to be
+ * unreachable, the devices are asked for again, so the status shown is too.
  */
 export function usePressButton(buttonId: string): PressButton {
+  const queryClient = useQueryClient();
   const { mutate } = usePressButtonMutation();
   const [isStarting, setIsStarting] = useState(false);
   const [commandId, setCommandId] = useState<string | null>(null);
@@ -51,6 +57,22 @@ export function usePressButton(buttonId: string): PressButton {
     };
   }, [isSucceeded, commandId]);
 
+  // An unreachable device makes the online status on screen stale.
+  const refreshDevicesAfter = useCallback(
+    (code: ApiErrorCode) => {
+      if (isDeviceUnreachableCode(code)) {
+        void queryClient.invalidateQueries({ queryKey: deviceKeys.lists() });
+      }
+    },
+    [queryClient],
+  );
+  const errorCode = command.status === 'failed' ? command.errorCode : undefined;
+  useEffect(() => {
+    if (errorCode) {
+      refreshDevicesAfter(errorCode);
+    }
+  }, [commandId, errorCode, refreshDevicesAfter]);
+
   useEffect(() => {
     if (phase === 'idle') {
       isBusyRef.current = false;
@@ -67,11 +89,14 @@ export function usePressButton(buttonId: string): PressButton {
       onSuccess: (sent) => {
         setCommandId(sent.id);
       },
+      onError: (error) => {
+        refreshDevicesAfter(error.code);
+      },
       onSettled: () => {
         setIsStarting(false);
       },
     });
-  }, [buttonId, mutate, phase]);
+  }, [buttonId, mutate, phase, refreshDevicesAfter]);
 
   return { phase, press };
 }

@@ -102,7 +102,7 @@ describe('useRemoteDetails', () => {
     expect(result.current.buttons).toEqual([]);
     expect(result.current.isLoaded).toBe(false);
     expect(result.current.isMissing).toBe(false);
-    expect(result.current.isLoadFailed).toBe(false);
+    expect(result.current.loadFailure).toBeNull();
   });
 
   it('finds the remote, its device and its buttons', async () => {
@@ -189,7 +189,7 @@ describe('useRemoteDetails', () => {
     buttons.list.mockRejectedValueOnce(offline);
     const { result } = await renderDetails();
     await waitFor(() => {
-      expect(result.current.isLoadFailed).toBe(true);
+      expect(result.current.loadFailure).toBe('buttons');
     });
     expect(result.current.isLoaded).toBe(false);
 
@@ -200,7 +200,7 @@ describe('useRemoteDetails', () => {
     await waitFor(() => {
       expect(result.current.isLoaded).toBe(true);
     });
-    expect(result.current.isLoadFailed).toBe(false);
+    expect(result.current.loadFailure).toBeNull();
     expect(result.current.buttons).toEqual([power]);
   });
 
@@ -208,7 +208,7 @@ describe('useRemoteDetails', () => {
     remotes.list.mockRejectedValueOnce(offline);
     const { result } = await renderDetails();
     await waitFor(() => {
-      expect(result.current.isLoadFailed).toBe(true);
+      expect(result.current.loadFailure).toBe('remote');
     });
     expect(result.current.isMissing).toBe(false);
 

@@ -30,6 +30,9 @@ export default function SubmitButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
+      // react-native-web ignores accessibilityState; browsers read these.
+      aria-busy={isSubmitting}
+      aria-disabled={isSubmitting}
       disabled={isSubmitting}
       onPress={onPress}
       onHoverIn={() => setIsHovered(true)}

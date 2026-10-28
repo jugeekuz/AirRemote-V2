@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
+import type { ApiErrorCode } from '@app-types';
 import { buttonKeys, useLearnButtonMutation } from '@queries/buttons';
+import { deviceKeys } from '@queries/devices';
+import { isDeviceUnreachableCode } from '@helpers/device-commands';
 import { useDeviceCommand } from '@hooks/use-device-command';
 
 type LearnButtonCallbacks = {
@@ -23,7 +26,9 @@ type LearnButton = {
 
 /**
  * Learning a button on a remote: the device listens for a physical remote,
- * and the command is followed until the device settles it. A failure's
+ * and the command is followed until the device settles it. However it
+ * ends, the remote's buttons are asked for again; when the device was
+ * unreachable, the devices too (their online status). A failure's
  * Error dialog comes from `useDeviceCommand` (one refused up front from the
  * global mutation error handler), so nothing here shows one.
  */
@@ -36,20 +41,35 @@ export function useLearnButton(
   const [commandId, setCommandId] = useState<string | null>(null);
   const command = useDeviceCommand(commandId);
 
-  const settle = useEffectEvent((isSucceeded: boolean) => {
-    if (isSucceeded) {
-      void queryClient.invalidateQueries({
-        queryKey: buttonKeys.list(remoteId),
-      });
+  // The device's connection is stale on screen when it was unreachable.
+  const refreshDevicesAfter = useCallback(
+    (code: ApiErrorCode) => {
+      if (isDeviceUnreachableCode(code)) {
+        void queryClient.invalidateQueries({ queryKey: deviceKeys.lists() });
+      }
+    },
+    [queryClient],
+  );
+
+  // The buttons are asked for again however it ended: a learn the app gave
+  // up on (a network failure, a deadline passed in the background) may
+  // still have been saved, and a retry would then hit BUTTON_NAME_TAKEN.
+  const settle = useEffectEvent((errorCode: ApiErrorCode | undefined) => {
+    void queryClient.invalidateQueries({
+      queryKey: buttonKeys.list(remoteId),
+    });
+    if (errorCode) {
+      refreshDevicesAfter(errorCode);
     }
     onDone();
   });
   const { status } = command;
+  const errorCode = command.status === 'failed' ? command.errorCode : undefined;
   useEffect(() => {
     if (status === 'succeeded' || status === 'failed') {
-      settle(status === 'succeeded');
+      settle(errorCode);
     }
-  }, [status]);
+  }, [status, errorCode]);
 
   const learn = useCallback(
     (name: string) => {
@@ -60,6 +80,7 @@ export function useLearnButton(
             setCommandId(sent.id);
           },
           onError: (error) => {
+            refreshDevicesAfter(error.code);
             if (error.code === 'BUTTON_NAME_TAKEN') {
               onNameTaken();
             } else {
@@ -69,7 +90,7 @@ export function useLearnButton(
         },
       );
     },
-    [mutate, remoteId, onDone, onNameTaken],
+    [mutate, remoteId, onDone, onNameTaken, refreshDevicesAfter],
   );
 
   return { isListening: isStarting || status === 'pending', learn };

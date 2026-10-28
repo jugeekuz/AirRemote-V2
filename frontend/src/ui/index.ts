@@ -11,9 +11,9 @@ export type { GradientDirection } from './linear-gradient';
 export { Modal } from './modal';
 export type { ModalButtonVariant, ModalPlacement } from './modal';
 export { QrScanner, useCameraAccess } from './qr-scanner';
-export { Tick, TICK_LENGTH } from './tick';
-export { TintedSpinner } from './tinted-spinner';
 export type { CameraAccess } from './qr-scanner';
+export { Tick } from './tick';
+export { TintedSpinner } from './tinted-spinner';
 
 export { Button } from './heroui/components/button';
 export { Card } from './heroui/components/card';

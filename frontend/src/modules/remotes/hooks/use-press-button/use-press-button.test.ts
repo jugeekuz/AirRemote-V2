@@ -12,6 +12,7 @@ import {
 import { buttonsApi } from '@api/buttons';
 import { deviceCommandsApi } from '@api/device-commands';
 import { DEVICE_COMMAND_POLL_MS } from '@queries/device-commands';
+import { deviceKeys } from '@queries/devices';
 import { DEFAULT_STALE_TIME_MS } from '@queries/queries.constants';
 import { alert } from '@ui';
 
@@ -186,5 +187,60 @@ describe('usePressButton', () => {
     expect(result.current.phase).toBe('idle');
     await tap(result.current.press);
     expect(buttons.press).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['DEVICE_OFFLINE', 'DEVICE_NOT_RESPONDING'] as const)(
+    'asks for the devices again when the press failed with %s',
+    async (code) => {
+      commands.get.mockResolvedValue({
+        ...command,
+        status: 'failed',
+        error: { code, message: 'Gone' },
+      });
+      queryClient.setQueryData(deviceKeys.lists(), []);
+      const { result } = await renderPress();
+
+      await tap(result.current.press);
+      await wait(DEVICE_COMMAND_POLL_MS);
+
+      expect(queryClient.getQueryState(deviceKeys.lists())?.isInvalidated).toBe(
+        true,
+      );
+    },
+  );
+
+  it('asks for the devices again when the press is refused as offline', async () => {
+    buttons.press.mockReset();
+    buttons.press.mockRejectedValueOnce({
+      status: 409,
+      code: 'DEVICE_OFFLINE',
+      message: 'Offline',
+      isNetworkError: false,
+    } satisfies ApiError);
+    queryClient.setQueryData(deviceKeys.lists(), []);
+    const { result } = await renderPress();
+
+    await tap(result.current.press);
+
+    expect(queryClient.getQueryState(deviceKeys.lists())?.isInvalidated).toBe(
+      true,
+    );
+  });
+
+  it("leaves the devices alone when the device couldn't send", async () => {
+    commands.get.mockResolvedValue({
+      ...command,
+      status: 'failed',
+      error: { code: 'IR_SEND_FAILED', message: 'Could not send' },
+    });
+    queryClient.setQueryData(deviceKeys.lists(), []);
+    const { result } = await renderPress();
+
+    await tap(result.current.press);
+    await wait(DEVICE_COMMAND_POLL_MS);
+
+    expect(queryClient.getQueryState(deviceKeys.lists())?.isInvalidated).toBe(
+      false,
+    );
   });
 });

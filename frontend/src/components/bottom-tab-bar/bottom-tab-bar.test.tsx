@@ -1,3 +1,4 @@
+import type { PressableProps } from 'react-native';
 import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
@@ -5,6 +6,27 @@ import { NavigationContainer } from '@react-navigation/native';
 import { renderWithProviders, screen, userEvent } from '@utils/tests';
 
 import BottomTabBar from './bottom-tab-bar';
+
+// React Native folds ARIA props into the host's accessibilityState, so the
+// props react-native-web reads are checked where they are passed.
+const mockPressableProps: PressableProps[] = [];
+jest.mock('react-native', () => {
+  const RN = jest.requireActual<typeof import('react-native')>('react-native');
+  const { createElement } = jest.requireActual<typeof import('react')>('react');
+  // React 19 passes `ref` as a prop, so spreading the props forwards it.
+  function Pressable(props: PressableProps) {
+    mockPressableProps.push(props);
+    return createElement(RN.Pressable, props);
+  }
+  return Object.setPrototypeOf({ Pressable }, RN);
+});
+
+/** The props the last render passed to the Pressable named `label`. */
+function lastPressableProps(label: string) {
+  return mockPressableProps.findLast(
+    (props) => props.accessibilityLabel === label,
+  );
+}
 
 const Tab = createBottomTabNavigator();
 
@@ -50,12 +72,18 @@ describe('BottomTabBar', () => {
   it('marks only the current tab as selected', async () => {
     await renderBar();
 
-    expect(
-      screen.getByRole('tab', { name: 'bottom-tab-bar.remotes' }),
-    ).toBeSelected();
-    expect(
-      screen.getByRole('tab', { name: 'bottom-tab-bar.devices' }),
-    ).not.toBeSelected();
+    const remotes = screen.getByRole('tab', { name: 'bottom-tab-bar.remotes' });
+    const devices = screen.getByRole('tab', { name: 'bottom-tab-bar.devices' });
+    expect(remotes).toBeSelected();
+    expect(devices).not.toBeSelected();
+    // react-native-web reads only the ARIA props, not accessibilityState.
+    expect(lastPressableProps('bottom-tab-bar.remotes')).toMatchObject({
+      'aria-selected': true,
+      'aria-disabled': false,
+    });
+    expect(lastPressableProps('bottom-tab-bar.devices')).toMatchObject({
+      'aria-selected': false,
+    });
   });
 
   it('switches to the tab that is pressed', async () => {
@@ -77,6 +105,9 @@ describe('BottomTabBar', () => {
     for (const name of ['dashboard', 'automations']) {
       const tab = screen.getByRole('tab', { name: `bottom-tab-bar.${name}` });
       expect(tab).toBeDisabled();
+      expect(lastPressableProps(`bottom-tab-bar.${name}`)).toMatchObject({
+        'aria-disabled': true,
+      });
       expect(tab.props.accessibilityHint).toBe('bottom-tab-bar.unavailable');
     }
     await userEvent.press(

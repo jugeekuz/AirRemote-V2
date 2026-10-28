@@ -22,8 +22,8 @@ const NO_COMMAND = '';
  * sent it seeds the query, so the first state is already `pending`.
  *
  * A command fails when the device says so, when it expires
- * (`DEVICE_NOT_RESPONDING`), when it stays pending well past its lifetime
- * (the same code), or when its poll keeps failing after the query's retries
+ * (`DEVICE_NOT_RESPONDING`), when it is still pending when asked once more
+ * well past its lifetime (the same code), or when its poll keeps failing after the query's retries
  * (that error's code: `NOT_FOUND` once the device was deleted, a network
  * error, ...). Polling stops in every case. A failure opens the Error
  * dialog once per command, except when the session ended (the app shows
@@ -33,7 +33,11 @@ export function useDeviceCommand(commandId: string | null): DeviceCommandState {
   const { t } = useTranslation('messages');
   const [overdueId, setOverdueId] = useState<string | null>(null);
   const isOverdue = commandId !== null && overdueId === commandId;
-  const { data: command, error } = useQuery({
+  const {
+    data: command,
+    error,
+    refetch,
+  } = useQuery({
     ...deviceCommandQueries.detail(commandId ?? NO_COMMAND),
     enabled: commandId !== null && !isOverdue,
   });
@@ -45,7 +49,9 @@ export function useDeviceCommand(commandId: string | null): DeviceCommandState {
   });
 
   // The server expires a command it never heard back on; this ends the wait
-  // even if that report never comes.
+  // even if that report never comes. Polling pauses while the app is in the
+  // background and this timer doesn't, so it asks once more first: the
+  // command may have settled meanwhile (a learned button is then kept).
   const isPending = command?.status === 'pending';
   const createdAt = command?.createdAt;
   const expiresAt = command?.expiresAt;
@@ -59,12 +65,16 @@ export function useDeviceCommand(commandId: string | null): DeviceCommandState {
       return;
     }
     const timer = setTimeout(() => {
-      setOverdueId(commandId);
+      void refetch().then((last) => {
+        if (last.isError || last.data?.status === 'pending') {
+          setOverdueId(commandId);
+        }
+      });
     }, getDeviceCommandWaitMs({ createdAt, expiresAt }));
     return () => {
       clearTimeout(timer);
     };
-  }, [commandId, isPending, createdAt, expiresAt]);
+  }, [commandId, isPending, createdAt, expiresAt, refetch]);
 
   const reportedIdRef = useRef<string | null>(null);
   const errorCode = state.status === 'failed' ? state.errorCode : undefined;
