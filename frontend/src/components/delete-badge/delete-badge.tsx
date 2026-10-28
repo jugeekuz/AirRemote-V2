@@ -9,6 +9,8 @@ export type DeleteBadgePosition = 'left' | 'right';
 
 type DeleteBadgeProps = {
   position: DeleteBadgePosition;
+  /** Its accessible name, e.g. "Delete Living room". @default "Delete" */
+  label?: string;
   /** The user answered Yes to V1's confirmation. */
   onConfirm: () => void;
 };
@@ -23,7 +25,11 @@ const POSITION_CLASS: Record<DeleteBadgePosition, string> = {
  * tile's top corner. It asks "Are you sure you want to delete this item?"
  * first. The tile must not clip it (no `overflow-hidden` on the tile itself).
  */
-export default function DeleteBadge({ position, onConfirm }: DeleteBadgeProps) {
+export default function DeleteBadge({
+  position,
+  label,
+  onConfirm,
+}: DeleteBadgeProps) {
   const { t } = useTranslation();
 
   const askToDelete = async () => {
@@ -41,7 +47,7 @@ export default function DeleteBadge({ position, onConfirm }: DeleteBadgeProps) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={t('delete', { ns: 'actions' })}
+      accessibilityLabel={label ?? t('delete', { ns: 'actions' })}
       onPress={() => {
         void askToDelete();
       }}

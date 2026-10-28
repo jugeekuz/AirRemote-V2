@@ -1,19 +1,12 @@
-import { View } from 'react-native';
-import { useTranslation } from 'react-i18next';
+import { EditModeProvider } from '@contexts/edit-mode';
 
-import TopToolbar from '@components/top-toolbar';
-import { Text } from '@ui';
+import DeviceList from './device-list';
 
-/** Placeholder: shows the shell until the real screen replaces it. */
+/** V1's Devices page; edit mode starts off every time it mounts. */
 export default function DeviceListScreen() {
-  const { t } = useTranslation('devices');
-
   return (
-    <View className="flex-1 bg-background">
-      <TopToolbar />
-      <Text.Heading type="h3" className="ml-2">
-        {t('device-list.title')}
-      </Text.Heading>
-    </View>
+    <EditModeProvider>
+      <DeviceList />
+    </EditModeProvider>
   );
 }

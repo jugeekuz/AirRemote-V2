@@ -1,5 +1,13 @@
 {
   "device-list": {
-    "title": "Devices"
+    "title": "Devices",
+    "heading": "Your Devices",
+    "notice": "Connection status refreshes every 30 seconds.",
+    "empty": "No devices available"
+  },
+  "device-tile": {
+    "online": "Connected",
+    "offline": "Disconnected",
+    "delete": "Delete {{name}}"
   }
 }

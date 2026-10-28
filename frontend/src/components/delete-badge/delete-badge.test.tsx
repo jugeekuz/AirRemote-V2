@@ -53,4 +53,18 @@ describe('DeleteBadge', () => {
     expect(onConfirm).not.toHaveBeenCalled();
     expect(screen.queryByText('confirm.delete')).not.toBeOnTheScreen();
   });
+
+  it('can name what it deletes', async () => {
+    await renderWithProviders(
+      <DeleteBadge
+        position="left"
+        label="Delete Living room"
+        onConfirm={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Delete Living room' }),
+    ).toBeOnTheScreen();
+  });
 });
