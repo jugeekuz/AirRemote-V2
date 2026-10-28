@@ -39,6 +39,22 @@
     }
   },
   "remote-details": {
-    "title": "Remote"
+    "title": "Remote",
+    "heading": "Remote Buttons",
+    "empty": "No remote buttons available",
+    "load-failed": "Couldn't load the buttons",
+    "not-found": "This remote doesn't exist anymore.",
+    "back-to-remotes": "Back to remotes"
+  },
+  "info-bar": {
+    "loading": "Loading..",
+    "online": "Connected",
+    "offline": "Disconnected"
+  },
+  "button-tile": {
+    "delete": "Delete {{name}}"
+  },
+  "press-button": {
+    "label": "Press {{name}}"
   }
 }

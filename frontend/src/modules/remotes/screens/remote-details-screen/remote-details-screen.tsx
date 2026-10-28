@@ -1,21 +1,12 @@
-import { useNavigation } from '@react-navigation/native';
-import { useTranslation } from 'react-i18next';
+import { EditModeProvider } from '@contexts/edit-mode';
 
-import Screen from '@components/screen';
-import TopToolbar from '@components/top-toolbar';
-import { Text } from '@ui';
+import RemoteDetails from './remote-details';
 
-/** Placeholder: shows the shell until the real screen replaces it. */
+/** V1's remote page; edit mode starts off every time it mounts. */
 export default function RemoteDetailsScreen() {
-  const { t } = useTranslation('remotes');
-  const navigation = useNavigation();
-
   return (
-    <Screen>
-      <TopToolbar onBack={() => navigation.goBack()} />
-      <Text.Heading type="h3" className="ml-2">
-        {t('remote-details.title')}
-      </Text.Heading>
-    </Screen>
+    <EditModeProvider>
+      <RemoteDetails />
+    </EditModeProvider>
   );
 }
