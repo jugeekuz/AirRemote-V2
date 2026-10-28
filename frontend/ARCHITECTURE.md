@@ -391,7 +391,14 @@ only: a wrong password is a 401 too (`INVALID_CREDENTIALS`).
   themselves. `useRefreshOnFocus(refetch)` refetches when a screen regains
   focus.
 - **Polling** (a device command until its `status` is no longer `pending`):
-  `refetchInterval`, never a hand-made `setInterval`.
+  `refetchInterval`, never a hand-made `setInterval`. A screen that bottom
+  tabs keep mounted passes `subscribed: useIsFocused()` so it polls only
+  while shown (the device list does).
+- **Failed refetches are silent:** the query cache reports a query error
+  only while the query has no data (a first load). A refetch or poll that
+  fails keeps the last data on screen without a dialog. A poll whose
+  failure the user must hear about (a device command) handles `isError`
+  itself.
 - **Push updates:** a hook subscribes and calls `setQueryData` or
   `invalidateQueries`; the cache stays the single source of truth.
 - **Derived data:** the `select` option with a stable function (module-level
@@ -461,6 +468,8 @@ query cache:
 - `errors.generic` is the fallback if a text is missing at runtime.
 - The server's `message` is for developers and is never shown.
 - A cancelled request never toasts; `meta.silent` turns the toast off.
+- A failed query that already has data (a refetch, a poll) shows nothing;
+  only a first load that failed does (see [Queries](#queries)).
 - `UNAUTHORIZED` and `INVALID_REFRESH_TOKEN` never toast: they only reach
   a screen when the session really ended (a refresh that fails transiently
   rejects with its own error instead), and the user is taken to Login. Without this, a

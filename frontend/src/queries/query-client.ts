@@ -37,7 +37,8 @@ function shouldRetryQuery(failureCount: number, error: ApiError): boolean {
 /**
  * Builds a QueryClient. How errors are PRESENTED is injected so this layer
  * stays UI-free: the app passes an error notifier, tests pass nothing. A
- * cancelled request is not a failure the user needs to hear about.
+ * cancelled request is not a failure the user needs to hear about, and
+ * neither is a failed refetch of a query that still shows its last data.
  */
 export function createQueryClient(
   onApiError: ApiErrorHandler = () => {},
@@ -55,6 +56,11 @@ export function createQueryClient(
   return new QueryClient({
     queryCache: new QueryCache({
       onError: (error, query) => {
+        // A failed refetch keeps the data on screen; only a first load
+        // that failed has nothing to show. Polls stay quiet this way.
+        if (query.state.data !== undefined) {
+          return;
+        }
         report(error, query.meta);
       },
     }),

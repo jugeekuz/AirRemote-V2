@@ -60,7 +60,10 @@ options, mutation hooks). Both are global: any module may use them.
 - Empty defaults are module-level constants (`EMPTY_REMOTES`), derived data
   uses `select` with a stable function → [Queries][queries].
 - Polling: `refetchInterval` until the status is final, never `setInterval`
-  → [Queries][queries].
+  → [Queries][queries]. A failed refetch or poll of a query that has data
+  shows no dialog (only a failed first load does), so a poll whose failure
+  matters (a device command) handles `isError` itself; a screen kept
+  mounted by the tabs polls with `subscribed: useIsFocused()`.
 - `queries/` never imports stores or `@ui`; `api/` never imports queries,
   stores or helpers → [Layers and import rules][layers].
 
