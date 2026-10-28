@@ -1,7 +1,6 @@
 // The app's only entry to the UI kit. Re-export a kit component here when a
 // screen first needs it; app code never imports `@ui/heroui/...`.
 export { UiProvider } from './ui-provider';
-export { toast } from './toast';
 export { alert } from './alert';
 export type { ConfirmOptions } from './alert';
 export { Icon } from './icon';

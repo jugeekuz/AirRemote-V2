@@ -92,8 +92,7 @@ in `src/ui/heroui/components/` (`list-group`, `chip`, `skeleton`, `select`,
   confirm and cancel labels) from `@ui` open V1's Error and Confirmation
   dialogs from anywhere. Failed requests already open the
   Error dialog by code, so don't add your own for those; a delete asks
-  first through `DeleteBadge`, which uses `alert.confirm`. `toast` exists
-  but the app doesn't use it.
+  first through `DeleteBadge`, which uses `alert.confirm`.
 - Pictures are `Image` from `@ui` with a source from `@assets/images`
   (`IMAGES`); icons are `Icon` with a lucide icon (`as`) and a colour class.
   Only `src/ui` imports `expo-image`, `expo-camera` or

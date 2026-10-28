@@ -64,7 +64,8 @@ otherwise unchanged.
    copy is in the accessibility tree too) and tests found two elements for one
    toast. `aria-hidden` maps to `accessibilityElementsHidden` on iOS,
    `importantForAccessibility="no-hide-descendants"` on Android and
-   `aria-hidden` on web. Found by `src/ui/toast/toast.test.tsx`.
+   `aria-hidden` on web. Found by the former `src/ui/toast/toast.test.tsx`;
+   `src/ui/ui.smoke.test.tsx` checks it now.
 2. `helpers/internal/utils/back-handler.ts` (new, exported from
    `helpers/internal/utils/index.ts`): `addBackHandlerListener`, which is
    `BackHandler.addEventListener` except on web, where it does nothing.
