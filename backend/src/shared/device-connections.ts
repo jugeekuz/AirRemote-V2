@@ -28,6 +28,12 @@ export type DeviceConnections = {
   send(deviceId: string, message: ServerMessage): string | null;
   isConnected(deviceId: string): boolean;
   /**
+   * Closes the device's socket with 4001 "deleted" and forgets it at once, so
+   * nothing more is sent over it. Its close is still reported to the
+   * listeners. Returns false when the device is not connected.
+   */
+  disconnect(deviceId: string): boolean;
+  /**
    * Listens for closed connections. A listener that throws never breaks
    * `unregister` or the other listeners; its error goes to `onListenerError`.
    */
@@ -37,6 +43,8 @@ export type DeviceConnections = {
 };
 
 export const REPLACED_CLOSE_CODE = 4000;
+/** The device was deleted; it is refused until it is enrolled again. */
+export const DELETED_CLOSE_CODE = 4001;
 
 type Connection = { id: string; socket: DeviceSocket };
 
@@ -101,6 +109,14 @@ export function createDeviceConnections(
 
     isConnected(deviceId) {
       return current.has(deviceId);
+    },
+
+    disconnect(deviceId) {
+      const connection = current.get(deviceId);
+      if (!connection) return false;
+      current.delete(deviceId);
+      connection.socket.close(DELETED_CLOSE_CODE, 'deleted');
+      return true;
     },
 
     onConnectionClosed(listener) {

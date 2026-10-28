@@ -18,15 +18,18 @@ function serviceWith({
   owned = async () => ({ id: deviceId }),
   created = async () => remote,
   listed = async () => [remote],
+  deleted = async () => true,
 }: {
   owned?: () => Promise<{ id: string } | null>;
   created?: () => Promise<Remote | null>;
   listed?: () => Promise<Remote[]>;
+  deleted?: () => Promise<boolean>;
 } = {}) {
   const repository = {
     findOwnedDevice: vi.fn(owned),
     create: vi.fn(created),
     listForUser: vi.fn(listed),
+    deleteForUser: vi.fn(deleted),
   };
   const service = createRemotesService({
     repository: repository satisfies RemotesRepository,
@@ -98,5 +101,25 @@ describe('remotes service: list', () => {
   it('returns an empty list when there are none', async () => {
     const { service } = serviceWith({ listed: async () => [] });
     await expect(service.list(userId)).resolves.toEqual([]);
+  });
+});
+
+describe('remotes service: delete', () => {
+  it('deletes the user’s remote', async () => {
+    const { service, repository } = serviceWith();
+
+    await expect(service.delete(userId, remote.id)).resolves.toBeUndefined();
+    expect(repository.deleteForUser).toHaveBeenCalledExactlyOnceWith(
+      remote.id,
+      userId,
+    );
+  });
+
+  it('answers 404 NOT_FOUND for a remote that is missing or another user’s', async () => {
+    const { service } = serviceWith({ deleted: async () => false });
+
+    await expect(
+      appErrorOf(service.delete(userId, remote.id)),
+    ).resolves.toEqual({ statusCode: 404, code: 'NOT_FOUND' });
   });
 });

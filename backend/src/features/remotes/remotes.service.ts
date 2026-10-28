@@ -11,6 +11,8 @@ export type RemotesService = {
   ): Promise<RemoteResponse>;
   /** Every remote on the user's devices, by name ignoring case. */
   list(userId: string): Promise<RemoteResponse[]>;
+  /** Deletes one of the user's remotes with its buttons. */
+  delete(userId: string, remoteId: string): Promise<void>;
 };
 
 export function createRemotesService({
@@ -47,6 +49,13 @@ export function createRemotesService({
         name,
         type,
       }));
+    },
+
+    async delete(userId, remoteId) {
+      // Someone else's remote answers as a missing one.
+      if (!(await repository.deleteForUser(remoteId, userId))) {
+        throw new AppError(404, 'NOT_FOUND', 'Remote not found');
+      }
     },
   };
 }

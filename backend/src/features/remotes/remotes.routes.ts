@@ -1,5 +1,6 @@
 import {
   createRemoteRequestSchema,
+  noContentResponseSchema,
   remoteListResponseSchema,
   remoteResponseSchema,
 } from '@airremote/contracts';
@@ -43,6 +44,24 @@ export const remotesRoutes: FastifyPluginAsyncZod<{
         request.body,
       );
       return reply.code(201).send(remote);
+    },
+  );
+
+  app.delete(
+    '/remotes/:remoteId',
+    {
+      onRequest: app.authenticate,
+      schema: {
+        params: z.object({ remoteId: z.uuid() }),
+        response: { 204: noContentResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      await service.delete(
+        authenticatedUserId(request),
+        request.params.remoteId,
+      );
+      return reply.code(204).send(null);
     },
   );
 };

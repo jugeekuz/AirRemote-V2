@@ -3,6 +3,5 @@
     "title": "Couldn't connect",
     "message": "AirRemote couldn't reach the server. Check your connection and try again."
   },
-  "login": "Sign in",
-  "home": "Home"
+  "login": "Sign in"
 }

@@ -25,7 +25,8 @@ export type HttpClientHooks = {
    * a 401 (e.g. `INVALID_REFRESH_TOKEN`), or the refreshed token is refused.
    * Signs out locally, so `getAccessToken` returns null afterwards. A refresh
    * that fails for any other reason (offline, a 5xx, a malformed body) does
-   * not call it: the session stays and the next request tries again.
+   * not call it: the session stays, the waiting requests reject with the
+   * refresh's own error, and the next request tries again.
    */
   onSessionExpired: () => void;
 };
@@ -254,10 +255,15 @@ export function createHttpClient({
     let token: string;
     try {
       token = await refreshOnce();
-    } catch {
-      // Each waiting request rejects with its own 401, whether the session
-      // ended or the refresh failed for a transient reason.
-      throw apiError;
+    } catch (refreshError) {
+      // A refresh that failed transiently (offline, a 5xx, a malformed body)
+      // rejects every waiter with its own error, so it is shown and Query
+      // retries it. A refused refresh ended the session: each waiter rejects
+      // with its own 401, which is never shown. Anything that is not an
+      // ApiError (e.g. signed out while refreshing) also keeps the 401.
+      throw isApiError(refreshError) && !isRefusedRefresh(refreshError)
+        ? refreshError
+        : apiError;
     }
     if (config.signal?.aborted) {
       throw CANCELLED;

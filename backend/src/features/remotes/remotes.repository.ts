@@ -5,7 +5,7 @@ import {
   type NewRemote,
   type Remote,
 } from '@airremote/db';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { isUniqueViolation } from '../../shared/pg-errors';
 
 export type RemotesRepository = {
@@ -18,6 +18,11 @@ export type RemotesRepository = {
   listForUser(userId: string): Promise<Remote[]>;
   /** Null when the device already has a remote with that name, ignoring case. */
   create(remote: Omit<NewRemote, 'id'>): Promise<Remote | null>;
+  /**
+   * Deletes the remote if it is on one of the user's devices; its buttons go
+   * with it (cascade). False when there is no such remote of theirs.
+   */
+  deleteForUser(remoteId: string, userId: string): Promise<boolean>;
 };
 
 const NAME_KEY = 'remotes_device_id_name_key';
@@ -54,6 +59,25 @@ export function createRemotesRepository(db: Database): RemotesRepository {
         if (isUniqueViolation(error, NAME_KEY)) return null;
         throw error;
       }
+    },
+
+    async deleteForUser(remoteId, userId) {
+      const deleted = await db
+        .delete(remotes)
+        .where(
+          and(
+            eq(remotes.id, remoteId),
+            inArray(
+              remotes.deviceId,
+              db
+                .select({ id: devices.id })
+                .from(devices)
+                .where(eq(devices.userId, userId)),
+            ),
+          ),
+        )
+        .returning({ id: remotes.id });
+      return deleted.length > 0;
     },
   };
 }

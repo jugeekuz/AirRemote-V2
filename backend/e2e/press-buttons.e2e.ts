@@ -73,7 +73,12 @@ describe('listing', () => {
     const devicesRes = await call('GET', '/devices', token);
     expect(devicesRes.status).toBe(200);
     expect(devicesRes.body).toEqual([
-      { id: deviceId, macAddress: 'aa:bb:cc:dd:ee:01', name: 'Living room' },
+      {
+        id: deviceId,
+        macAddress: 'aa:bb:cc:dd:ee:01',
+        name: 'Living room',
+        online: false,
+      },
     ]);
 
     const remotesRes = await call('GET', '/remotes', token);

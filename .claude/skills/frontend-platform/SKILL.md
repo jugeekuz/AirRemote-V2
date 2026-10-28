@@ -37,16 +37,23 @@ the differences are kept in a few known places.
 - [ ] Put it behind an adapter in `src/adapters/<topic>/<topic>.adapter.ts`
       (+ `.web.ts` if web differs), typed with an app type in `src/types/`,
       exported from the folder's `index.ts` → [Platform differences][platform].
-- [ ] Restrict the package to `src/adapters/` in `PACKAGE_RULES` of
-      `frontend/eslint/layer-boundaries.mjs`, as `react-native-mmkv` is, and
-      add the case to `frontend/eslint/layer-boundaries.test.ts`.
+      A library that draws UI goes behind a wrapper in `src/ui/<name>/`
+      instead, exported from `@ui` (`expo-image` → `Image`, `expo-camera` →
+      `QrScanner` and `useCameraAccess`, `expo-linear-gradient` →
+      `LinearGradient`) → [UI kit][ui].
+- [ ] Restrict the package to `src/adapters/` (or `src/ui/`) in
+      `PACKAGE_RULES` of `frontend/eslint/layer-boundaries.mjs`, as
+      `react-native-mmkv` and `expo-camera` are, and add the case to
+      `frontend/eslint/layer-boundaries.test.ts`.
 - [ ] Give Jest a stand-in: mock the adapter in `frontend/jest.setup.ts` (the
-      storage adapter is an in-memory map there), or the library's own Jest
-      mock.
+      storage adapter is an in-memory map there), the library's own Jest
+      mock, or a file in `frontend/mocks/` mapped in `jest.config.js`
+      (`expo-camera.mock.tsx`, a camera tests can drive).
 - [ ] Native code changed, so rebuild the development build: `pnpm prebuild`
       (regenerates the git-ignored `android/` and `ios/`), then
-      `pnpm android` / `pnpm ios`; a running `pnpm start` is not enough. Add a step to the manual checks in
-      `frontend/README.md` if the behaviour can only be seen on a device.
+      `pnpm android` / `pnpm ios`; a running `pnpm start` is not enough.
+      Add a step to the manual checks in `frontend/README.md` if the
+      behaviour can only be seen on a device.
 
 ## Rules
 
@@ -96,3 +103,4 @@ device checks (`frontend-dev`).
 [layers]: ../../../frontend/ARCHITECTURE.md#layers-and-import-rules
 [cookies]: ../../../frontend/ARCHITECTURE.md#cookies
 [queries]: ../../../frontend/ARCHITECTURE.md#queries
+[ui]: ../../../frontend/ARCHITECTURE.md#ui-kit

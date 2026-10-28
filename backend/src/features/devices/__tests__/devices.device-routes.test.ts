@@ -35,6 +35,9 @@ async function appWith(issuePairingCode: DevicesService['issuePairingCode']) {
       recordFirmwareVersion: async () => {
         throw new Error('not expected');
       },
+      delete: async () => {
+        throw new Error('not expected');
+      },
       issuePairingCode: async (commonName) => {
         received.push(commonName);
         return issuePairingCode(commonName);

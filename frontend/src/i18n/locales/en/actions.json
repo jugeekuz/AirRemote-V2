@@ -1,5 +1,17 @@
 {
+  "add": "Add",
+  "back": "Back",
+  "close": "Close",
+  "create": "Create",
+  "delete": "Delete",
+  "edit": "Edit",
+  "finish": "Finish",
+  "next": "Next",
+  "no": "No",
+  "ok": "OK",
   "retry": "Retry",
   "sign-in": "Sign in",
-  "sign-out": "Sign out"
+  "sign-out": "Sign out",
+  "try-again": "Try again",
+  "yes": "Yes"
 }

@@ -1,7 +1,7 @@
 import type BottomSheet from '@gorhom/bottom-sheet';
 import { createContext, forwardRef, useMemo } from 'react';
 import type { GestureResponderEvent } from 'react-native';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View, Platform } from 'react-native';
 import Animated, { FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../helpers/external/hooks';
@@ -276,7 +276,12 @@ const MenuContentPopover = forwardRef<
     const safeAreaInsets = useSafeAreaInsets();
     const { height: screenHeight } = useWindowDimensions();
 
-    const isReady = Boolean(contentLayout?.y && contentLayout.y < screenHeight);
+    // react-native-web reports a layout only when the size changes, so the
+    // move into place is never reported there; measured is enough on web.
+    const isReady =
+      Platform.OS === 'web'
+        ? Boolean(contentLayout)
+        : Boolean(contentLayout?.y && contentLayout.y < screenHeight);
 
     const insets = {
       top: DEFAULT_INSETS.top + safeAreaInsets.top,

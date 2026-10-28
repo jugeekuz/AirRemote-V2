@@ -12,9 +12,12 @@ namespace or error text does not compile.
 
 - [ ] Pick the namespace: the module's own (`modules/<m>/i18n/locales/en/<m>.json`,
       used as `useTranslation('<m>')`), or a global one in
-      `src/i18n/locales/en/`: `actions` (button verbs: `retry`, `sign-out`),
-      `messages` (the default; `errors.*`) or `screens` (global screens'
-      titles) → [i18n and error messages][i18n].
+      `src/i18n/locales/en/`: `actions` (button verbs: `retry`, `close`,
+      `back`, `try-again`), `chrome` (the shared components in
+      `src/components`: top bar, tab bar, status dot, empty grid),
+      `messages` (the default; `errors.*`, the dialogs' titles,
+      `not-available`) or `screens` (global screens' titles) →
+      [i18n and error messages][i18n].
 - [ ] Add the key in kebab-case, nested by screen or component
       (`remote-list.empty`, `learn-button.waiting`).
 - [ ] Use it: `const { t } = useTranslation('remotes'); t('remote-list.empty')`;
@@ -30,8 +33,9 @@ namespace or error text does not compile.
 - Interpolation is `{{name}}` in the JSON and `t('key', { name })`; plurals
   are `key_one`/`key_other` with `t('key', { count })`. Never build a sentence
   by concatenating strings.
-- Form fields show their own i18n texts, never Zod's messages (see
-  `src/modules/auth/screens/login-screen/`) → [i18n and error messages][i18n].
+- Form fields show their own i18n texts, never Zod's messages
+  (`BorderedField`'s and `StackedField`'s `errorMessage`, e.g. "Please enter a
+  valid button name") → [i18n and error messages][i18n].
 - The server's `message` is never shown; errors are shown by `code` →
   [i18n and error messages][i18n].
 - `src/i18n` may import only `@modules/<m>/i18n/...`, and only to register a
@@ -40,10 +44,11 @@ namespace or error text does not compile.
 
 ## Error codes
 
-- Failed requests toast `messages:errors.<CODE>` from the query cache
-  (`src/app/notify-api-error.ts`); you don't call it yourself.
-  `UNAUTHORIZED` and `INVALID_REFRESH_TOKEN` never toast: the user is taken
-  to Login instead (their texts still exist, for screens that show them).
+- Failed requests open V1's Error dialog with `messages:errors.<CODE>`
+  (`src/app/notify-api-error.ts`, called by the query and mutation
+  caches); you don't call it yourself. `UNAUTHORIZED` and
+  `INVALID_REFRESH_TOKEN` show nothing: the user is taken to Login instead
+  (their texts still exist, for screens that show them).
 - **Adding a code** to `errorCodeSchema`
   (`packages/contracts/src/errors/errors.contract.ts`) means adding
   `errors.<CODE>` to `src/i18n/locales/en/messages.json` in the same change,
@@ -55,8 +60,10 @@ namespace or error text does not compile.
   may call `useTranslation`), or a query one at its `useQuery` call site
   (query factories are plain functions).
 - An error that isn't an `ApiError` (a device command that settled as
-  `failed` or `expired`, with `error.code`) is shown by the screen with the
-  same text: ``t(`errors.${code}`, { ns: 'messages' })``.
+  `failed` or `expired`, with `error.code`) gets the same text in the same
+  dialog: `useDeviceCommand` calls
+  ``alert.error(t(`errors.${code}`))`` with the `messages` namespace, so a
+  screen following a command shows nothing itself.
 
 ## Adding a language
 
@@ -71,26 +78,31 @@ namespace or error text does not compile.
 
 ## Example
 
-`src/modules/buttons/i18n/locales/en/buttons.json`:
+`src/modules/remotes/i18n/locales/en/remotes.json` (part):
 
 ```json
 {
+  "remote-tile": {
+    "open": "Open {{name}}, {{type}}, {{status}}",
+    "delete": "Delete {{name}}"
+  },
   "learn-button": {
-    "title": "Learn a button",
-    "waiting": "Point your remote at {{device}} and press the button.",
-    "learned": "Saved \"{{name}}\"."
+    "title": "Add Button",
+    "listening": "Point your remote at the device and press the button."
   }
 }
 ```
 
 ```tsx
-const { t } = useTranslation('buttons');
-<Text.Paragraph>
-  {t('learn-button.waiting', { device: device.name })}
-</Text.Paragraph>;
+const { t } = useTranslation('remotes');
+<DeleteBadge
+  position="left"
+  label={t('remote-tile.delete', { name: remote.name })}
+  onConfirm={() => onDelete(remote.id)}
+/>;
 ```
 
-In a test this renders `learn-button.waiting | device: Desk`.
+In a test the label is `remote-tile.delete | name: TV`.
 
 ## Verify
 

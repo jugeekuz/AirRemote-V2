@@ -19,6 +19,11 @@ export type DevicesRepository = {
   listForUser(userId: string): Promise<Device[]>;
   /** Stores the device's pairing code, replacing any previous one. */
   savePairingCode(code: NewPairingCode): Promise<void>;
+  /**
+   * Deletes the device if it is the user's; its remotes, buttons and commands
+   * go with it (cascades). False when there is no such device of theirs.
+   */
+  deleteForUser(deviceId: string, userId: string): Promise<boolean>;
   /** A device deleted in the meantime is a no-op. */
   setFirmwareVersion(deviceId: string, firmwareVersion: string): Promise<void>;
   /**
@@ -60,6 +65,14 @@ export function createDevicesRepository(db: Database): DevicesRepository {
           target: pairingCodes.macAddress,
           set: { codeHash: code.codeHash, expiresAt: code.expiresAt },
         });
+    },
+
+    async deleteForUser(deviceId, userId) {
+      const deleted = await db
+        .delete(devices)
+        .where(and(eq(devices.id, deviceId), eq(devices.userId, userId)))
+        .returning({ id: devices.id });
+      return deleted.length > 0;
     },
 
     async setFirmwareVersion(deviceId, firmwareVersion) {

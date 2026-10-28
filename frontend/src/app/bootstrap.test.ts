@@ -5,8 +5,13 @@ import { createTestQueryClient } from '@utils/tests';
 import { authApi } from '@api/auth';
 import { configureHttpClient } from '@api/http-client';
 import { AUTH_STATUS, authStore } from '@stores/auth';
+import { alert } from '@ui';
 
-import { bootstrap, createSessionHooks } from './bootstrap';
+import {
+  bootstrap,
+  connectAlertsToSession,
+  createSessionHooks,
+} from './bootstrap';
 
 jest.mock('@api/auth');
 jest.mock('@api/http-client', () => ({
@@ -90,6 +95,25 @@ describe('createSessionHooks', () => {
     expect(authStore.getAccessToken()).toBeNull();
     expect(authStore.getStatus()).toBe(AUTH_STATUS.ANONYMOUS);
     expect(queryClient.getQueryData(['devices', 'list'])).toBeUndefined();
+  });
+});
+
+// A confirmation left open when the session ends must not show over Login.
+describe('connectAlertsToSession', () => {
+  it('closes every dialog when the signed-in session ends', () => {
+    const dismissAll = jest.spyOn(alert, 'dismissAll');
+    const disconnect = connectAlertsToSession();
+
+    authStore.setAccessToken('new');
+    expect(dismissAll).not.toHaveBeenCalled();
+    authStore.signOut();
+    expect(dismissAll).toHaveBeenCalledTimes(1);
+
+    disconnect();
+    authStore.signIn('again');
+    authStore.signOut();
+    expect(dismissAll).toHaveBeenCalledTimes(1);
+    dismissAll.mockRestore();
   });
 });
 

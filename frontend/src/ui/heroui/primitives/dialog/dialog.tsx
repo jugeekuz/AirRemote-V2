@@ -1,6 +1,5 @@
 import { createContext, forwardRef, useContext, useEffect, useId } from 'react';
 import {
-  BackHandler,
   type GestureResponderEvent,
   Pressable,
   Text,
@@ -27,6 +26,7 @@ import type {
   TriggerProps,
   TriggerRef,
 } from './dialog.types';
+import { addBackHandlerListener } from '../../helpers/internal/utils';
 
 const DialogContext = createContext<
   (RootContext & { nativeID: string }) | null
@@ -171,7 +171,7 @@ const Content = forwardRef<ContentRef, ContentProps>(
     const { isOpen, nativeID, onOpenChange } = useRootContext();
 
     useEffect(() => {
-      const backHandler = BackHandler.addEventListener(
+      const backHandler = addBackHandlerListener(
         'hardwareBackPress',
         () => {
           onOpenChange(false);

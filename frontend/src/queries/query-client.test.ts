@@ -55,6 +55,40 @@ describe('createQueryClient', () => {
     expect(onApiError).toHaveBeenCalledWith(error, 'Could not load');
   });
 
+  it('reports a failed first load, which has no data to show', async () => {
+    const { client, onApiError } = setup();
+    const error = apiError({ code: 'NETWORK_ERROR', isNetworkError: true });
+
+    await expect(
+      client.fetchQuery({
+        queryKey: ['test', 'first-load'],
+        queryFn: () => Promise.reject(error),
+        retry: false,
+      }),
+    ).rejects.toBe(error);
+
+    expect(onApiError).toHaveBeenCalledWith(error, undefined);
+  });
+
+  // Polling (the device list every 30 s) would otherwise open the Error
+  // dialog on every tick while offline; the screen keeps its last data.
+  it('does not report a failed refetch of a query that has data', async () => {
+    const { client, onApiError } = setup();
+    client.setQueryData(['test', 'refetch'], ['cached']);
+
+    await expect(
+      client.fetchQuery({
+        queryKey: ['test', 'refetch'],
+        queryFn: () => Promise.reject(apiError({ code: 'NETWORK_ERROR' })),
+        staleTime: 0,
+        retry: false,
+      }),
+    ).rejects.toBeDefined();
+
+    expect(onApiError).not.toHaveBeenCalled();
+    expect(client.getQueryData(['test', 'refetch'])).toEqual(['cached']);
+  });
+
   it('does not report a silent query', async () => {
     const { client, onApiError } = setup();
 

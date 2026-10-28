@@ -10,7 +10,8 @@ organised is in `frontend/ARCHITECTURE.md`.
 - Node 24
 - pnpm 10 (`corepack enable` or `npm i -g pnpm@10`)
 - The API running on your machine: `pnpm dev` at the repository root (see
-  `backend/README.md`)
+  `backend/README.md`), and the mock device for the device screens (see
+  "The whole app on your machine")
 - For Android: Android Studio with the Android SDK and an emulator (or a
   phone with USB debugging), and JDK 17. Java 25 is too new for the Android
   build; point `JAVA_HOME` at a JDK 17.
@@ -118,27 +119,93 @@ and `navigate` ambiguous. Rename it if the module's first screen is not a
 list. After creating a module, restart your editor's ESLint server so the
 module's import rules apply.
 
+## The whole app on your machine
+
+To use every screen (sign up, devices, remotes, learning and pressing
+buttons) you need the API, its device listener and a device. The mock
+device stands in for a board (`tools/device-sim/README.md`):
+
+1. Once: `cp .env.example .env` at the repository root (it already has
+   `CORS_ORIGINS=http://localhost:8081` for the web app), then create the
+   device listener's certificates and one for the mock device. The first
+   command prints the three `DEVICE_TLS_*` lines to put in `.env`:
+
+   ```bash
+   scripts/dev-certs.sh
+   scripts/dev-certs.sh device AA:BB:CC:DD:EE:01
+   ```
+
+2. `pnpm dev` at the root: Postgres, migrations, then the API on
+   http://localhost:3000 and the device listener on https://localhost:8443.
+3. In another terminal, `pnpm device-sim --mac AA:BB:CC:DD:EE:01`, then
+   type `/enroll`: it prints a pairing code (and a QR code).
+4. `pnpm --filter @airremote/frontend web`, open http://localhost:8081,
+   sign up, log in, then Devices → ⊕ → Next → "Enter manually" with the
+   MAC and the code (or scan the QR code on a phone). The mock connects
+   within 5 s; the tile says Connected at the next refresh (30 s, or when
+   you come back to the tab).
+5. Remotes → ⊕ adds a remote on the device; open it and ⊕ to learn a
+   button: when the app is listening, type `/press` in the mock. Press the
+   button's circle to send it. `/disconnect` and `/connect` in the mock
+   take it offline and back; `/send-fails on` makes presses fail.
+
+To point the app at another API (a second one on another port, or the
+computer from a phone), put `EXPO_PUBLIC_API_URL` in
+`frontend/.env.development.local` and restart the dev server (see Local
+overrides).
+
 ## Manual checks on a device
 
-These checks haven't been run on a device yet. Before relying on Android or
-iOS, run them on a development build against `pnpm dev`:
+These checks haven't been run on a device yet (there is no Android SDK or
+Mac where the app was built). Before relying on Android or iOS, run them on
+a development build against `pnpm dev` and the mock device, set up as in
+"The whole app on your machine", with `EXPO_PUBLIC_API_URL` pointing at
+the computer:
 
 1. Install the development build (`pnpm android` / `pnpm ios`); the app
-   starts on Login.
-2. Sign in with a real account; Home says you're signed in.
-3. Send the app to the background and bring it back: still on Home.
+   starts on Login, in V1's look: Poppins in the empty states, the blue
+   gradient on the sign-in button.
+2. Sign up, then sign in: the app opens on Remotes. The top bar and every
+   screen's content sit below the status bar and the notch, not under
+   them, on Login and Sign up too; the tab bar clears the home indicator.
+3. Send the app to the background and bring it back: still signed in, on
+   the same tab.
 4. Turn on airplane mode, then kill and reopen the app: "Couldn't connect"
-   with Retry. Turn airplane mode off and press Retry: Home.
-5. Once a screen calls an authenticated endpoint (the Devices screen, the
-   next change; Home makes no request): wait more than 10 minutes (the
-   access token's lifetime), then use that screen. The refresh is
-   invisible: no sign-out, no error toast. To check it sooner, shorten the
-   token's lifetime locally: set `ACCESS_TOKEN_TTL_SECONDS` in
-   `backend/src/features/auth/auth.helpers.ts` to e.g. `30`, restart
-   `pnpm dev`, sign in again, and revert it afterwards (never commit it).
+   with Retry. Turn airplane mode off and press Retry: Remotes.
+5. Wait more than 10 minutes (the access token's lifetime), then open
+   Devices. The refresh is invisible: no sign-out, no Error dialog. To
+   check it sooner, shorten the token's lifetime locally: set
+   `ACCESS_TOKEN_TTL_SECONDS` in `backend/src/features/auth/auth.helpers.ts`
+   to e.g. `30`, restart `pnpm dev`, sign in again, and revert it
+   afterwards (never commit it).
 6. Kill the app and open it again: still signed in. This is the refresh
    cookie surviving a restart, which is unverified on native.
-7. Sign out: back on Login, and reopening the app stays on Login.
+7. Devices → ⊕ → Next: the app asks for the camera (the prompt says it
+   scans the pairing code). Allow it, then point it at the mock device's
+   QR code (`/enroll`): the dialog moves to the name with the board and
+   code filled in. A QR code that isn't a pairing link shows "That QR code
+   isn't an AirRemote pairing code." and keeps scanning. Deny the camera
+   and reopen: "Camera access is turned off…", with "Enter manually" still
+   there.
+8. Pairing links, with `airremote://pair?mac=<MAC>&code=<CODE>` opened by
+   `adb shell am start -a android.intent.action.VIEW -d "<link>"` or
+   `xcrun simctl openurl booted "<link>"`:
+   - cold start (the app closed, signed in): Devices opens with the dialog
+     at the name, filled in;
+   - warm start (the app open on another tab): the same;
+   - signed out: Login first; after signing in the app opens on Devices
+     with the dialog filled in.
+9. Edit mode (the pencil) on Devices, Remotes and a remote's buttons: the
+   tiles wobble and show the × badge half over their corner. Tap the
+   badge's outer half, outside the tile, on Android: it must still open
+   the confirmation (Android may not deliver touches outside a view's
+   bounds).
+10. Learn a button (`/press` in the mock while the bar sweeps), then press
+    it: the spinner, then the green tick drawn with its pop. The progress
+    bar, the tick and the pop are Reanimated and react-native-svg
+    animations that were only checked on web.
+11. Sign out from the account menu: back on Login, and reopening the app
+    stays on Login.
 
 ## Common failures
 

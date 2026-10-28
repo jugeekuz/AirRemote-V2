@@ -39,17 +39,41 @@ Tailwind classes with the theme's tokens.
   [Naming][naming].
 - Show-or-hide is `{!!condition && <X />}`; a ternary only for either/or;
   nested ternaries become named sub-components.
-- Style with `className`: theme tokens (`bg-background`, `text-foreground`,
-  `text-muted`, `bg-surface`, `border-border`, `text-danger`, `bg-accent`)
-  and Tailwind's scale (`px-6`, `gap-6`, `max-w-sm`). No arbitrary values
-  (`w-[13px]`), no hex colours; a `<name>.styles.ts` only for what classes
-  can't express → [Naming][naming].
+- Style with `className`: Tailwind's palette and scale with V1's values
+  (`bg-gray-100`, `text-green-500`, `px-6`, `max-w-sm`; `src/ui/theme.css`
+  makes them Tailwind 3's hex colours, as V1's), the kit's tokens
+  (`bg-background`, `bg-accent` is black, `text-danger`), NextUI's
+  `rounded-small/medium/large` and `shadow-small/medium`, and
+  `font-poppins*` where V1 named Poppins. No arbitrary values (`w-[13px]`)
+  unless the scale lacks V1's value (say so in a comment), no hex colours;
+  a `<name>.styles.ts` only for what classes can't express →
+  [UI kit][ui], [Naming][naming].
 - App code imports the kit from `@ui` only; `uniwind`, `tailwind-variants`
   and `tailwind-merge` are for `src/ui` → [Layers and import rules][layers].
-- A `Label` names its field: `nativeID={id}` on the `Label`,
-  `aria-labelledby={id}` on the `Input`, `id` from `useId()` → [UI kit][ui].
-- Busy buttons: `isDisabled` plus
-  `accessibilityState={{ disabled, busy }}` (see the Login screen).
+- Every screen's root is `Screen` from `@components/screen` (clear of the
+  status bar and notch; `hasBottomInset` on screens without the tab bar).
+  A signed-in screen then has a `ScrollView` with `px-2` and `TopToolbar`
+  (`onBack` on a nested screen) → [Shared components][shared].
+- Use the shared chrome before writing your own: `SectionHeader`,
+  `NoticeBox`, `TileGrid`, `EmptyTiles` (inside the ScrollView; `onRetry`
+  for a failed first load, `isOffline` for one waiting for the network),
+  `StatusDot`, `DeleteBadge`, `Wobble`, `FlatSelect`, `BorderedField`,
+  `IndeterminateProgress`, and `Modal` from `@ui` for a wizard →
+  [Shared components][shared].
+- Edit mode: wrap the screen in `EditModeProvider` (`@contexts/edit-mode`),
+  read `useEditMode((s) => s.isEditing)`, and stop it on blur:
+  `useFocusEffect(useCallback(() => stop, [stop]))`. A tile in edit mode
+  wraps itself in `Wobble` and shows a `DeleteBadge` labelled
+  "Delete {{name}}"; its outer view is not `overflow-hidden` (the badge
+  sits half outside).
+- A field names itself: `BorderedField` (and the auth module's
+  `StackedField`) link the label with `nativeID` and `aria-labelledby`
+  from `useId()`, and show their own error text; use them rather than a
+  bare `Input` → [UI kit][ui].
+- Busy or disabled controls set `accessibilityState={{ disabled, busy }}`
+  for native and `aria-busy` / `aria-disabled` for the browser, which
+  ignores `accessibilityState` (`modules/auth/components/submit-button`,
+  `modules/remotes/components/press-button`).
 - Lists of server data use the query's `isPending` for a first load and a
   module-level empty constant for `data` → [Queries][queries].
 - Navigation titles come from i18n (`options={{ title: t(...) }}`); web
@@ -65,8 +89,15 @@ in `src/ui/heroui/components/` (`list-group`, `chip`, `skeleton`, `select`,
 
 - `UiProvider` sits inside `SafeAreaProvider` (`src/app/app.tsx`); tests get
   it from `renderWithProviders` → [UI kit][ui].
-- `toast.success()`/`toast.error()` work outside React; failed requests
-  already toast by code, so don't add your own for those.
+- `alert.error(message)` and `alert.confirm(options)` (title, message,
+  confirm and cancel labels) from `@ui` open V1's Error and Confirmation
+  dialogs from anywhere. Failed requests already open the
+  Error dialog by code, so don't add your own for those; a delete asks
+  first through `DeleteBadge`, which uses `alert.confirm`.
+- Pictures are `Image` from `@ui` with a source from `@assets/images`
+  (`IMAGES`); icons are `Icon` with a lucide icon (`as`) and a colour class.
+  Only `src/ui` imports `expo-image`, `expo-camera` or
+  `expo-linear-gradient` → [UI kit][ui].
 - **Changing the vendored kit** (`src/ui/heroui/`): it is ours, excluded from
   ESLint and Prettier but type-checked. Keep upstream's formatting, and add
   a numbered entry under "Our changes" in `src/ui/heroui/VENDOR.md` saying
@@ -75,39 +106,67 @@ in `src/ui/heroui/components/` (`list-group`, `chip`, `skeleton`, `select`,
 
 ## Porting V1's look
 
-Read the V1 page and components in `legacy/frontend/src/` for layout and
-content only; never copy markup, classes, CSS or code. Rebuild with `@ui`
-and the tokens; the theme follows the system's light or dark scheme. If a V1
-image is needed (an appliance picture per remote type), ask the owner before
-copying it into `src/assets/`; nothing may reference `legacy/`.
+Every class, colour, size, text and asset of V1's pages is resolved to
+values in `docs/superpowers/specs/2026-10-28-v1-look-inventory.md`: start
+there. Read the V1 page in `legacy/frontend/src/` only for what the
+inventory doesn't cover, for layout and content only; never copy markup,
+CSS or code. The app is light-only, as V1 was. V1's pictures are already
+in `src/assets/` (`IMAGES`); a new one needs the owner's approval before
+it is copied, and nothing may reference `legacy/`. A change to
+`src/ui/theme.css` needs the dev server restarted with `--clear`.
 
-## Example: a remote tile (module component)
+## Example: a tile with edit mode (module component)
 
 ```tsx
-// src/modules/remotes/components/remote-tile/remote-tile.tsx
-type RemoteTileProps = {
-  remote: RemoteResponse;
-  onPress: (remoteId: string) => void;
+// src/modules/devices/components/device-tile/device-tile.tsx (shortened)
+type DeviceTileProps = {
+  device: DeviceResponse;
+  isEditing: boolean;
+  onDelete: (deviceId: string) => void;
 };
 
-export default function RemoteTile({ remote, onPress }: RemoteTileProps) {
-  const { t } = useTranslation('remotes');
+export default function DeviceTile({
+  device,
+  isEditing,
+  onDelete,
+}: DeviceTileProps) {
+  const { t } = useTranslation('devices');
 
   return (
-    <Card className="gap-2">
-      <Text.Heading type="h5">{remote.name}</Text.Heading>
-      <Text.Paragraph color="muted">{t(`types.${remote.type}`)}</Text.Paragraph>
-      <Button onPress={() => onPress(remote.id)}>
-        <Button.Label>{t('tile.open')}</Button.Label>
-      </Button>
-    </Card>
+    <Wobble isActive={isEditing}>
+      {/* Not clipped: the delete badge sits half outside the corner. */}
+      <View className="relative h-40 rounded-lg border-2 border-gray-300 bg-gray-100">
+        <View className="h-1/3 p-2">
+          <Text
+            numberOfLines={1}
+            className="text-sm font-semibold text-gray-800"
+          >
+            {device.name}
+          </Text>
+          <Text className="text-xs text-gray-600">
+            {t(device.online ? 'device-tile.online' : 'device-tile.offline')}
+          </Text>
+        </View>
+        {/* … the picture: Image from @ui with IMAGES.microcontroller … */}
+        {isEditing && (
+          <DeleteBadge
+            position="left"
+            label={t('device-tile.delete', { name: device.name })}
+            onConfirm={() => onDelete(device.id)}
+          />
+        )}
+      </View>
+    </Wobble>
   );
 }
 ```
 
-Full working references: `src/modules/auth/screens/login-screen/` (form,
-labels, busy button) and `src/modules/home/screens/home-screen/`. Check a
-kit component's props in its `*.types.ts` under `src/ui/heroui/components/`.
+Full working references: `src/modules/devices/screens/device-list-screen/`
+(a list with edit mode, empty and failed states),
+`src/modules/remotes/screens/remote-details-screen/` (details, a not-found
+state, a wizard, a device command), `src/modules/auth/screens/` (forms).
+Check a kit component's props in its `*.types.ts` under
+`src/ui/heroui/components/`.
 
 ## Verify
 
@@ -115,10 +174,11 @@ kit component's props in its `*.types.ts` under `src/ui/heroui/components/`.
 pnpm lint && pnpm typecheck && pnpm test:frontend
 ```
 
-Then look at it in the browser, at phone width and in dark mode
-(`frontend-dev`).
+Then look at it in the browser at phone width (390×844) and next to the
+inventory's values (`frontend-dev`).
 
 [layers]: ../../../frontend/ARCHITECTURE.md#layers-and-import-rules
 [naming]: ../../../frontend/ARCHITECTURE.md#naming
 [ui]: ../../../frontend/ARCHITECTURE.md#ui-kit
 [queries]: ../../../frontend/ARCHITECTURE.md#queries
+[shared]: ../../../frontend/ARCHITECTURE.md#shared-components

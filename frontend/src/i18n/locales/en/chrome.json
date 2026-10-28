@@ -1,0 +1,27 @@
+{
+  "top-toolbar": {
+    "logo": "AirRemote",
+    "back": "Back",
+    "account": "Account",
+    "invite-friend": "Invite a friend",
+    "logout": "Logout"
+  },
+  "empty-tiles": {
+    "hint": "Click the <icon/> icon to get started.",
+    "offline": "You're offline. We'll load this when you're back online."
+  },
+  "status-dot": {
+    "online": "Connected",
+    "offline": "Disconnected"
+  },
+  "bottom-tab-bar": {
+    "dashboard": "Dashboard",
+    "remotes": "Remotes",
+    "devices": "Devices",
+    "automations": "Automations",
+    "unavailable": "Not available yet"
+  },
+  "flat-select": {
+    "label-with-value": "{{name}}, {{value}}"
+  }
+}

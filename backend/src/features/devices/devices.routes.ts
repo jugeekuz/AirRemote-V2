@@ -2,22 +2,27 @@ import {
   deviceListResponseSchema,
   deviceResponseSchema,
   enrollDeviceRequestSchema,
+  noContentResponseSchema,
 } from '@airremote/contracts';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import type { Env } from '../../config/env';
 import { authenticatedUserId } from '../../plugins/authenticate';
+import type { DeviceConnections } from '../../shared/device-connections';
 import { createDevicesRepository } from './devices.repository';
 import { createDevicesService, type DevicesService } from './devices.service';
 
 export const devicesRoutes: FastifyPluginAsyncZod<{
   env: Env;
+  connections: DeviceConnections;
   /** Overrides the service, e.g. with a fake in tests. */
   service?: DevicesService;
-}> = async (app, { env, service: override }) => {
+}> = async (app, { env, connections, service: override }) => {
   const service =
     override ??
     createDevicesService({
       repository: createDevicesRepository(app.db),
+      connections,
       pairingCodeSecret: env.PAIRING_CODE_SECRET,
     });
 
@@ -47,6 +52,24 @@ export const devicesRoutes: FastifyPluginAsyncZod<{
         'Device enrolled',
       );
       return reply.code(201).send(device);
+    },
+  );
+
+  app.delete(
+    '/:deviceId',
+    {
+      onRequest: app.authenticate,
+      schema: {
+        params: z.object({ deviceId: z.uuid() }),
+        response: { 204: noContentResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const userId = authenticatedUserId(request);
+      const { deviceId } = request.params;
+      await service.delete(userId, deviceId);
+      request.log.info({ deviceId, userId }, 'Device deleted');
+      return reply.code(204).send(null);
     },
   );
 };

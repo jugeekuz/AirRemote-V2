@@ -10,6 +10,7 @@ import {
 } from '@utils/tests';
 import { authApi } from '@api/auth';
 import { AUTH_STATUS, authStore } from '@stores/auth';
+import { pendingPairingStore } from '@stores/pending-pairing';
 
 import { useLogout } from './use-logout';
 
@@ -21,6 +22,7 @@ beforeEach(() => {
   jest.resetAllMocks();
   authStore.reset();
   authStore.signIn('token-1');
+  pendingPairingStore.reset();
 });
 
 afterEach(() => {
@@ -37,6 +39,21 @@ async function renderLogout() {
 }
 
 describe('useLogout', () => {
+  it('drops a pairing link still waiting for a sign-in', async () => {
+    api.logout.mockResolvedValueOnce(undefined);
+    pendingPairingStore.set({
+      macAddress: 'AA:BB:CC:DD:EE:01',
+      pairingCode: '7K4MQ9TX',
+    });
+    const { result } = await renderLogout();
+
+    await act(async () => {
+      await result.current.logout();
+    });
+
+    expect(pendingPairingStore.getPending()).toBeNull();
+  });
+
   it('calls the API, signs out and clears the cache', async () => {
     api.logout.mockResolvedValueOnce(undefined);
     const errorSpy = jest.spyOn(console, 'error');

@@ -17,6 +17,7 @@ const CLOSE_REASONS: Record<number, string> = {
   1008: 'too many invalid messages',
   1009: 'message too big',
   4000: 'replaced by a newer connection',
+  4001: 'device deleted by its owner',
 };
 
 export function describeClose(code: number): string {

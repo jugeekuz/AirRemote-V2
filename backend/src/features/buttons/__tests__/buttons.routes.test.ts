@@ -37,6 +37,7 @@ let app: FastifyInstance;
 let received: [string, string, LearnButtonRequest][];
 let listed: [string, string][];
 let pressed: [string, string][];
+let deleted: [string, string][];
 
 const pressing: DeviceCommandResponse = {
   ...pending,
@@ -47,10 +48,12 @@ const pressing: DeviceCommandResponse = {
 async function appWith(
   learn: ButtonsService['learn'],
   press: ButtonsService['press'] = async () => pressing,
+  remove: ButtonsService['delete'] = async () => {},
 ) {
   received = [];
   listed = [];
   pressed = [];
+  deleted = [];
   app = await buildTestApp();
   await app.register(authenticatePlugin, { secrets });
   await app.register(buttonsRoutes, {
@@ -67,6 +70,10 @@ async function appWith(
       press: async (userId, buttonId) => {
         pressed.push([userId, buttonId]);
         return press(userId, buttonId);
+      },
+      delete: async (userId, buttonId) => {
+        deleted.push([userId, buttonId]);
+        return remove(userId, buttonId);
       },
     },
   });
@@ -224,6 +231,57 @@ describe('POST /buttons/:buttonId/press', () => {
     expect(res.headers.location).toBeUndefined();
     expect(res.json()).toEqual({
       error: { code: error.code, message: error.message },
+    });
+  });
+});
+
+describe('DELETE /buttons/:buttonId', () => {
+  async function remove(
+    buttonId: string,
+    { signedIn = true, fails }: { signedIn?: boolean; fails?: AppError } = {},
+  ) {
+    await appWith(
+      async () => pending,
+      async () => pressing,
+      async () => {
+        if (fails) throw fails;
+      },
+    );
+    const token = await signAccessToken('user-1', secrets);
+    return app.inject({
+      method: 'DELETE',
+      url: `/buttons/${buttonId}`,
+      headers: signedIn ? { authorization: `Bearer ${token}` } : {},
+    });
+  }
+
+  it('returns 204 with no body after deleting the signed-in user’s button', async () => {
+    const res = await remove(button.id);
+    expect(res.statusCode).toBe(204);
+    expect(res.body).toBe('');
+    expect(deleted).toEqual([['user-1', button.id]]);
+  });
+
+  it('returns 401 without a token, without calling the service', async () => {
+    const res = await remove(button.id, { signedIn: false });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().error.code).toBe('UNAUTHORIZED');
+    expect(deleted).toEqual([]);
+  });
+
+  it('returns 400 VALIDATION_FAILED for a non-UUID id, without calling the service', async () => {
+    const res = await remove('not-a-uuid');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('VALIDATION_FAILED');
+    expect(deleted).toEqual([]);
+  });
+
+  it('passes 404 NOT_FOUND through', async () => {
+    const error = new AppError(404, 'NOT_FOUND', 'Button not found');
+    const res = await remove(button.id, { fails: error });
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({
+      error: { code: 'NOT_FOUND', message: 'Button not found' },
     });
   });
 });

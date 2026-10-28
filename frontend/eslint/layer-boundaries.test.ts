@@ -177,6 +177,50 @@ describe('layer boundaries', () => {
     ).toEqual([]);
   });
 
+  it('lets only src/ui import expo-image', async () => {
+    expect(
+      await boundaryErrors(
+        'components/top-toolbar/top-toolbar.tsx',
+        importing('expo-image'),
+      ),
+    ).toEqual([expect.stringContaining('Only src/ui imports expo-image')]);
+    expect(
+      await boundaryErrors('ui/image/image.tsx', importing('expo-image')),
+    ).toEqual([]);
+  });
+
+  it('lets only src/ui import expo-camera', async () => {
+    expect(
+      await boundaryErrors(
+        'modules/devices/components/add-device-dialog/add-device-dialog.tsx',
+        importing('expo-camera'),
+      ),
+    ).toEqual([expect.stringContaining('Only src/ui imports expo-camera')]);
+    expect(
+      await boundaryErrors(
+        'ui/qr-scanner/qr-scanner.tsx',
+        importing('expo-camera'),
+      ),
+    ).toEqual([]);
+  });
+
+  it('lets only src/ui import expo-linear-gradient', async () => {
+    expect(
+      await boundaryErrors(
+        'modules/auth/components/submit-button/submit-button.tsx',
+        importing('expo-linear-gradient'),
+      ),
+    ).toEqual([
+      expect.stringContaining('Only src/ui imports expo-linear-gradient'),
+    ]);
+    expect(
+      await boundaryErrors(
+        'ui/linear-gradient/linear-gradient.tsx',
+        importing('expo-linear-gradient'),
+      ),
+    ).toEqual([]);
+  });
+
   it('lets only src/config read process.env', async () => {
     const code = 'export const x = process.env.X;\n';
 

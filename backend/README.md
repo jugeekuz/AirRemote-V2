@@ -115,6 +115,13 @@ Listing and pressing, also with the owner's access token:
   `409 DEVICE_OFFLINE`. Poll the command as above; it ends `succeeded`, or
   `failed` with an `error` such as `IR_SEND_FAILED`.
 
+Deleting, also with the owner's access token: `DELETE /devices/:deviceId`,
+`DELETE /remotes/:remoteId` and `DELETE /buttons/:buttonId` answer `204`, or
+`404 NOT_FOUND` for an id that is missing or someone else's. A device goes
+with its remotes, buttons and commands, a remote with its buttons. A deleted
+device's socket is closed with `4001 deleted`, its reconnect is refused, and
+it can ask for a pairing code again to be enrolled anew.
+
 Commands are rows in `device_commands`, so any instance can report them.
 With the mock device, type `/press` in it to send a code. The curl commands
 that set `$TOKEN`, `$DEVICE_ID`, `$REMOTE` and `$BUTTON` and make these requests are in

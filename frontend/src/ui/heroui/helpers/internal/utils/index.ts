@@ -6,3 +6,4 @@ export * from './ease-gradient';
 export * from './get-element-by-display-name';
 export * from './get-element-with-default';
 export * from './has-prop';
+export * from './back-handler';

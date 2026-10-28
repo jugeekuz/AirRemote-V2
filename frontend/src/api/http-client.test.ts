@@ -370,7 +370,7 @@ describe('createHttpClient', () => {
     expect(hooks.onSessionExpired).toHaveBeenCalledTimes(1);
   });
 
-  it.each<[string, unknown]>([
+  it.each<[string, ApiError]>([
     [
       'offline',
       {
@@ -397,9 +397,8 @@ describe('createHttpClient', () => {
         isNetworkError: false,
       },
     ],
-    ['anything else', new Error('Boom')],
   ])(
-    'keeps the session when the refresh fails transiently (%s)',
+    'keeps the session and rejects every waiter with the refresh error (%s)',
     async (_reason, failure) => {
       const { adapter, hooks, session, client, holdRefresh } = setup('old');
       adapter.mockImplementation(server(null));
@@ -410,25 +409,40 @@ describe('createHttpClient', () => {
       await settle();
       refresh.reject(failure);
 
-      // Each request rejects with its own original 401.
-      await expect(first).rejects.toEqual({
-        status: 401,
-        code: 'UNAUTHORIZED',
-        message: 'Refused /a',
-        isNetworkError: false,
-      });
-      await expect(second).rejects.toEqual({
-        status: 401,
-        code: 'UNAUTHORIZED',
-        message: 'Refused /b',
-        isNetworkError: false,
-      });
+      await expect(first).rejects.toEqual(failure);
+      await expect(second).rejects.toEqual(failure);
       expect(adapter).toHaveBeenCalledTimes(2);
       expect(hooks.refreshAccessToken).toHaveBeenCalledTimes(1);
       expect(hooks.onSessionExpired).not.toHaveBeenCalled();
       expect(session.token).toBe('old');
     },
   );
+
+  it('keeps the session and rejects with the original 401 when the refresh fails with a non-ApiError', async () => {
+    const { adapter, hooks, session, client, holdRefresh } = setup('old');
+    adapter.mockImplementation(server(null));
+    const refresh = holdRefresh();
+
+    const first = client.get('/a', idSchema);
+    const second = client.get('/b', idSchema);
+    await settle();
+    refresh.reject(new Error('Signed out while refreshing'));
+
+    await expect(first).rejects.toEqual({
+      status: 401,
+      code: 'UNAUTHORIZED',
+      message: 'Refused /a',
+      isNetworkError: false,
+    });
+    await expect(second).rejects.toEqual({
+      status: 401,
+      code: 'UNAUTHORIZED',
+      message: 'Refused /b',
+      isNetworkError: false,
+    });
+    expect(hooks.onSessionExpired).not.toHaveBeenCalled();
+    expect(session.token).toBe('old');
+  });
 
   it('refreshes again on the next 401 after a transient failure', async () => {
     const { adapter, hooks, client, refreshTo } = setup('old');
@@ -440,7 +454,7 @@ describe('createHttpClient', () => {
     });
 
     await expect(client.get('/a', idSchema)).rejects.toMatchObject({
-      status: 401,
+      code: 'NETWORK_ERROR',
     });
     refreshTo('new');
 

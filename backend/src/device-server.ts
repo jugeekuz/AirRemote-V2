@@ -65,6 +65,7 @@ export async function buildDeviceServer({
     service ??
     createDevicesService({
       repository: createDevicesRepository(db.db),
+      connections,
       pairingCodeSecret: env.PAIRING_CODE_SECRET,
     });
 

@@ -51,4 +51,20 @@ export const authStore = {
   getStatus: () => useAuthStore.getState().status,
 
   useStatus: () => useAuthStore((state) => state.status),
+
+  /**
+   * Calls `listener` each time a signed-in session ends (sign-out or a
+   * session the server refused), not when a launch finds no session.
+   * Returns the function that stops listening.
+   */
+  onSessionEnd(listener: () => void): () => void {
+    return useAuthStore.subscribe((state, previous) => {
+      if (
+        previous.status === AUTH_STATUS.AUTHENTICATED &&
+        state.status === AUTH_STATUS.ANONYMOUS
+      ) {
+        listener();
+      }
+    });
+  },
 };

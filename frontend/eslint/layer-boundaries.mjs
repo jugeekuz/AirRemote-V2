@@ -149,6 +149,21 @@ const PACKAGE_RULES = [
     allowedIn: ['ui/'],
     message: `Only src/ui imports uniwind, tailwind-variants and tailwind-merge. Use what @ui exports. ${SEE_DOCS}`,
   },
+  {
+    group: ['expo-image', 'expo-image/**'],
+    allowedIn: ['ui/'],
+    message: `Only src/ui imports expo-image. Use Image from @ui. ${SEE_DOCS}`,
+  },
+  {
+    group: ['expo-camera', 'expo-camera/**'],
+    allowedIn: ['ui/'],
+    message: `Only src/ui imports expo-camera. Use QrScanner and useCameraAccess from @ui. ${SEE_DOCS}`,
+  },
+  {
+    group: ['expo-linear-gradient', 'expo-linear-gradient/**'],
+    allowedIn: ['ui/'],
+    message: `Only src/ui imports expo-linear-gradient. Use LinearGradient from @ui. ${SEE_DOCS}`,
+  },
 ];
 
 const TEST_SUPPORT_FILES = [

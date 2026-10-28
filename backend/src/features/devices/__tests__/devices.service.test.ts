@@ -20,10 +20,14 @@ function serviceWith({
   found = async () => device,
   enrolled = async () => ({ status: 'enrolled', device }),
   listed = async () => [device],
+  connected = () => false,
+  deleted = async () => true,
 }: {
   found?: () => Promise<Device | null>;
   enrolled?: () => Promise<EnrollResult>;
   listed?: () => Promise<Device[]>;
+  connected?: (deviceId: string) => boolean;
+  deleted?: () => Promise<boolean>;
 } = {}) {
   const repository = {
     findByMacAddress: vi.fn(found),
@@ -31,14 +35,20 @@ function serviceWith({
     enroll: vi.fn(enrolled),
     listForUser: vi.fn(listed),
     setFirmwareVersion: vi.fn(async () => {}),
+    deleteForUser: vi.fn(deleted),
+  };
+  const connections = {
+    isConnected: vi.fn(connected),
+    disconnect: vi.fn(() => true),
   };
   const service = createDevicesService({
     repository: repository satisfies DevicesRepository,
+    connections,
     pairingCodeSecret: secret,
     now: () => now,
     generateCode: () => '7K4MQ9TX',
   });
-  return { service, repository };
+  return { service, repository, connections };
 }
 
 async function appErrorOf(promise: Promise<unknown>) {
@@ -139,6 +149,7 @@ describe('devices service: enroll', () => {
       id: device.id,
       macAddress: 'aa:bb:cc:dd:ee:01',
       name: 'Living room',
+      online: false,
     });
     expect(repository.enroll).toHaveBeenCalledExactlyOnceWith({
       macAddress: 'aa:bb:cc:dd:ee:01',
@@ -146,6 +157,13 @@ describe('devices service: enroll', () => {
       now,
       userId: 'user-1',
       name: 'Living room',
+    });
+  });
+
+  it('reports a device that is already connected as online', async () => {
+    const { service } = serviceWith({ connected: (id) => id === device.id });
+    expect(await service.enroll('user-1', input)).toMatchObject({
+      online: true,
     });
   });
 
@@ -175,11 +193,29 @@ describe('devices service: list', () => {
     const { service, repository } = serviceWith();
 
     await expect(service.list(device.userId)).resolves.toEqual([
-      { id: device.id, macAddress: device.macAddress, name: device.name },
+      {
+        id: device.id,
+        macAddress: device.macAddress,
+        name: device.name,
+        online: false,
+      },
     ]);
     expect(repository.listForUser).toHaveBeenCalledExactlyOnceWith(
       device.userId,
     );
+  });
+
+  it('marks each device online or offline from the connections', async () => {
+    const other = { ...device, id: 'other-device', name: 'Bedroom' };
+    const { service } = serviceWith({
+      listed: async () => [device, other],
+      connected: (id) => id === other.id,
+    });
+    const list = await service.list(device.userId);
+    expect(list.map(({ id, online }) => [id, online])).toEqual([
+      [device.id, false],
+      [other.id, true],
+    ]);
   });
 
   it('returns an empty list when there are none', async () => {
@@ -198,5 +234,35 @@ describe('devices service: recordFirmwareVersion', () => {
       device.id,
       '0.2.0',
     );
+  });
+});
+
+describe('devices service: delete', () => {
+  it('deletes the user’s device, then closes its connection', async () => {
+    const { service, repository, connections } = serviceWith();
+
+    await service.delete(device.userId, device.id);
+
+    expect(repository.deleteForUser).toHaveBeenCalledExactlyOnceWith(
+      device.id,
+      device.userId,
+    );
+    expect(connections.disconnect).toHaveBeenCalledExactlyOnceWith(device.id);
+    // Deleted first, so the device's reconnect is already refused.
+    expect(repository.deleteForUser.mock.invocationCallOrder[0]).toBeLessThan(
+      connections.disconnect.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('answers 404 NOT_FOUND for a device that is missing or another user’s, closing nothing', async () => {
+    const { service, connections } = serviceWith({
+      deleted: async () => false,
+    });
+
+    expect(await appErrorOf(service.delete(device.userId, device.id))).toEqual({
+      statusCode: 404,
+      code: 'NOT_FOUND',
+    });
+    expect(connections.disconnect).not.toHaveBeenCalled();
   });
 });

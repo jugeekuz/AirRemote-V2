@@ -20,8 +20,11 @@ The table with the reasons is [State ownership][state]. In AirRemote terms:
 - a selection two modules share (the device picked in the devices module and
   read by the remotes module) → global store (`src/stores/`), since modules
   never import each other;
-- one multi-step flow per mounted subtree (pairing a device) → scoped store
-  in `contexts/`;
+- one state per mounted subtree (a screen's edit mode) → scoped store in
+  `contexts/` (`@contexts/edit-mode`);
+- something that must outlive a screen but not the app (a pairing link
+  that arrived before sign-in) → global store in memory
+  (`src/stores/pending-pairing`);
 - a dialog's visibility, text before debounce → `useState`;
 - a form → react-hook-form; the id a screen is about (`remoteId`) → route
   params.
@@ -135,6 +138,9 @@ export function usePairing<T>(selector: (state: PairingStore) => T): T {
 
 The file is `contexts/<name>.context.tsx` exporting `XProvider` and `useX`
 ([Naming][naming]); actions live in the store, since there is no facade.
+The real one is `src/contexts/edit-mode/edit-mode.context.tsx`: each list
+screen mounts its own `EditModeProvider`, so edit mode starts off on every
+screen and ends when it unmounts (the screen also stops it on blur).
 
 ## Verify
 

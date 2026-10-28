@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildTestApp, testEnv } from '../../../__tests__/test-utils';
 import { authenticatePlugin } from '../../../plugins/authenticate';
+import { createDeviceConnections } from '../../../shared/device-connections';
 import { AppError } from '../../../shared/errors';
 import { signAccessToken } from '../../auth/auth.helpers';
 import { devicesRoutes } from '../devices.routes';
@@ -23,20 +24,27 @@ const enrolled: DeviceResponse = {
   id: '0b6f1c2a-3c1e-4a8e-9a43-0d5f1f6f2b11',
   macAddress: 'aa:bb:cc:dd:ee:01',
   name: 'Living room',
+  online: false,
 };
 
 let app: FastifyInstance;
 let received: [string, EnrollDeviceRequest][];
 let listed: string[];
+let deleted: [string, string][];
 
-async function appWith(enroll: DevicesService['enroll']) {
+async function appWith(
+  enroll: DevicesService['enroll'],
+  remove: DevicesService['delete'] = async () => {},
+) {
   received = [];
   listed = [];
+  deleted = [];
   app = await buildTestApp();
   await app.register(authenticatePlugin, { secrets });
   await app.register(devicesRoutes, {
     prefix: '/devices',
     env: testEnv,
+    connections: createDeviceConnections(),
     service: {
       authorizeConnection: async () => null,
       issuePairingCode: async () => {
@@ -52,6 +60,10 @@ async function appWith(enroll: DevicesService['enroll']) {
       list: async (userId) => {
         listed.push(userId);
         return [enrolled];
+      },
+      delete: async (userId, deviceId) => {
+        deleted.push([userId, deviceId]);
+        return remove(userId, deviceId);
       },
     },
   });
@@ -171,5 +183,55 @@ describe('GET /devices', () => {
     const res = await get({ signedIn: false });
     expect(res.statusCode).toBe(401);
     expect(listed).toEqual([]);
+  });
+});
+
+describe('DELETE /devices/:deviceId', () => {
+  async function remove(
+    deviceId: string,
+    { signedIn = true, fails }: { signedIn?: boolean; fails?: AppError } = {},
+  ) {
+    await appWith(
+      async () => enrolled,
+      async () => {
+        if (fails) throw fails;
+      },
+    );
+    const token = await signAccessToken('user-1', secrets);
+    return app.inject({
+      method: 'DELETE',
+      url: `/devices/${deviceId}`,
+      headers: signedIn ? { authorization: `Bearer ${token}` } : {},
+    });
+  }
+
+  it('returns 204 with no body after deleting the signed-in user’s device', async () => {
+    const res = await remove(enrolled.id);
+    expect(res.statusCode).toBe(204);
+    expect(res.body).toBe('');
+    expect(deleted).toEqual([['user-1', enrolled.id]]);
+  });
+
+  it('returns 401 without a token, without calling the service', async () => {
+    const res = await remove(enrolled.id, { signedIn: false });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().error.code).toBe('UNAUTHORIZED');
+    expect(deleted).toEqual([]);
+  });
+
+  it('returns 400 VALIDATION_FAILED for a non-UUID id, without calling the service', async () => {
+    const res = await remove('not-a-uuid');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('VALIDATION_FAILED');
+    expect(deleted).toEqual([]);
+  });
+
+  it('passes 404 NOT_FOUND through', async () => {
+    const error = new AppError(404, 'NOT_FOUND', 'Device not found');
+    const res = await remove(enrolled.id, { fails: error });
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({
+      error: { code: 'NOT_FOUND', message: 'Device not found' },
+    });
   });
 });

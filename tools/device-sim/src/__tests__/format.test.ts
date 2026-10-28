@@ -30,6 +30,7 @@ describe('describeClose', () => {
     [1008, '1008 too many invalid messages'],
     [1009, '1009 message too big'],
     [4000, '4000 replaced by a newer connection'],
+    [4001, '4001 device deleted by its owner'],
     [4999, '4999'],
   ])('describes %i', (code, text) => {
     expect(describeClose(code)).toBe(text);

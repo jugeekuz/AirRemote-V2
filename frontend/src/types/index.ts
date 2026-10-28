@@ -7,6 +7,9 @@ export type {
 export type { KeyValueStorage } from './storage.types';
 export type {
   AuthStackParamList,
-  HomeStackParamList,
+  DevicesStackParamList,
+  MainTabParamList,
+  RemotesStackParamList,
   RootStackParamList,
 } from './navigation.types';
+export type { PairingDetails } from './pairing.types';

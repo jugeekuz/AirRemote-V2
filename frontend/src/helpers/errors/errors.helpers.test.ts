@@ -1,5 +1,5 @@
 import { GENERIC_ERROR_CODES } from './errors.constants';
-import { isGenericErrorCode } from './errors.helpers';
+import { isGenericErrorCode, isSessionErrorCode } from './errors.helpers';
 
 describe('isGenericErrorCode', () => {
   it.each(GENERIC_ERROR_CODES)('is true for %s', (code) => {
@@ -19,4 +19,20 @@ describe('isGenericErrorCode', () => {
   it('is false for a specific code', () => {
     expect(isGenericErrorCode('INVALID_CREDENTIALS')).toBe(false);
   });
+});
+
+describe('isSessionErrorCode', () => {
+  it.each(['UNAUTHORIZED', 'INVALID_REFRESH_TOKEN'] as const)(
+    'is true for %s, which only arrives once the session ended',
+    (code) => {
+      expect(isSessionErrorCode(code)).toBe(true);
+    },
+  );
+
+  it.each(['NETWORK_ERROR', 'NOT_FOUND', 'DEVICE_OFFLINE'] as const)(
+    'is false for %s',
+    (code) => {
+      expect(isSessionErrorCode(code)).toBe(false);
+    },
+  );
 });

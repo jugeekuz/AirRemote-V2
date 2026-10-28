@@ -78,4 +78,21 @@ describe('useLogin', () => {
     expect(authStore.getStatus()).toBe(AUTH_STATUS.ANONYMOUS);
     expect(authStore.getAccessToken()).toBeNull();
   });
+
+  it('sends one sign-in for two calls in the same moment', async () => {
+    api.login.mockResolvedValue(token);
+
+    const { result } = await renderHook(() => useLogin(), {
+      wrapper: createQueryWrapper(),
+    });
+    await act(async () => {
+      result.current.login(credentials);
+      result.current.login(credentials);
+    });
+
+    await waitFor(() => {
+      expect(authStore.getStatus()).toBe(AUTH_STATUS.AUTHENTICATED);
+    });
+    expect(api.login).toHaveBeenCalledTimes(1);
+  });
 });

@@ -14,14 +14,25 @@ process.env.EXPO_PUBLIC_API_URL = 'http://localhost:3000';
 jest.mock('react-native-worklets', () =>
   jest.requireActual('react-native-worklets/src/mock'),
 );
-// Zero insets and a fixed frame, with or without a SafeAreaProvider.
-jest.mock(
-  'react-native-safe-area-context',
-  () =>
-    jest.requireActual<{ default: unknown }>(
-      'react-native-safe-area-context/jest/mock',
-    ).default,
-);
+// Zero insets and a fixed frame, with or without a SafeAreaProvider. The
+// library's mock makes its two hooks `jest.fn`s, which `jest.resetAllMocks()`
+// would empty (the kit's Menu then crashes on undefined insets), so they are
+// wrapped in plain functions.
+jest.mock('react-native-safe-area-context', () => {
+  const mock = jest.requireActual<{
+    default: Record<string, unknown> & {
+      useSafeAreaInsets: jest.Mock<() => unknown>;
+      useSafeAreaFrame: jest.Mock<() => unknown>;
+    };
+  }>('react-native-safe-area-context/jest/mock').default;
+  const useInsets = mock.useSafeAreaInsets.getMockImplementation();
+  const useFrame = mock.useSafeAreaFrame.getMockImplementation();
+  return {
+    ...mock,
+    useSafeAreaInsets: () => useInsets?.(),
+    useSafeAreaFrame: () => useFrame?.(),
+  };
+});
 
 // App-level mocks. Tests get a fixed environment, an in-memory store instead
 // of MMKV, NetInfo's bundled mock, and a `t` that echoes its input so tests

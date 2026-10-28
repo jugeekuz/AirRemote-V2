@@ -72,7 +72,11 @@ export async function buildApp({
   await app.register(healthRoutes);
   await app.register(usersRoutes, { prefix: '/users' });
   await app.register(authRoutes, { prefix: '/auth', env });
-  await app.register(devicesRoutes, { prefix: '/devices', env });
+  await app.register(devicesRoutes, {
+    prefix: '/devices',
+    env,
+    connections,
+  });
   await app.register(remotesRoutes);
   await app.register(buttonsRoutes, {
     connections,

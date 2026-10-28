@@ -41,7 +41,7 @@ export function createApiClient(
   { settleWithinMs }: { settleWithinMs: number },
 ) {
   async function call(
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'DELETE',
     path: string,
     token: string,
     body?: unknown,

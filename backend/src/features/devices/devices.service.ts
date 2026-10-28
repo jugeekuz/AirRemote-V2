@@ -3,6 +3,7 @@ import type {
   EnrollDeviceRequest,
   PairingCodeResponse,
 } from '@airremote/contracts';
+import type { DeviceConnections } from '../../shared/device-connections';
 import { AppError } from '../../shared/errors';
 import type { AuthorizedDevice } from '../../shared/device-messages';
 import {
@@ -27,6 +28,11 @@ export type DevicesService = {
   enroll(userId: string, input: EnrollDeviceRequest): Promise<DeviceResponse>;
   /** The user's devices, by name ignoring case. */
   list(userId: string): Promise<DeviceResponse[]>;
+  /**
+   * Deletes one of the user's devices with its remotes, buttons and commands,
+   * then closes its connection. The device may then pair again.
+   */
+  delete(userId: string, deviceId: string): Promise<void>;
   /** What the device said it runs, from its `hello`. */
   recordFirmwareVersion(
     deviceId: string,
@@ -43,11 +49,14 @@ const alreadyRegistered = () =>
 
 export function createDevicesService({
   repository,
+  connections,
   pairingCodeSecret,
   now = () => new Date(),
   generateCode = generatePairingCode,
 }: {
   repository: DevicesRepository;
+  /** Reports each device's online status; closes a deleted device's socket. */
+  connections: Pick<DeviceConnections, 'isConnected' | 'disconnect'>;
   pairingCodeSecret: string;
   now?: () => Date;
   generateCode?: () => string;
@@ -104,7 +113,12 @@ export function createDevicesService({
       if (result.status === 'already-registered') throw alreadyRegistered();
 
       const { id, macAddress: enrolledMac, name: enrolledName } = result.device;
-      return { id, macAddress: enrolledMac, name: enrolledName };
+      return {
+        id,
+        macAddress: enrolledMac,
+        name: enrolledName,
+        online: connections.isConnected(id),
+      };
     },
 
     async list(userId) {
@@ -113,7 +127,17 @@ export function createDevicesService({
         id,
         macAddress,
         name,
+        online: connections.isConnected(id),
       }));
+    },
+
+    async delete(userId, deviceId) {
+      // Someone else's device answers as a missing one: its existence is not theirs to know.
+      if (!(await repository.deleteForUser(deviceId, userId))) {
+        throw new AppError(404, 'NOT_FOUND', 'Device not found');
+      }
+      // After the delete, so the device's reconnect is refused.
+      connections.disconnect(deviceId);
     },
 
     async recordFirmwareVersion(deviceId, firmwareVersion) {
