@@ -25,8 +25,9 @@ import RemoteNotFound from './remote-not-found';
 
 /**
  * The page under its edit-mode provider: the back arrow, V1's info card,
- * "Remote Buttons" with the button tiles (or V1's empty state, or "Try
- * again" when a first load failed), and the Add Button dialog. A remote
+ * "Remote Buttons" with the button tiles (or V1's empty state, "Try again"
+ * when a first load failed, or the offline line while one waits for the
+ * network), and the Add Button dialog. A remote
  * that is gone shows a not-found state instead.
  */
 export default function RemoteDetails() {
@@ -45,6 +46,7 @@ export default function RemoteDetails() {
     isLoaded,
     isMissing,
     loadFailure,
+    isOffline,
     retry,
     deleteButton,
   } = useRemoteDetails(remoteId);
@@ -116,6 +118,7 @@ export default function RemoteDetails() {
             onRetry={retry}
           />
         )}
+        {isOffline && <EmptyTiles isOffline />}
       </ScrollView>
       <LearnButtonDialog
         isOpen={isLearnOpen}

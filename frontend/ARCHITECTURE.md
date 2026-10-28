@@ -384,7 +384,8 @@ enrollment, a new remote or a delete is never paused and sent minutes later
 when the network comes back. The device command poll
 (`deviceCommandQueries.detail`) does the same, so the wait for a command
 ends offline too. The list queries keep TanStack's default and pause while
-offline.
+offline; a first load taken offline shows `EmptyTiles`' offline line until
+the network is back.
 
 `isSignedOutError` (any 401) is for the refresh and authenticated calls
 only: a wrong password is a 401 too (`INVALID_CREDENTIALS`).
@@ -460,7 +461,10 @@ RootNavigator (src/navigation/root-navigator.tsx)
 - **Failed refetches are silent:** the query cache reports a query error
   only while the query has no data (a first load). A refetch or poll that
   fails keeps the last data on screen without a dialog. A list whose first
-  load failed shows `EmptyTiles` with "Try again" (`onRetry`).
+  load failed shows `EmptyTiles` with "Try again" (`onRetry`). A first
+  load taken offline pauses until the network is back; the hook says so
+  (`isOffline`: no data and `fetchStatus === 'paused'`) and the screen
+  shows `<EmptyTiles isOffline />` in its place.
 - **Device commands** (learning or pressing a button) are followed by
   `useDeviceCommand(commandId)` (`src/hooks/use-device-command`), the
   reference for a poll whose failure the user must hear about. The learn or
@@ -643,7 +647,7 @@ caches call `notifyApiError` (`src/app/notify-api-error.ts`), which opens
 | `SectionHeader`         | a grid's title with its count badge and the "+ \| ✎" pill (add, edit mode) |
 | `NoticeBox`             | the green notice under a header                                            |
 | `TileGrid`              | V1's columns by window width (2 on phones, up to 10)                       |
-| `EmptyTiles`            | the empty grid, or "Try again" (`RetryButton`) with `onRetry`              |
+| `EmptyTiles`            | the empty grid, "Try again" (`RetryButton`) with `onRetry`, or `isOffline` |
 | `StatusDot`             | V1's glossy green or red dot                                               |
 | `DeleteBadge`           | the edit-mode × on a tile's corner; asks V1's confirmation first           |
 | `Wobble`                | V1's edit-mode shake around a tile                                         |

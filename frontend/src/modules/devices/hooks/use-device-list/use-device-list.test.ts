@@ -1,4 +1,5 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { onlineManager } from '@tanstack/react-query';
 
 import type { DeviceResponse } from '@airremote/contracts';
 
@@ -61,6 +62,9 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => {
+  onlineManager.setOnline(true);
+});
 describe('useDeviceList', () => {
   it('is empty while the first load runs', async () => {
     api.list.mockReturnValueOnce(new Promise(() => {}));
@@ -71,6 +75,47 @@ describe('useDeviceList', () => {
 
     expect(result.current.devices).toEqual([]);
     expect(result.current.isLoaded).toBe(false);
+  });
+
+  // Paused until the network is back: the screen says why it is empty.
+  it('says when the first load waits for the network', async () => {
+    onlineManager.setOnline(false);
+    api.list.mockResolvedValue([desk]);
+
+    const { result } = await renderHook(() => useDeviceList(), {
+      wrapper: createQueryWrapper(),
+    });
+
+    expect(result.current.isOffline).toBe(true);
+    expect(result.current.isLoaded).toBe(false);
+    expect(api.list).not.toHaveBeenCalled();
+
+    await act(async () => {
+      onlineManager.setOnline(true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoaded).toBe(true);
+    });
+    expect(result.current.isOffline).toBe(false);
+  });
+
+  it('is not offline once it has devices to show', async () => {
+    api.list.mockResolvedValue([desk]);
+    const { result } = await renderHook(() => useDeviceList(), {
+      wrapper: createQueryWrapper(),
+    });
+    await waitFor(() => {
+      expect(result.current.isLoaded).toBe(true);
+    });
+
+    await act(async () => {
+      onlineManager.setOnline(false);
+    });
+    await focus();
+
+    expect(result.current.isOffline).toBe(false);
+    expect(result.current.devices).toEqual([desk]);
   });
 
   it('gives the devices once loaded', async () => {

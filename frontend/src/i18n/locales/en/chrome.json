@@ -7,7 +7,8 @@
     "logout": "Logout"
   },
   "empty-tiles": {
-    "hint": "Click the <icon/> icon to get started."
+    "hint": "Click the <icon/> icon to get started.",
+    "offline": "You're offline. We'll load this when you're back online."
   },
   "status-dot": {
     "online": "Connected",

@@ -25,9 +25,10 @@ const NO_PAIRING_LINK = {};
 
 /**
  * The page under its edit-mode provider: header, notice, the device tiles
- * (or V1's empty state once the list is known to be empty, or "Try again"
- * when the first load failed), and the Add device dialog, which a pairing
- * link (`/pair?mac=…&code=…`) opens filled in.
+ * (or V1's empty state once the list is known to be empty, "Try again"
+ * when the first load failed, or the offline line while it waits for the
+ * network), and the Add device dialog, which a pairing link
+ * (`/pair?mac=…&code=…`) opens filled in.
  */
 export default function DeviceList() {
   const { t } = useTranslation('devices');
@@ -41,7 +42,7 @@ export default function DeviceList() {
     navigation.setParams({ pairMac: undefined, pairCode: undefined });
   }, [navigation]);
   const addDevice = useAddDeviceDialog(params, clearPairingLink);
-  const { devices, isLoaded, isLoadFailed, retry, deleteDevice } =
+  const { devices, isLoaded, isLoadFailed, isOffline, retry, deleteDevice } =
     useDeviceList();
   const isEditing = useEditMode((state) => state.isEditing);
   const toggleEditMode = useEditMode((state) => state.toggle);
@@ -79,6 +80,7 @@ export default function DeviceList() {
         {isLoadFailed && (
           <EmptyTiles text={t('device-list.load-failed')} onRetry={retry} />
         )}
+        {isOffline && <EmptyTiles isOffline />}
       </ScrollView>
       <AddDeviceDialog
         isOpen={addDevice.isOpen}

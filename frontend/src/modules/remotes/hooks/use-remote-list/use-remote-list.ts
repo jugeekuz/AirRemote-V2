@@ -20,6 +20,8 @@ type RemoteList = {
   isLoaded: boolean;
   /** The first load of the remotes failed, so there is nothing to show. */
   isLoadFailed: boolean;
+  /** The first load of the remotes waits for the network (offline). */
+  isOffline: boolean;
   /** Asks for the remotes again (the "Try again" button). */
   retry: () => void;
   /** Deletes a remote; the list drops it once the server agrees. */
@@ -52,6 +54,9 @@ export function useRemoteList(): RemoteList {
   }, [refetchRemotes, refetchDevices]);
   useRefreshOnFocus(refetchBoth);
 
+  // A failed first load asked again offline waits too: it says so instead.
+  const isOffline =
+    remoteList.fetchStatus === 'paused' && remoteList.data === undefined;
   const retry = useCallback(() => {
     void refetchRemotes();
   }, [refetchRemotes]);
@@ -60,7 +65,9 @@ export function useRemoteList(): RemoteList {
     remotes: remoteList.data ?? EMPTY_REMOTES,
     devices: deviceList.data ?? EMPTY_DEVICES,
     isLoaded: remoteList.data !== undefined,
-    isLoadFailed: remoteList.isError && remoteList.data === undefined,
+    isLoadFailed:
+      remoteList.isError && remoteList.data === undefined && !isOffline,
+    isOffline,
     retry,
     deleteRemote,
   };

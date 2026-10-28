@@ -36,6 +36,11 @@ type RemoteDetails = {
   isMissing: boolean;
   /** What failed to load the first time (nothing to show), if anything. */
   loadFailure: RemoteDetailsLoadFailure | null;
+  /**
+   * The remote list, or the remote's buttons, wait for the network for
+   * their first load (offline): nothing to show yet.
+   */
+  isOffline: boolean;
   /** Asks again for what failed to load (the "Try again" button). */
   retry: () => void;
   /** Deletes a button; the list drops it once the server agrees. */
@@ -94,10 +99,17 @@ export function useRemoteDetails(remoteId: string): RemoteDetails {
   }, [refetchRemotes, refetchDevices, refetchButtons, remoteId]);
   useRefreshOnFocus(refetchAll);
 
+  // A failed first load asked again offline waits too: it says so instead.
+  const isRemotesOffline =
+    remoteList.fetchStatus === 'paused' && remoteList.data === undefined;
+  const isButtonsOffline =
+    remote !== undefined &&
+    buttonList.fetchStatus === 'paused' &&
+    buttonList.data === undefined;
   const isRemotesLoadFailed =
-    remoteList.isError && remoteList.data === undefined;
+    remoteList.isError && remoteList.data === undefined && !isRemotesOffline;
   const isButtonsLoadFailed =
-    buttonList.isError && buttonList.data === undefined;
+    buttonList.isError && buttonList.data === undefined && !isButtonsOffline;
   const retry = useCallback(() => {
     if (isRemotesLoadFailed) {
       void refetchRemotes();
@@ -123,6 +135,7 @@ export function useRemoteDetails(remoteId: string): RemoteDetails {
       : isButtonsLoadFailed
         ? 'buttons'
         : null,
+    isOffline: isRemotesOffline || isButtonsOffline,
     retry,
     deleteButton,
   };

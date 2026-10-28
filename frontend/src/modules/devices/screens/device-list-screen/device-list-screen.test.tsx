@@ -4,7 +4,7 @@ import {
   NavigationContainer,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import type { QueryClient } from '@tanstack/react-query';
+import { onlineManager, type QueryClient } from '@tanstack/react-query';
 
 import type { DeviceResponse } from '@airremote/contracts';
 
@@ -73,6 +73,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  onlineManager.setOnline(true);
   queryClient.clear();
   jest.restoreAllMocks();
 });
@@ -130,6 +131,24 @@ describe('DeviceListScreen', () => {
 
     expect(screen.getByText('0')).toBeOnTheScreen();
     expect(screen.queryByText('device-list.empty')).not.toBeOnTheScreen();
+  });
+
+  // The first load waits for the network; the page says so, then loads.
+  it('says it is offline in place of the tiles, and loads once back online', async () => {
+    onlineManager.setOnline(false);
+    api.list.mockResolvedValue([desk]);
+
+    await renderDevices();
+
+    expect(screen.getByText('empty-tiles.offline')).toBeOnTheScreen();
+    expect(screen.queryByText('device-list.empty')).not.toBeOnTheScreen();
+
+    await act(async () => {
+      onlineManager.setOnline(true);
+    });
+
+    expect(await screen.findByText('Desk')).toBeOnTheScreen();
+    expect(screen.queryByText('empty-tiles.offline')).not.toBeOnTheScreen();
   });
 
   it('says there are no devices once the list is empty', async () => {

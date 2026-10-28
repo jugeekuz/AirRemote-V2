@@ -19,8 +19,9 @@ import TopToolbar from '@components/top-toolbar';
 
 /**
  * The page under its edit-mode provider: header, notice, the remote tiles
- * (or V1's empty state once the list is known to be empty, or "Try again"
- * when the first load failed), and the Add Remote dialog.
+ * (or V1's empty state once the list is known to be empty, "Try again"
+ * when the first load failed, or the offline line while it waits for the
+ * network), and the Add Remote dialog.
  */
 export default function RemoteList() {
   const { t } = useTranslation('remotes');
@@ -28,8 +29,15 @@ export default function RemoteList() {
     useNavigation<
       NativeStackNavigationProp<RemotesStackParamList, 'RemoteList'>
     >();
-  const { remotes, devices, isLoaded, isLoadFailed, retry, deleteRemote } =
-    useRemoteList();
+  const {
+    remotes,
+    devices,
+    isLoaded,
+    isLoadFailed,
+    isOffline,
+    retry,
+    deleteRemote,
+  } = useRemoteList();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const isEditing = useEditMode((state) => state.isEditing);
   const toggleEditMode = useEditMode((state) => state.toggle);
@@ -79,6 +87,7 @@ export default function RemoteList() {
         {isLoadFailed && (
           <EmptyTiles text={t('remote-list.load-failed')} onRetry={retry} />
         )}
+        {isOffline && <EmptyTiles isOffline />}
       </ScrollView>
       <AddRemoteDialog
         isOpen={isAddOpen}

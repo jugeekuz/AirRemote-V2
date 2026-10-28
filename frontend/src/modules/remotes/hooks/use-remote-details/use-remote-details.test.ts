@@ -1,4 +1,5 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { onlineManager } from '@tanstack/react-query';
 
 import type {
   ButtonResponse,
@@ -18,6 +19,7 @@ import { buttonsApi } from '@api/buttons';
 import { devicesApi } from '@api/devices';
 import { remotesApi } from '@api/remotes';
 import { DEVICE_LIST_REFETCH_MS } from '@queries/devices';
+import { remoteKeys } from '@queries/remotes';
 
 import { useRemoteDetails } from './use-remote-details';
 
@@ -90,6 +92,9 @@ beforeEach(() => {
   buttons.list.mockResolvedValue([power]);
 });
 
+afterEach(() => {
+  onlineManager.setOnline(true);
+});
 describe('useRemoteDetails', () => {
   it('knows nothing while the lists load', async () => {
     remotes.list.mockReturnValue(new Promise(() => {}));
@@ -103,6 +108,38 @@ describe('useRemoteDetails', () => {
     expect(result.current.isLoaded).toBe(false);
     expect(result.current.isMissing).toBe(false);
     expect(result.current.loadFailure).toBeNull();
+  });
+
+  // Paused until the network is back: the screen says why it is empty.
+  it('says when the first load waits for the network', async () => {
+    onlineManager.setOnline(false);
+
+    const { result } = await renderDetails();
+
+    expect(result.current.isOffline).toBe(true);
+    expect(result.current.isLoaded).toBe(false);
+    expect(remotes.list).not.toHaveBeenCalled();
+
+    await act(async () => {
+      onlineManager.setOnline(true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoaded).toBe(true);
+    });
+    expect(result.current.isOffline).toBe(false);
+  });
+
+  it('says so when the remote is known but its buttons wait for the network', async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(remoteKeys.lists(), [ac]);
+    onlineManager.setOnline(false);
+
+    const { result } = await renderDetails(ac.id, queryClient);
+
+    expect(result.current.remote).toEqual(ac);
+    expect(result.current.isOffline).toBe(true);
+    expect(buttons.list).not.toHaveBeenCalled();
   });
 
   it('finds the remote, its device and its buttons', async () => {

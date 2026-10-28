@@ -56,7 +56,7 @@ Tailwind classes with the theme's tokens.
   (`onBack` on a nested screen) → [Shared components][shared].
 - Use the shared chrome before writing your own: `SectionHeader`,
   `NoticeBox`, `TileGrid`, `EmptyTiles` (inside the ScrollView; `onRetry`
-  for a failed first load), `StatusDot`, `DeleteBadge`, `Wobble`,
+  for a failed first load, `isOffline` for one waiting for the network), `StatusDot`, `DeleteBadge`, `Wobble`,
   `FlatSelect`, `BorderedField`, `IndeterminateProgress`, and `Modal` from
   `@ui` for a wizard → [Shared components][shared].
 - Edit mode: wrap the screen in `EditModeProvider` (`@contexts/edit-mode`),

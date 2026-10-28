@@ -38,4 +38,14 @@ describe('EmptyTiles', () => {
 
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+
+  // A first load that waits for the network: one line, nothing to press.
+  it('says the list loads once the phone is back online', async () => {
+    await renderWithProviders(<EmptyTiles isOffline />);
+
+    expect(screen.getByText('empty-tiles.offline')).toBeOnTheScreen();
+    expect(screen.queryByText('empty-tiles.hint')).not.toBeOnTheScreen();
+    expect(screen.queryByRole('button')).not.toBeOnTheScreen();
+    expect(screen.getByTestId('empty-tiles-spacer')).toBeOnTheScreen();
+  });
 });
