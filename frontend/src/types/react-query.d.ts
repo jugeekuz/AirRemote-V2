@@ -10,7 +10,7 @@ type AppQueryMeta = Record<string, unknown> & {
   errorMessage?: string;
   /** Skip the global error toast (the screen renders its own error UI). */
   silent?: boolean;
-  /** Mutation only: show the blocking loading overlay while pending. */
+  /** Reserved for a blocking loading overlay on mutations; nothing reads it yet. */
   blocking?: boolean;
 };
 

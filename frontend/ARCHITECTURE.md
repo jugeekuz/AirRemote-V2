@@ -188,7 +188,8 @@ The most important rule: each kind of state has one owner.
 | ---------------------------------------------- | ------------------------------------------ | ------------------------------------------- |
 | Server state (the backend owns it)             | TanStack Query cache                       | devices, remotes, buttons, a device command |
 | Global client state (app-wide, may persist)    | Zustand store in `src/stores/`             | access token and auth status, language      |
-| Module client state shared by several screens  | Zustand store in `modules/<m>/stores/`     | the selected device id, a list filter       |
+| Client state shared by several modules         | a global Zustand store in `src/stores/`    | the selected device id                      |
+| Module client state shared by several screens  | Zustand store in `modules/<m>/stores/`     | a list filter, a multi-select in one list   |
 | Subtree-scoped state (one per mounted subtree) | `createStore` + React Context, `contexts/` | a multi-step pairing flow                   |
 | Local UI state                                 | `useState` / `useReducer`                  | a dialog's visibility, text before debounce |
 | Form state                                     | react-hook-form                            | the Login form                              |

@@ -120,9 +120,8 @@ module's import rules apply.
 
 ## Manual checks on a device
 
-The agent that built this app could not run native builds (no Android SDK,
-no Mac). Before relying on Android or iOS, check on a development build
-against `pnpm dev`:
+These checks haven't been run on a device yet. Before relying on Android or
+iOS, run them on a development build against `pnpm dev`:
 
 1. Install the development build (`pnpm android` / `pnpm ios`); the app
    starts on Login.
@@ -130,8 +129,13 @@ against `pnpm dev`:
 3. Send the app to the background and bring it back: still on Home.
 4. Turn on airplane mode, then kill and reopen the app: "Couldn't connect"
    with Retry. Turn airplane mode off and press Retry: Home.
-5. Wait more than 10 minutes (the access token's lifetime), then use the
-   app: the refresh is invisible, no sign-out.
+5. Once a screen calls an authenticated endpoint (the Devices screen, the
+   next change; Home makes no request): wait more than 10 minutes (the
+   access token's lifetime), then use that screen. The refresh is
+   invisible: no sign-out, no error toast. To check it sooner, shorten the
+   token's lifetime locally: set `ACCESS_TOKEN_TTL_SECONDS` in
+   `backend/src/features/auth/auth.helpers.ts` to e.g. `30`, restart
+   `pnpm dev`, sign in again, and revert it afterwards (never commit it).
 6. Kill the app and open it again: still signed in. This is the refresh
    cookie surviving a restart, which is unverified on native.
 7. Sign out: back on Login, and reopening the app stays on Login.
