@@ -14,7 +14,10 @@ them in and how an agent checks a change.
       `CORS_ORIGINS=http://localhost:8081` (`.env.example` has it). Restart
       `pnpm dev` after changing it.
 - [ ] `pnpm dev` at the repository root (Docker for Postgres): the API on
-      http://localhost:3000; `curl localhost:3000/health`.
+      http://localhost:3000 (`curl localhost:3000/health`) and the app's
+      dev server on http://localhost:8081. It adds that origin to
+      `CORS_ORIGINS` for the API when missing; `--api-only` leaves the app
+      out.
 - [ ] An account: Sign up in the app, or register one with curl:
 
   ```bash
@@ -43,7 +46,7 @@ All from the root with `pnpm --filter @airremote/frontend <script>`, or
 
 | Script     | Use                                                                   |
 | ---------- | --------------------------------------------------------------------- |
-| `web`      | dev server + web app on http://localhost:8081                         |
+| `web`      | dev server + web app on http://localhost:8081 (`pnpm dev` runs it)    |
 | `android`  | builds and installs the development build, then starts (SDK, JDK 17)  |
 | `ios`      | the same on a Mac with Xcode; on Linux iOS needs EAS (no project yet) |
 | `start`    | dev server only, for an installed development build                   |
@@ -70,7 +73,9 @@ Tests passing is not "done" for UI. With the backend up:
 
 - [ ] Start the web app in the background:
       `pnpm --filter @airremote/frontend web` (Bash `run_in_background`);
-      wait until http://localhost:8081 answers. Add `--clear` after
+      wait until http://localhost:8081 answers. If the owner's `pnpm dev`
+      already holds 8081, add `--port 8082` and put
+      `http://localhost:8082` in your second API's `CORS_ORIGINS`. Add `--clear` after
       changing `src/ui/theme.css` or an env file.
 - [ ] Load the Playwright MCP tools (`mcp__playwright__browser_*`; if they are
       deferred, fetch them with ToolSearch in one call): `browser_navigate`
