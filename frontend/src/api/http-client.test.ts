@@ -342,7 +342,7 @@ describe('createHttpClient', () => {
     expect(sentAuthorization(3)).toBe('Bearer new');
   });
 
-  it('ends the session once when the refresh fails', async () => {
+  it('ends the session once when the refresh is refused with a 401', async () => {
     const { adapter, hooks, client, holdRefresh } = setup('old');
     // Each request gets its own 401, so each rejection can be told apart.
     adapter.mockImplementation(server(null));
@@ -368,6 +368,85 @@ describe('createHttpClient', () => {
     expect(adapter).toHaveBeenCalledTimes(2);
     expect(hooks.refreshAccessToken).toHaveBeenCalledTimes(1);
     expect(hooks.onSessionExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it.each<[string, unknown]>([
+    [
+      'offline',
+      {
+        code: 'NETWORK_ERROR',
+        message: 'Network Error',
+        isNetworkError: true,
+      },
+    ],
+    [
+      'a 5xx',
+      {
+        status: 503,
+        code: 'INTERNAL_ERROR',
+        message: 'Unavailable',
+        isNetworkError: false,
+      },
+    ],
+    [
+      'a malformed body',
+      {
+        status: 200,
+        code: 'INVALID_RESPONSE',
+        message: 'Bad shape',
+        isNetworkError: false,
+      },
+    ],
+    ['anything else', new Error('Boom')],
+  ])(
+    'keeps the session when the refresh fails transiently (%s)',
+    async (_reason, failure) => {
+      const { adapter, hooks, session, client, holdRefresh } = setup('old');
+      adapter.mockImplementation(server(null));
+      const refresh = holdRefresh();
+
+      const first = client.get('/a', idSchema);
+      const second = client.get('/b', idSchema);
+      await settle();
+      refresh.reject(failure);
+
+      // Each request rejects with its own original 401.
+      await expect(first).rejects.toEqual({
+        status: 401,
+        code: 'UNAUTHORIZED',
+        message: 'Refused /a',
+        isNetworkError: false,
+      });
+      await expect(second).rejects.toEqual({
+        status: 401,
+        code: 'UNAUTHORIZED',
+        message: 'Refused /b',
+        isNetworkError: false,
+      });
+      expect(adapter).toHaveBeenCalledTimes(2);
+      expect(hooks.refreshAccessToken).toHaveBeenCalledTimes(1);
+      expect(hooks.onSessionExpired).not.toHaveBeenCalled();
+      expect(session.token).toBe('old');
+    },
+  );
+
+  it('refreshes again on the next 401 after a transient failure', async () => {
+    const { adapter, hooks, client, refreshTo } = setup('old');
+    adapter.mockImplementation(server('new'));
+    hooks.refreshAccessToken.mockRejectedValueOnce({
+      code: 'NETWORK_ERROR',
+      message: 'Network Error',
+      isNetworkError: true,
+    });
+
+    await expect(client.get('/a', idSchema)).rejects.toMatchObject({
+      status: 401,
+    });
+    refreshTo('new');
+
+    await expect(client.get('/a', idSchema)).resolves.toEqual({ id: 'a' });
+    expect(hooks.refreshAccessToken).toHaveBeenCalledTimes(2);
+    expect(hooks.onSessionExpired).not.toHaveBeenCalled();
   });
 
   it('retries a late 401 with the token refreshed meanwhile', async () => {

@@ -10,7 +10,7 @@ import { z } from 'zod';
 
 import type { ApiError, RequestOptions } from '@app-types';
 
-import { toApiError } from './api-error';
+import { isApiError, toApiError } from './api-error';
 import { HTTP_HEADER, HTTP_STATUS, REQUEST_TIMEOUT_MS } from './api.constants';
 import { API_URL } from './servers';
 
@@ -21,8 +21,11 @@ export type HttpClientHooks = {
   /** Gets a new access token (from the refresh cookie) and stores it; rejects when it can't. */
   refreshAccessToken: () => Promise<string>;
   /**
-   * Called when a refresh fails or the refreshed token is refused. Signs out
-   * locally, so `getAccessToken` returns null afterwards.
+   * Called when the server refuses the session: the refresh is answered with
+   * a 401 (e.g. `INVALID_REFRESH_TOKEN`), or the refreshed token is refused.
+   * Signs out locally, so `getAccessToken` returns null afterwards. A refresh
+   * that fails for any other reason (offline, a 5xx, a malformed body) does
+   * not call it: the session stays and the next request tries again.
    */
   onSessionExpired: () => void;
 };
@@ -92,6 +95,15 @@ const SIGNED_OUT_HOOKS: HttpClientHooks = {
     Promise.reject(new Error('The http client is not configured.')),
   onSessionExpired: () => {},
 };
+
+/**
+ * Whether a failed refresh means the session is over: the server refused the
+ * refresh cookie. Anything else (offline, a 5xx, a malformed body) is
+ * transient.
+ */
+function isRefusedRefresh(error: unknown): boolean {
+  return isApiError(error) && error.status === HTTP_STATUS.UNAUTHORIZED;
+}
 
 /** Whether the server refused the access token this request carried. */
 function isRefusedAccessToken(
@@ -171,11 +183,14 @@ export function createHttpClient({
   /** The refresh in flight, shared by every 401 that arrives while it runs. */
   let pendingRefresh: Promise<string> | null = null;
 
+  /** Ends the session only when the server refused the refresh. */
   async function refreshOrEndSession(): Promise<string> {
     try {
       return await hooks.refreshAccessToken();
     } catch (error) {
-      hooks.onSessionExpired();
+      if (isRefusedRefresh(error)) {
+        hooks.onSessionExpired();
+      }
       throw error;
     }
   }
@@ -240,6 +255,8 @@ export function createHttpClient({
     try {
       token = await refreshOnce();
     } catch {
+      // Each waiting request rejects with its own 401, whether the session
+      // ended or the refresh failed for a transient reason.
       throw apiError;
     }
     if (config.signal?.aborted) {

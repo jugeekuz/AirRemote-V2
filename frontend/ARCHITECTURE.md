@@ -291,16 +291,23 @@ token, is not `skipAuth` and has not been retried:
 4. If the retry is refused too, end the session, but only if its token is
    still the current one (another refused retry may already have ended it,
    or a newer token may exist). The retry rejects with its 401.
-5. If the refresh fails, `onSessionExpired` runs once for that refresh, and
-   every waiting request rejects with its own 401.
-6. If the refresh succeeds but the request was aborted while it waited, it
+5. If the server refuses the refresh (a 401, e.g. `INVALID_REFRESH_TOKEN`),
+   `onSessionExpired` runs once for that refresh, and every waiting request
+   rejects with its own 401.
+6. If the refresh fails for any other reason (`NETWORK_ERROR`, a 5xx,
+   `INVALID_RESPONSE`, anything else), the session stays: every waiting
+   request rejects with its own 401 and nothing signs out. The next 401
+   refreshes again. A dropped connection or a server restart must not sign
+   the user out.
+7. If the refresh succeeds but the request was aborted while it waited, it
    rejects with `REQUEST_CANCELLED` instead of retrying.
 
 A 401 on a `skipAuth` request (login, refresh, logout) never refreshes.
 There is no refresh before expiry; reacting to the 401 is enough.
 
 The client never imports stores or `authApi`. `src/app/bootstrap.ts`
-connects it with `configureHttpClient`:
+connects it with `configureHttpClient`, passing the hooks that
+`createSessionHooks({ queryClient })` builds:
 
 - `getAccessToken`: the auth store's token.
 - `refreshAccessToken`: calls `authApi.refresh()` and stores the new token,
@@ -341,7 +348,9 @@ Transitions:
 - **Logout:** `useLogout` calls `POST /auth/logout`, then signs out locally
   and clears the query cache, even when the request fails (it is logged).
 - **Session expired:** the http client's `onSessionExpired` does the same
-  local sign-out.
+  local sign-out, when the server refuses the session (a 401 on the refresh,
+  or on the retry with the refreshed token). A refresh that fails for a
+  transient reason (offline, 5xx) keeps the session.
 
 The root navigator swaps the `Auth` and `Main` screens on the status; it
 never navigates between them. `useAuth` gives the UI `isLoggedIn`,
@@ -449,6 +458,10 @@ query cache:
 - `errors.generic` is the fallback if a text is missing at runtime.
 - The server's `message` is for developers and is never shown.
 - A cancelled request never toasts; `meta.silent` turns the toast off.
+- `UNAUTHORIZED` and `INVALID_REFRESH_TOKEN` never toast: the session is
+  missing or over, and the user is taken to Login instead. Without this, a
+  session that ends would toast once per query in flight. Other 401s (a
+  wrong password is `INVALID_CREDENTIALS`) toast as usual.
 - Form fields show their own i18n texts, not Zod's messages (see the Login
   screen).
 

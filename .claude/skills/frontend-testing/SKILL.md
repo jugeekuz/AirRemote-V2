@@ -20,7 +20,8 @@ next to its file as `<name>.test.ts(x)`, not in `__tests__/` →
 | hooks, contexts              | integration: `renderHook` with `createQueryWrapper()`                       | `src/hooks/use-login/use-login.test.ts`                           |
 | components                   | unit + integration: `renderWithProviders`, user events                      | generated `<name>.test.tsx`                                       |
 | screens                      | optional integration, API mocked                                            | `src/modules/auth/screens/login-screen/login-screen.test.tsx`     |
-| navigation, constants, app   | none                                                                        |                                                                   |
+| app (session hooks, toasts)  | unit: `@api/auth` or `@ui` mocked, real `authStore` and query client        | `src/app/bootstrap.test.ts`, `src/app/notify-api-error.test.ts`   |
+| navigation, constants        | none                                                                        |                                                                   |
 
 ## Steps
 

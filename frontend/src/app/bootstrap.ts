@@ -2,11 +2,15 @@ import '@i18n/config';
 
 import { AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { focusManager, onlineManager } from '@tanstack/react-query';
+import {
+  focusManager,
+  onlineManager,
+  type QueryClient,
+} from '@tanstack/react-query';
 
 import { isWebPlatform } from '@utils/platform';
 import { authApi } from '@api/auth';
-import { configureHttpClient } from '@api/http-client';
+import { configureHttpClient, type HttpClientHooks } from '@api/http-client';
 import { AUTH_STATUS, authStore } from '@stores/auth';
 
 import { queryClient } from './query-client';
@@ -34,22 +38,33 @@ function connectQueryRuntimeToReactNative(): void {
 }
 
 /**
- * Gets a new access token for a signed-in session and stores it. If the user
- * signed out while the refresh was in flight, the token is dropped (it must
- * not revive the session) and this rejects.
+ * How the http client reaches the session. A refresh stores the new token
+ * for a signed-in session; if the user signed out while it was in flight,
+ * the token is dropped (it must not revive the session) and it rejects. A
+ * session the server refused signs out and drops every cached query.
  */
-async function refreshAccessToken(): Promise<string> {
-  const { accessToken } = await authApi.refresh();
-  if (authStore.getStatus() !== AUTH_STATUS.AUTHENTICATED) {
-    throw new Error('Signed out while the access token was being refreshed.');
-  }
-  authStore.setAccessToken(accessToken);
-  return accessToken;
-}
-
-function endSession(): void {
-  authStore.signOut();
-  queryClient.clear();
+export function createSessionHooks({
+  queryClient,
+}: {
+  queryClient: QueryClient;
+}): HttpClientHooks {
+  return {
+    getAccessToken: authStore.getAccessToken,
+    refreshAccessToken: async () => {
+      const { accessToken } = await authApi.refresh();
+      if (authStore.getStatus() !== AUTH_STATUS.AUTHENTICATED) {
+        throw new Error(
+          'Signed out while the access token was being refreshed.',
+        );
+      }
+      authStore.setAccessToken(accessToken);
+      return accessToken;
+    },
+    onSessionExpired: () => {
+      authStore.signOut();
+      queryClient.clear();
+    },
+  };
 }
 
 /**
@@ -57,10 +72,6 @@ function endSession(): void {
  * it: the root navigator's `useSessionHydration` does that.
  */
 export function bootstrap(): void {
-  configureHttpClient({
-    getAccessToken: authStore.getAccessToken,
-    refreshAccessToken,
-    onSessionExpired: endSession,
-  });
+  configureHttpClient(createSessionHooks({ queryClient }));
   connectQueryRuntimeToReactNative();
 }

@@ -42,6 +42,8 @@ namespace or error text does not compile.
 
 - Failed requests toast `messages:errors.<CODE>` from the query cache
   (`src/app/notify-api-error.ts`); you don't call it yourself.
+  `UNAUTHORIZED` and `INVALID_REFRESH_TOKEN` never toast: the user is taken
+  to Login instead (their texts still exist, for screens that show them).
 - **Adding a code** to `errorCodeSchema`
   (`packages/contracts/src/errors/errors.contract.ts`) means adding
   `errors.<CODE>` to `src/i18n/locales/en/messages.json` in the same change,

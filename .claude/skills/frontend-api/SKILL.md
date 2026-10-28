@@ -51,7 +51,11 @@ options, mutation hooks). Both are global: any module may use them.
   the auth ones use `networkMode: 'always'` → [Auth][auth].
 - Errors toast by code automatically; `meta: { silent: true }` when the
   screen shows its own error, `meta.errorMessage` for generic codes →
-  [i18n and error messages][i18n].
+  [i18n and error messages][i18n]. `UNAUTHORIZED` and
+  `INVALID_REFRESH_TOKEN` never toast (the user lands on Login).
+- A 401 refreshes the token once and retries; only a refused refresh (a 401)
+  signs out. A refresh that fails offline or with a 5xx keeps the session,
+  and the request rejects with its 401 → [The refresh on 401][refresh].
 - Empty defaults are module-level constants (`EMPTY_REMOTES`), derived data
   uses `select` with a stable function → [Queries][queries].
 - Polling: `refetchInterval` until the status is final, never `setInterval`
@@ -145,3 +149,4 @@ mutations with `jest.mock('@api/<domain>')` and a real query client).
 [auth]: ../../../frontend/ARCHITECTURE.md#auth
 [i18n]: ../../../frontend/ARCHITECTURE.md#i18n-and-error-messages
 [layers]: ../../../frontend/ARCHITECTURE.md#layers-and-import-rules
+[refresh]: ../../../frontend/ARCHITECTURE.md#the-refresh-on-401

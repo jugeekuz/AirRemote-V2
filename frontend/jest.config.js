@@ -44,7 +44,7 @@ module.exports = {
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
     '!src/**/index.ts',
-    '!src/{app,assets,i18n,types,ui}/**',
+    '!src/{assets,i18n,types,ui}/**',
     '!src/ui/heroui/**',
   ],
 };

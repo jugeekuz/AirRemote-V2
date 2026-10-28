@@ -21,14 +21,28 @@ function errorMessage(code: ApiErrorCode): string {
 }
 
 /**
+ * Codes that mean the session is missing or over. The user is taken to Login
+ * instead, and a session that ends would otherwise toast once per query in
+ * flight.
+ */
+const SESSION_ERROR_CODES: readonly ApiErrorCode[] = Object.freeze([
+  'UNAUTHORIZED',
+  'INVALID_REFRESH_TOKEN',
+] as const);
+
+/**
  * The toast for a failed request. The text comes from the error's code; a
  * caller's `fallbackMessage` replaces it only for generic codes, which say
- * nothing specific. The server's `message` is never shown.
+ * nothing specific. The server's `message` is never shown, and a session
+ * error (`UNAUTHORIZED`, `INVALID_REFRESH_TOKEN`) shows nothing.
  */
 export function notifyApiError(
   error: ApiError,
   fallbackMessage?: string,
 ): void {
+  if (SESSION_ERROR_CODES.includes(error.code)) {
+    return;
+  }
   const message = isGenericErrorCode(error.code)
     ? (fallbackMessage ?? errorMessage(error.code))
     : errorMessage(error.code);
