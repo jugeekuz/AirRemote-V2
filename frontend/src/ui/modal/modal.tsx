@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
+import { FadeIn, FadeOut } from 'react-native-reanimated';
 
+import { isWebPlatform } from '@utils/platform';
 import { Button } from '@ui/heroui/components/button';
 import { Dialog } from '@ui/heroui/components/dialog';
 import { cn } from '@ui/heroui/helpers/external/utils';
@@ -28,6 +30,15 @@ const PORTAL_CLASS: Record<ModalPlacement, string> = {
   'top-center': 'justify-start p-0 sm:justify-center',
 };
 
+// On web, Reanimated pins an element with a custom (Keyframe) entering
+// animation, the kit's default, at `position: absolute` 1 s after it opens,
+// measuring from its DOM parent. The card's parent is a `display: contents`
+// wrapper, so a centred card dropped half a screen. Reanimated's own fades
+// are not pinned.
+const CONTENT_ANIMATION = isWebPlatform
+  ? { entering: FadeIn.duration(200), exiting: FadeOut.duration(150) }
+  : undefined;
+
 /**
  * V1's modal (NextUI's): a white card, 14 px corners, at most 448 px wide,
  * over a 50 % black backdrop. Compose it from `Modal.Header`, `Modal.Body`
@@ -52,6 +63,7 @@ function Modal({
         <Dialog.Overlay />
         <Dialog.Content
           isSwipeable={false}
+          animation={CONTENT_ANIMATION}
           className="m-1 max-w-md rounded-large bg-overlay p-0 shadow-small sm:mx-auto sm:my-16 sm:w-full"
         >
           {children}
