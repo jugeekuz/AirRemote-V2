@@ -68,7 +68,12 @@ describe('hello', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
-      { id: deviceId, macAddress: 'aa:bb:cc:dd:ee:01', name: 'Living room' },
+      {
+        id: deviceId,
+        macAddress: 'aa:bb:cc:dd:ee:01',
+        name: 'Living room',
+        online: true,
+      },
     ]);
   });
 });

@@ -35,9 +35,10 @@ The V2 API when this skill was written (trust `openapi.json` over this list):
 `openapi.json` lists the devices routes as `/devices/` (a prefixed `/`
 route); the API serves them at `/devices`, which the app calls. Devices,
 remotes and buttons have no get-by-id, rename, delete or reorder; the only
-get-by-id is `GET /device-commands/{id}`. There is no device online status,
-no automations and no OAuth. Learning and pressing return a device command
-that the app polls (see `frontend-api`).
+get-by-id is `GET /device-commands/{id}`. A device response carries `online`
+(whether it is connected right now, from the server's in-process registry).
+There are no automations and no OAuth. Learning and pressing return a
+device command that the app polls (see `frontend-api`).
 
 ## 2. Porting a V1 page
 

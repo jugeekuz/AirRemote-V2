@@ -20,10 +20,12 @@ function serviceWith({
   found = async () => device,
   enrolled = async () => ({ status: 'enrolled', device }),
   listed = async () => [device],
+  connected = () => false,
 }: {
   found?: () => Promise<Device | null>;
   enrolled?: () => Promise<EnrollResult>;
   listed?: () => Promise<Device[]>;
+  connected?: (deviceId: string) => boolean;
 } = {}) {
   const repository = {
     findByMacAddress: vi.fn(found),
@@ -34,6 +36,7 @@ function serviceWith({
   };
   const service = createDevicesService({
     repository: repository satisfies DevicesRepository,
+    connections: { isConnected: connected },
     pairingCodeSecret: secret,
     now: () => now,
     generateCode: () => '7K4MQ9TX',
@@ -139,6 +142,7 @@ describe('devices service: enroll', () => {
       id: device.id,
       macAddress: 'aa:bb:cc:dd:ee:01',
       name: 'Living room',
+      online: false,
     });
     expect(repository.enroll).toHaveBeenCalledExactlyOnceWith({
       macAddress: 'aa:bb:cc:dd:ee:01',
@@ -146,6 +150,13 @@ describe('devices service: enroll', () => {
       now,
       userId: 'user-1',
       name: 'Living room',
+    });
+  });
+
+  it('reports a device that is already connected as online', async () => {
+    const { service } = serviceWith({ connected: (id) => id === device.id });
+    expect(await service.enroll('user-1', input)).toMatchObject({
+      online: true,
     });
   });
 
@@ -175,11 +186,29 @@ describe('devices service: list', () => {
     const { service, repository } = serviceWith();
 
     await expect(service.list(device.userId)).resolves.toEqual([
-      { id: device.id, macAddress: device.macAddress, name: device.name },
+      {
+        id: device.id,
+        macAddress: device.macAddress,
+        name: device.name,
+        online: false,
+      },
     ]);
     expect(repository.listForUser).toHaveBeenCalledExactlyOnceWith(
       device.userId,
     );
+  });
+
+  it('marks each device online or offline from the connections', async () => {
+    const other = { ...device, id: 'other-device', name: 'Bedroom' };
+    const { service } = serviceWith({
+      listed: async () => [device, other],
+      connected: (id) => id === other.id,
+    });
+    const list = await service.list(device.userId);
+    expect(list.map(({ id, online }) => [id, online])).toEqual([
+      [device.id, false],
+      [other.id, true],
+    ]);
   });
 
   it('returns an empty list when there are none', async () => {

@@ -6,18 +6,21 @@ import {
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { Env } from '../../config/env';
 import { authenticatedUserId } from '../../plugins/authenticate';
+import type { DeviceConnections } from '../../shared/device-connections';
 import { createDevicesRepository } from './devices.repository';
 import { createDevicesService, type DevicesService } from './devices.service';
 
 export const devicesRoutes: FastifyPluginAsyncZod<{
   env: Env;
+  connections: DeviceConnections;
   /** Overrides the service, e.g. with a fake in tests. */
   service?: DevicesService;
-}> = async (app, { env, service: override }) => {
+}> = async (app, { env, connections, service: override }) => {
   const service =
     override ??
     createDevicesService({
       repository: createDevicesRepository(app.db),
+      connections,
       pairingCodeSecret: env.PAIRING_CODE_SECRET,
     });
 

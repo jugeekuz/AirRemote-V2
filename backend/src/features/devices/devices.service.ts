@@ -3,6 +3,7 @@ import type {
   EnrollDeviceRequest,
   PairingCodeResponse,
 } from '@airremote/contracts';
+import type { DeviceConnections } from '../../shared/device-connections';
 import { AppError } from '../../shared/errors';
 import type { AuthorizedDevice } from '../../shared/device-messages';
 import {
@@ -43,11 +44,14 @@ const alreadyRegistered = () =>
 
 export function createDevicesService({
   repository,
+  connections,
   pairingCodeSecret,
   now = () => new Date(),
   generateCode = generatePairingCode,
 }: {
   repository: DevicesRepository;
+  /** Only `isConnected` is used, to report each device's online status. */
+  connections: Pick<DeviceConnections, 'isConnected'>;
   pairingCodeSecret: string;
   now?: () => Date;
   generateCode?: () => string;
@@ -104,7 +108,12 @@ export function createDevicesService({
       if (result.status === 'already-registered') throw alreadyRegistered();
 
       const { id, macAddress: enrolledMac, name: enrolledName } = result.device;
-      return { id, macAddress: enrolledMac, name: enrolledName };
+      return {
+        id,
+        macAddress: enrolledMac,
+        name: enrolledName,
+        online: connections.isConnected(id),
+      };
     },
 
     async list(userId) {
@@ -113,6 +122,7 @@ export function createDevicesService({
         id,
         macAddress,
         name,
+        online: connections.isConnected(id),
       }));
     },
 

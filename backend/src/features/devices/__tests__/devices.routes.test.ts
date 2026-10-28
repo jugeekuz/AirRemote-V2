@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildTestApp, testEnv } from '../../../__tests__/test-utils';
 import { authenticatePlugin } from '../../../plugins/authenticate';
+import { createDeviceConnections } from '../../../shared/device-connections';
 import { AppError } from '../../../shared/errors';
 import { signAccessToken } from '../../auth/auth.helpers';
 import { devicesRoutes } from '../devices.routes';
@@ -23,6 +24,7 @@ const enrolled: DeviceResponse = {
   id: '0b6f1c2a-3c1e-4a8e-9a43-0d5f1f6f2b11',
   macAddress: 'aa:bb:cc:dd:ee:01',
   name: 'Living room',
+  online: false,
 };
 
 let app: FastifyInstance;
@@ -37,6 +39,7 @@ async function appWith(enroll: DevicesService['enroll']) {
   await app.register(devicesRoutes, {
     prefix: '/devices',
     env: testEnv,
+    connections: createDeviceConnections(),
     service: {
       authorizeConnection: async () => null,
       issuePairingCode: async () => {

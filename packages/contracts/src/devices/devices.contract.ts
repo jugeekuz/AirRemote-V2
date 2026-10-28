@@ -45,6 +45,8 @@ export const deviceResponseSchema = z.object({
   id: z.uuid(),
   macAddress: z.string(),
   name: z.string(),
+  /** Whether the device has a live connection to the server right now. */
+  online: z.boolean(),
 });
 
 export type DeviceResponse = z.infer<typeof deviceResponseSchema>;

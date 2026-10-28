@@ -103,11 +103,26 @@ describe('deviceListResponseSchema', () => {
     id: '5d1c2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f',
     macAddress: 'AA:BB:CC:DD:EE:01',
     name: 'Hall',
+    online: true,
   };
 
   it('accepts an empty list and a list of items', () => {
     expect(deviceListResponseSchema.parse([])).toEqual([]);
     expect(deviceListResponseSchema.parse([item])).toEqual([item]);
+  });
+
+  it('requires the online flag to be a boolean', () => {
+    const withoutOnline = {
+      id: item.id,
+      macAddress: item.macAddress,
+      name: item.name,
+    };
+    expect(deviceListResponseSchema.safeParse([withoutOnline]).success).toBe(
+      false,
+    );
+    expect(
+      deviceListResponseSchema.safeParse([{ ...item, online: 'yes' }]).success,
+    ).toBe(false);
   });
 
   it('rejects an invalid item', () => {

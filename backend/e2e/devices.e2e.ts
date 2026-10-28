@@ -76,6 +76,7 @@ describe('POST /devices', () => {
       id: expect.stringMatching(/^[0-9a-f-]{36}$/),
       macAddress: mac,
       name: 'Living room',
+      online: false,
     });
 
     const rows = await api.db.select().from(devices);
